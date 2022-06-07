@@ -1,0 +1,10 @@
+node_modules
+.antlr
+.bsb.lock
+.merlin
+lib/bs
+coverage
+
+src/grammar/generated
+*.gen.tsx
+*.bs.js

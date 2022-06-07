@@ -1,0 +1,28 @@
+{
+    "name": "mike-language",
+    "sources": [
+        {
+          "dir": "src",
+          "subdirs": true
+        }
+    ],
+    "ignored-dirs": ["lib"],
+    "gentypeconfig": {
+        "language": "typescript",
+        "generatedFileExtension": ".gen.tsx",
+        "module": "commonjs",
+        "shims": {
+            "Js": "Js",
+            "Js_map": "Js_map"
+        }
+    },
+    "bs-dependencies": ["rescript-js-map", "rescript-js-iterator"],
+    "package-specs": [
+        {
+            "module": "commonjs",
+            "in-source": true
+        }
+    ],
+    "external-stdlib": "@rescript/std",
+    "suffix": ".bs.js"
+  }
