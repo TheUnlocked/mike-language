@@ -82,7 +82,7 @@ let rec fitsInType = (other: knownType, target: knownType) =>
         | (MapLike(None), MapLike(None)) => true
         | (FunctionType(targetParams, targetRet), FunctionType(otherParams, otherRet)) =>
             otherRet->fitsInType(targetRet) &&
-            Belt.Array.zipBy(otherParams, targetParams, fitsInType)
+            Belt.Array.zipBy(targetParams, otherParams, fitsInType)
                 ->every(x => x)
         | _ => false
     }
@@ -160,6 +160,7 @@ let resolveExpressionTypes = (state: typeState, ast: untypedExprNode): typedExpr
             | FloatLiteral(val) => { _type: floatType, node: FloatLiteral(val) }
             | IntLiteral(val) => { _type: intType, node: IntLiteral(val) }
             | BoolLiteral(val) => { _type: booleanType, node: BoolLiteral(val) }
+            | StringLiteral(val) => { _type: stringType, node: StringLiteral(val) }
             | SequenceLiteral(values) => {
                 let typedValues = values->map(resolve);
                 let seqTypeParam = typedValues->getCommonSupertypeExn;
@@ -209,6 +210,7 @@ let rec targetType = (target: exactType, ast: typedExprNode): exactlyTypedExprNo
                     else {
                         raise(TargetTypeMismatch(ast, target))
                     }
+                | Invoke(_) => raise(TargetTypeMismatch(ast, target))
                 | BinaryOp({ op, left, right }) =>
                     BinaryOp({
                         op,
@@ -221,6 +223,7 @@ let rec targetType = (target: exactType, ast: typedExprNode): exactlyTypedExprNo
                 | FloatLiteral(v) => FloatLiteral(v)
                 | IntLiteral(v) => IntLiteral(v)
                 | BoolLiteral(v) => BoolLiteral(v)
+                | StringLiteral(v) => StringLiteral(v)
                 | SequenceLiteral(elts) => switch target {
                     | SimpleTypeExact(_, [tArg]) =>
                         SequenceLiteral(elts->map(targetType(tArg)))
@@ -234,7 +237,6 @@ let rec targetType = (target: exactType, ast: typedExprNode): exactlyTypedExprNo
                         })
                     | _ => raise(CompilerBug_LiteralHasImpossibleType(ast))
                 }
-                | _ => raise(TargetTypeMismatch(ast, target))
             };
             { _type: target, node }
         }

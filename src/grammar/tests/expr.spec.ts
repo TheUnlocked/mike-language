@@ -1,6 +1,6 @@
 import { expect } from 'chai';
 import { parseExpression } from '..';
-import { makeBinaryOpNode_, makeBoolLiteralNode_, makeDereferenceNode_, makeFloatLiteralNode_, makeIntLiteralNode_, makeInvokeNode_, makeMapLiteralNode_, makeSequenceLiteralNode_, makeVariableNode_ } from '../../ast/Ast.gen';
+import { makeBinaryOpNode_, makeBoolLiteralNode_, makeDereferenceNode_, makeFloatLiteralNode_, makeIntLiteralNode_, makeInvokeNode_, makeMapLiteralNode_, makeSequenceLiteralNode_, makeStringLiteralNode, makeStringLiteralNode_, makeVariableNode_ } from '../../ast/Ast.gen';
 
 describe('parse expressions to AST', () => {
 
@@ -173,9 +173,61 @@ describe('parse expressions to AST', () => {
         );
     });
 
-    it('cannot parse strings', () => {
-        expect(() => parseExpression('"abc"')).to.throw();
-        expect(() => parseExpression("'abc'")).to.throw();
+    it('can parse double quoted strings', () => {
+        expect(parseExpression('"abc"')).to.deep.equal(
+            makeStringLiteralNode_('abc')
+        );
+    });
+
+    it('can parse single quoted strings', () => {
+        expect(parseExpression("'abc'")).to.deep.equal(
+            makeStringLiteralNode_('abc')
+        );
+    });
+
+    it('can parse empty strings', () => {
+        expect(parseExpression('""')).to.deep.equal(
+            makeStringLiteralNode_('')
+        );
+        expect(parseExpression("''")).to.deep.equal(
+            makeStringLiteralNode_('')
+        );
+    });
+
+    it('can parse escaped quotes in strings', () => {
+        expect(parseExpression("'it\\'s a test'")).to.deep.equal(
+            makeStringLiteralNode_("it's a test")
+        );
+        expect(parseExpression('"they said \\"hi\\""')).to.deep.equal(
+            makeStringLiteralNode_('they said "hi"')
+        );
+    });
+
+    it('can parse escaped backslashes in strings', () => {
+        expect(parseExpression("'\\\\'")).to.deep.equal(
+            makeStringLiteralNode_("\\")
+        );
+    });
+
+    it('cannot parse "\\"', () => {
+        expect(() => parseExpression('"\\"')).to.throw();
+    });
+
+    it('cannot parse escaped quotes of the wrong kind', () => {
+        expect(() => parseExpression('"it\\\'s a test"')).to.throw();
+        expect(() => parseExpression("'they said \\\"hi\\\"'")).to.throw();
+    });
+
+    it('should normalize newlines in strings', () => {
+        expect(parseExpression('"Hello,\r\nWorld!"')).to.deep.equal(
+            makeStringLiteralNode_('Hello,\nWorld!')
+        );
+        expect(parseExpression('"Hello,\rWorld!"')).to.deep.equal(
+            makeStringLiteralNode_('Hello,\nWorld!')
+        );
+        expect(parseExpression('"Hello,\nWorld!"')).to.deep.equal(
+            makeStringLiteralNode_('Hello,\nWorld!')
+        );
     });
 
     it('can parse [1, 2, 3]', () => {

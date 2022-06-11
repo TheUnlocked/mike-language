@@ -1,6 +1,6 @@
 import { MiKeVisitor } from './generated/MiKeVisitor';
 import { AbstractParseTreeVisitor } from 'antlr4ts/tree/AbstractParseTreeVisitor'
-import { untypedExprNode, makeBinaryOpNode_, makeInvokeNode_, makeIntLiteralNode_, makeFloatLiteralNode_, makeBoolLiteralNode_, makeDereferenceNode_, makeVariableNode_, makeSequenceLiteralNode_, makeMapLiteralNode_ } from '../ast/Ast.gen';
+import { untypedExprNode, makeBinaryOpNode_, makeInvokeNode_, makeIntLiteralNode_, makeFloatLiteralNode_, makeBoolLiteralNode_, makeDereferenceNode_, makeVariableNode_, makeSequenceLiteralNode_, makeMapLiteralNode_, makeStringLiteralNode_ } from '../ast/Ast.gen';
 import { AddsubContext, DerefContext, FalseLiteralContext, FloatLiteralContext, IntLiteralContext, InvokeContext, MapLiteralContext, MiKeParser, MuldivContext, SeqLiteralContext, StringLiteralContext, TrueLiteralContext, VariableRefContext, WrappedExprContext } from './generated/MiKeParser';
 import { CharStreams, CommonTokenStream, ParserRuleContext, RecognitionException } from 'antlr4ts';
 import { MiKeLexer } from './generated/MiKeLexer';
@@ -78,7 +78,14 @@ class ExprAstGenVisitor extends AbstractMiKeVisitor<untypedExprNode> {
     }
 
     override visitStringLiteral(ctx: StringLiteralContext): untypedExprNode {
-        throw new MiKeSyntaxError('', { context: ctx });
+        return makeStringLiteralNode_(
+            ctx.STRING().text
+                .slice(1, -1)
+                .replaceAll('\\"', '"')
+                .replaceAll("\\'", "'")
+                .replaceAll('\\\\', '\\')
+                .replaceAll(/\r\n|\r|\n/g, '\n')
+        );
     }
 
     protected defaultResult(): untypedExprNode {

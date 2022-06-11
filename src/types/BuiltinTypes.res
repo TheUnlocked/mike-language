@@ -2,10 +2,12 @@
 @genType let booleanType = Types.SimpleType("boolean", []);
 @genType let intType     = Types.SimpleType("int", []);
 @genType let floatType   = Types.SimpleType("float", []);
+@genType let stringType   = Types.SimpleType("string", []);
 @genType let unitTypeExact    = Types.SimpleTypeExact("unit", []);
 @genType let booleanTypeExact = Types.SimpleTypeExact("boolean", []);
 @genType let intTypeExact     = Types.SimpleTypeExact("int", []);
 @genType let floatTypeExact   = Types.SimpleTypeExact("float", []);
+@genType let stringTypeExact   = Types.SimpleTypeExact("string", []);
 
 exception CompilerBug_RefNonexistentTypeParam
 
@@ -31,6 +33,7 @@ let builtinTypes: array<Types.typeInfo> = {
         primitive("boolean"),
         primitive("int"),
         primitive("float"),
+        primitive("string"),
         {
             name: "Array",
             typeParameters: ["t"],
@@ -121,6 +124,18 @@ let builtinTypes: array<Types.typeInfo> = {
                     { name: "get", _type: FunctionType([k], v) },
                     { name: "has", _type: FunctionType([k], booleanType) },
                     { name: "length", _type: intType },
+                ]
+            })
+        },
+        {
+            name: "Option",
+            typeParameters: ["t"],
+            attributes: [],
+            members: ctx => toMap({
+                let t = ctx->get("t")->getExn;
+                [
+                    { name: "hasValue", _type: booleanType },
+                    { name: "getOrDefault", _type: FunctionType([t], t) },
                 ]
             })
         },
