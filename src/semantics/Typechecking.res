@@ -1,42 +1,36 @@
 open Ast
 open! Types
 open Js.Array2
+open Exception
 
-module Option = Js.Option
+module Option = Belt.Option
 module Map = Js_map
 
-exception Uninvokable(typedExprNode)
-exception InvalidMathOperand(typedExprNode)
-exception InvalidMember(typedExprNode, string)
-exception DereferenceSeqLiteral(typedExprNode)
-exception DereferenceMapLiteral(typedExprNode)
-exception WrongNumberOfArguments({ expected: int, actual: int, expr: untypedExprNode })
-exception UnboundIdentifier
-exception TypeMismatch(typedExprNode, knownType)
-exception TargetTypeMismatch(typedExprNode, exactType)
+@genType.opaque
+type typecheckingError
+    = Uninvokable
+    | InvalidMathOperand
+    | InvalidMember(string)
+    | DereferenceSeqLiteral
+    | DereferenceMapLiteral
+    | WrongNumberOfArguments({ expected: int, actual: int })
+    | UnboundIdentifier
+    | TypeMismatch(knownType)
+    | TargetTypeMismatch(exactType)
+    | CouldNotInferType
 
-exception CompilerBug_TargetTypeFedNonsense(typedExprNode, exactType)
+exception CompilerBug_TargetTypeFedNonsense(exactType)
 exception CompilerBug_CouldNotStrengthen(knownType)
-exception CompilerBug_LiteralHasImpossibleType(typedExprNode)
 
-exception NotYetImplemented;
-
-@genType
-type typeState = {
-    bindings: Map.t<string, knownType>,
-}
-
-let getMemberType = (objTypeName: string, objTypeArgs: array<knownType>, memberName: string) => {
-    open BuiltinTypes;
-
-    builtinTypesMap->Map.get(objTypeName)->Option.andThen((. typeInfo) => {
+let getMemberType = (types: Map.t<string, typeInfo>, objTypeName: string, objTypeArgs: array<knownType>, memberName: string) => {
+    types->Map.get(objTypeName)->Option.flatMapU((. typeInfo) => {
         // Type parameter length checking should have already happened at this point 
         let typeState = typeInfo.typeParameters->Belt.Array.zip(objTypeArgs)->Map.fromEntries;
 
         let member = typeInfo.members(typeState)->Map.get(memberName);
 
-        member->Option.map((. x: typeMember) => x._type, _)
-    }, _)
+        member->Option.mapU((. x: typeMember) => x._type)
+    })
 }
 
 let sequenceLikeTypeNames =
@@ -96,32 +90,33 @@ let getCommonSupertypeExn = (values: array<typedExprNode>) => values->reduce((ac
             Some(next._type)
         }
         else {
-            raise(TypeMismatch(next, t))
+            raiseMiKe(semanticErrorTyped(next, TypeMismatch(t)))
         }
 }, None)
 
+
 @genType
-let resolveExpressionTypes = (state: typeState, ast: untypedExprNode): typedExprNode => {
+let resolveExpressionTypesWithMetadata = (reporter: Metadata.reporter, types: Map.t<string, typeInfo>, scope: Scope.t, ast: untypedExprNode): typedExprNode => {
     open BuiltinTypes;
     let rec resolve = (ast: untypedExprNode): typedExprNode => {
         let node = ast.node;
-        switch node {
+        let result = switch node {
             | Invoke({ fn, args }) => {
                 let typedFn = resolve(fn);
                 let typedArgs = args->map(resolve);
                 switch typedFn._type {
                     | FunctionType(params, returnType) => {
                         if params->length !== args->length {
-                            raise(WrongNumberOfArguments({ expected: params->length, actual: args->length, expr: ast }))
+                            raiseMiKe(semanticErrorUntyped(ast, WrongNumberOfArguments({ expected: params->length, actual: args->length })))
                         }
                         params->Belt.Array.zip(typedArgs)->forEach(_, ((param, arg: typedExprNode)) =>
                             if !(arg._type->fitsInType(param)) {
-                                raise(TypeMismatch(arg, param))
+                                raiseMiKe(semanticErrorTyped(arg, TypeMismatch(param)))
                             }
                         );
                         { _type: returnType, node: Invoke({ fn: typedFn, args: typedArgs }) }
                     }
-                    | _ => raise(Uninvokable(typedFn)) 
+                    | _ => raiseMiKe(semanticErrorTyped(typedFn, Uninvokable)) 
                 }
             }
             | BinaryOp({ op, left, right }) => {
@@ -131,76 +126,93 @@ let resolveExpressionTypes = (state: typeState, ast: untypedExprNode): typedExpr
                     | SimpleType("int", []) => switch typedRight._type {
                         | SimpleType("int", []) => intType
                         | SimpleType("float", []) => floatType
-                        | _ => raise(InvalidMathOperand(typedRight))
+                        | _ => raiseMiKe(semanticErrorTyped(typedRight, InvalidMathOperand))
                     }
                     | SimpleType("float", []) => switch typedRight._type {
                         | SimpleType("int", []) | SimpleType("float", []) => floatType
-                        | _ => raise(InvalidMathOperand(typedRight))
+                        | _ => raiseMiKe(semanticErrorTyped(typedRight, InvalidMathOperand))
                     }
-                    | _ => raise(InvalidMathOperand(typedLeft))
+                    | _ => raiseMiKe(semanticErrorTyped(typedLeft, InvalidMathOperand))
                 };
                 { _type: resultType, node: BinaryOp({ op, left: typedLeft, right: typedRight }) }
             }
             | Dereference(obj, name) => {
                 let typedObj = resolve(obj);
                 switch typedObj._type {
-                    | SimpleType(typeName, typeArgs) => switch getMemberType(typeName, typeArgs, name) {
+                    | SimpleType(typeName, typeArgs) => switch getMemberType(types, typeName, typeArgs, name) {
                         | Some(t) => { _type: t, node: Dereference(typedObj, name) }
-                        | None => raise(InvalidMember(typedObj, name))
+                        | None => raiseMiKe(semanticErrorTyped(typedObj, InvalidMember(name)))
                     }
-                    | SequenceLike(_) => raise(DereferenceSeqLiteral(typedObj))
-                    | MapLike(_) => raise(DereferenceMapLiteral(typedObj))
-                    | FunctionType(_) => raise(InvalidMember(typedObj, name))
+                    | SequenceLike(_) => raiseMiKe(semanticErrorTyped(typedObj, DereferenceSeqLiteral))
+                    | MapLike(_) => raiseMiKe(semanticErrorTyped(typedObj, DereferenceMapLiteral))
+                    | FunctionType(_) => raiseMiKe(semanticErrorTyped(typedObj, InvalidMember(name)))
                 }
             }
-            | Variable(name) => switch state.bindings->Map.get(name) {
-                | Some(t) => { _type: t, node: Variable(name) }
-                | None => raise(UnboundIdentifier)
+            | Variable(name) => switch scope->Scope.get(name) {
+                | Some(t) => { _type: weaken(t), node: Variable(name) }
+                | None => raiseMiKe(semanticErrorUntyped(ast, UnboundIdentifier))
             }
             | FloatLiteral(val) => { _type: floatType, node: FloatLiteral(val) }
             | IntLiteral(val) => { _type: intType, node: IntLiteral(val) }
             | BoolLiteral(val) => { _type: booleanType, node: BoolLiteral(val) }
             | StringLiteral(val) => { _type: stringType, node: StringLiteral(val) }
-            | SequenceLiteral(values) => {
+            | SequenceLiteral({ typeName, values }) => {
                 let typedValues = values->map(resolve);
                 let seqTypeParam = typedValues->getCommonSupertypeExn;
-                { _type: SequenceLike(seqTypeParam), node: SequenceLiteral(typedValues) }
+                {
+                    _type: switch (typeName, seqTypeParam) {
+                        | (Some(t), Some(arg)) => SimpleType(t, [arg])
+                        | _ => SequenceLike(seqTypeParam)
+                    },
+                    node: SequenceLiteral({ typeName, values: typedValues })
+                }
             }
-            | MapLiteral({ keys, values }) => {
+            | MapLiteral({ typeName, keys, values }) => {
                 let typedKeys = keys->map(resolve);
                 let typedValues = values->map(resolve);
                 let keyTypeParam = typedKeys->getCommonSupertypeExn;
                 let valTypeParam = typedValues->getCommonSupertypeExn;
                 {
-                    _type: MapLike(
-                        keyTypeParam->Option.andThen((. k) =>
-                        valTypeParam->Option.map((. v) =>
-                        (k, v), _), _)
-                    ),
-                    node: MapLiteral({ keys: typedKeys, values: typedValues })
+                    _type: switch (typeName,
+                        keyTypeParam->Option.flatMapU((. k) =>
+                        valTypeParam->Option.mapU((. v) =>
+                        (k, v))))
+                    {
+                        | (Some(t), Some((k, v))) => SimpleType(t, [k, v])
+                        | (_, p) => MapLike(p)
+                    },
+                    node: MapLiteral({ typeName, keys: typedKeys, values: typedValues })
                 }
             }
-        }
+        };
+        reporter->Metadata.reportTypedExpr(result);
+        result
     };
     resolve(ast)
 }
 
+@genType
+let resolveExpressionTypes = (types: Map.t<string, typeInfo>, scope: Scope.t, ast: untypedExprNode): typedExprNode => {
+    resolveExpressionTypesWithMetadata(Metadata.dummyReporter, types, scope, ast);
+}
+
+
+let rec strengthen = t => switch t {
+    | SimpleType(n, args) =>
+        SimpleTypeExact(n, args->map(strengthen))
+    | FunctionType(params, ret) =>
+        FunctionTypeExact(params->map(strengthen), ret->strengthen)
+    | _ => raise(CompilerBug_CouldNotStrengthen(t))
+};
 
 @genType
-let rec targetType = (target: exactType, ast: typedExprNode): exactlyTypedExprNode =>
+let targetTypeWithMetadata = (reporter: Metadata.reporter, target: exactType, ast: typedExprNode): exactlyTypedExprNode => {
+    let rec targetType = (target: exactType, ast: typedExprNode) =>
         if ast._type->fitsInType(weaken(target)) {
-            let rec strengthen = t => switch t {
-                | SimpleType(n, args) =>
-                    SimpleTypeExact(n, args->map(strengthen))
-                | FunctionType(params, ret) =>
-                    FunctionTypeExact(params->map(strengthen), strengthen(ret))
-                | _ => raise(CompilerBug_CouldNotStrengthen(t))
-            };
-
             let node = switch ast.node {
                 | Invoke({ fn: { _type: FunctionType(paramsT, retT), node: fnNode }, args }) =>
                     if retT->fitsInType(weaken(target)) {
-                        let exactParams = paramsT->map(strengthen);
+                        let exactParams = paramsT->map(p => strengthen(p));
                         let fnType = FunctionTypeExact(exactParams, target);
                         Invoke({
                             fn: targetType(fnType, { _type: FunctionType(paramsT, retT), node: fnNode }),
@@ -208,9 +220,9 @@ let rec targetType = (target: exactType, ast: typedExprNode): exactlyTypedExprNo
                         })
                     }
                     else {
-                        raise(TargetTypeMismatch(ast, target))
+                        raiseMiKe(semanticErrorTyped(ast, TargetTypeMismatch(target)))
                     }
-                | Invoke(_) => raise(TargetTypeMismatch(ast, target))
+                | Invoke(_) => raiseMiKe(semanticErrorTyped(ast, TargetTypeMismatch(target)))
                 | BinaryOp({ op, left, right }) =>
                     BinaryOp({
                         op,
@@ -224,22 +236,44 @@ let rec targetType = (target: exactType, ast: typedExprNode): exactlyTypedExprNo
                 | IntLiteral(v) => IntLiteral(v)
                 | BoolLiteral(v) => BoolLiteral(v)
                 | StringLiteral(v) => StringLiteral(v)
-                | SequenceLiteral(elts) => switch target {
-                    | SimpleTypeExact(_, [tArg]) =>
-                        SequenceLiteral(elts->map(targetType(tArg)))
-                    | _ => raise(CompilerBug_LiteralHasImpossibleType(ast))
+                | SequenceLiteral({ typeName, values }) => switch target {
+                    | SimpleTypeExact(targetTypeName, [tArg]) =>
+                        if typeName->Option.mapU((. t) => t === targetTypeName)->Option.getWithDefault(true) {
+                            SequenceLiteral({ typeName, values: values->map(targetType(tArg)) })
+                        }
+                        else {
+                            raiseMiKe(semanticErrorTyped(ast, TargetTypeMismatch(target)))
+                        }
+                    | _ => raiseMiKe(semanticErrorTyped(ast, TargetTypeMismatch(target)))
                 }
-                | MapLiteral({ keys, values }) => switch target {
+                | MapLiteral({ typeName, keys, values }) => switch target {
                     | SimpleTypeExact(_, [tKey, tVal]) =>
                         MapLiteral({
+                            typeName,
                             keys: keys->map(targetType(tKey)),
                             values: values->map(targetType(tVal))
                         })
-                    | _ => raise(CompilerBug_LiteralHasImpossibleType(ast))
+                    | _ => raiseMiKe(semanticErrorTyped(ast, TargetTypeMismatch(target)))
                 }
             };
-            { _type: target, node }
+            let result = { _type: target, node };
+            reporter->Metadata.reportExactlyTypedExpr(result);
+            result
         }
         else {
-            raise(TargetTypeMismatch(ast, target));
-        }
+            raiseMiKe(semanticErrorTyped(ast, TargetTypeMismatch(target)))
+        };
+    targetType(target, ast);
+}
+
+@genType
+let targetType = (target: exactType, ast: typedExprNode): exactlyTypedExprNode =>
+    targetTypeWithMetadata(Metadata.dummyReporter, target, ast)
+
+@genType
+let inferType = (ast: typedExprNode) => {
+    try { strengthen(ast._type) }
+    catch {
+        | CompilerBug_CouldNotStrengthen(_) => raiseMiKe(semanticErrorTyped(ast, CouldNotInferType))
+    }
+}

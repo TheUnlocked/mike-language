@@ -1,5 +1,5 @@
 import { expect } from 'chai';
-import { parseExpression } from '..';
+import { parseExpression } from '../Expressions';
 import { makeBinaryOpNode_, makeBoolLiteralNode_, makeDereferenceNode_, makeFloatLiteralNode_, makeIntLiteralNode_, makeInvokeNode_, makeMapLiteralNode_, makeSequenceLiteralNode_, makeStringLiteralNode, makeStringLiteralNode_, makeVariableNode_ } from '../../ast/Ast.gen';
 
 describe('parse expressions to AST', () => {
@@ -232,7 +232,7 @@ describe('parse expressions to AST', () => {
 
     it('can parse [1, 2, 3]', () => {
         expect(parseExpression('[1, 2, 3]')).to.deep.equal(
-            makeSequenceLiteralNode_([
+            makeSequenceLiteralNode_(null, [
                 makeIntLiteralNode_(1),
                 makeIntLiteralNode_(2),
                 makeIntLiteralNode_(3)
@@ -243,6 +243,7 @@ describe('parse expressions to AST', () => {
     it('can parse {1: a, b: c, d: 2}', () => {
         expect(parseExpression('{1: a, b: c, d: 2}')).to.deep.equal(
             makeMapLiteralNode_(
+                null,
                 [
                     makeIntLiteralNode_(1),
                     makeVariableNode_('b'),

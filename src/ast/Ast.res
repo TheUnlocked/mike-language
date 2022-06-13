@@ -15,8 +15,8 @@ type rec _untypedExprNode<'t> =
     | IntLiteral(int)
     | BoolLiteral(bool)
     | StringLiteral(string)
-    | SequenceLiteral(array<_typedExprNode<'t>>)
-    | MapLiteral({ keys: array<_typedExprNode<'t>>, values: array<_typedExprNode<'t>> })
+    | SequenceLiteral({ typeName: option<string>, values: array<_typedExprNode<'t>> })
+    | MapLiteral({ typeName: option<string>, keys: array<_typedExprNode<'t>>, values: array<_typedExprNode<'t>> })
 @genType.opaque
 and _typedExprNode<'t> = {
     @as("type") _type: 't,
@@ -35,18 +35,18 @@ and _typedExprNode<'t> = {
 @genType let makeIntLiteralNode =       (. v, _type) => { _type, node: IntLiteral(v) }
 @genType let makeBoolLiteralNode =      (. v, _type) => { _type, node: BoolLiteral(v) }
 @genType let makeStringLiteralNode =    (. v, _type) => { _type, node: StringLiteral(v) }
-@genType let makeSequenceLiteralNode =  (. v, _type) => { _type, node: SequenceLiteral(v) }
-@genType let makeMapLiteralNode =       (. keys, values, _type) => { _type, node: MapLiteral({ keys, values }) }
-@genType let makeInvokeNode_ =          (. fn, args ) => { _type: (), node: Invoke({ fn, args }) }
-@genType let makeBinaryOpNode_ =        (. op, left, right ) => { _type: (), node: BinaryOp({ op, left, right }) }
+@genType let makeSequenceLiteralNode =  (. typeName, values, _type) => { _type, node: SequenceLiteral({ typeName, values }) }
+@genType let makeMapLiteralNode =       (. typeName, keys, values, _type) => { _type, node: MapLiteral({ typeName, keys, values }) }
+@genType let makeInvokeNode_ =          (. fn, args) => { _type: (), node: Invoke({ fn, args }) }
+@genType let makeBinaryOpNode_ =        (. op, left, right) => { _type: (), node: BinaryOp({ op, left, right }) }
 @genType let makeDereferenceNode_ =     (. o, n ) => { _type: (), node: Dereference(o, n) }
 @genType let makeVariableNode_ =        (. n) => { _type: (), node: Variable(n) }
 @genType let makeFloatLiteralNode_ =    (. v) => { _type: (), node: FloatLiteral(v) }
 @genType let makeIntLiteralNode_ =      (. v) => { _type: (), node: IntLiteral(v) }
 @genType let makeBoolLiteralNode_ =     (. v) => { _type: (), node: BoolLiteral(v) }
 @genType let makeStringLiteralNode_ =   (. v) => { _type: (), node: StringLiteral(v) }
-@genType let makeSequenceLiteralNode_ = (. v) => { _type: (), node: SequenceLiteral(v) }
-@genType let makeMapLiteralNode_ =      (. keys, values ) => { _type: (), node: MapLiteral({ keys, values }) }
+@genType let makeSequenceLiteralNode_ = (. typeName, values) => { _type: (), node: SequenceLiteral({ typeName, values }) }
+@genType let makeMapLiteralNode_ =      (. typeName, keys, values) => { _type: (), node: MapLiteral({ typeName, keys, values }) }
 
 @genType let typeOf = ({ _type }: _typedExprNode<'t>) => _type;
 
@@ -56,10 +56,9 @@ type rec statementNode =
     | DeclareVar({ name: string, @as("type") _type: exactType, value: option<exactlyTypedExprNode> })
     | AssignVar({ name: string, value: exactlyTypedExprNode })
     | AssignField({ object: exactlyTypedExprNode, name: string, value: exactlyTypedExprNode })
-    | IfStatement({ cases: array<(exactlyTypedExprNode, block)>, @as("else") _else: block })
+    | IfStatement({ cases: array<(exactlyTypedExprNode, option<string>, statementNode)>, @as("else") _else: statementNode })
     | DebugStatement(array<exactlyTypedExprNode>)
-@genType.opaque
-and block = array<statementNode>
+    | Block(array<statementNode>)
 
 @genType let makeExpressionStatementNode =  (. e) => ExpressionStatement(e)
 @genType let makeDeclareVarNode =           (. name, _type, value) => DeclareVar({ name, _type, value })
@@ -70,7 +69,7 @@ and block = array<statementNode>
 @genType let makeBlockNode =                (. statements) => statements
 
 @genType.opaque
-type stateDef = {
+type stateDefNode = {
     name: string,
     @as("type") _type: exactType,
     default: option<exactlyTypedExprNode>,
@@ -79,7 +78,7 @@ type stateDef = {
 @genType let makeStateDefinitionNode = (. name, _type, default) => { name, _type, default }
 
 @genType.opaque
-type paramDef = {
+type paramDefNode = {
     name: string,
     @as("type") _type: exactType,
 }
@@ -87,19 +86,19 @@ type paramDef = {
 @genType let makeParamDefinitionNode = (. name, _type) => { name, _type }
 
 @genType.opaque
-type listenerDef = {
+type listenerDefNode = {
     event: string,
-    params: array<paramDef>,
+    params: array<paramDefNode>,
     statements: array<statementNode>
 }
 
 @genType let makeListenerDefinitionNode = (. event, params, statements) => { event, params, statements }
 
 @genType.opaque
-type program = {
-    params: array<paramDef>,
-    state: array<stateDef>,
-    listeners: array<listenerDef>,
+type programNode = {
+    params: array<paramDefNode>,
+    state: array<stateDefNode>,
+    listeners: array<listenerDefNode>,
 }
 
 @genType let makeProgramNode = (. params, state, listeners) => { params, state, listeners }

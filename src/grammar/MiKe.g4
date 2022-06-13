@@ -1,14 +1,12 @@
 grammar MiKe;
 
-topLevelDecl: (paramDecl | stateDecl | eventDecl)*;
+program: (paramDecl | stateDecl | eventDecl)*;
 
 paramDecl: PARAM varDef SEMI;
 
 stateDecl: PARAM varDef SEMI;
 
 eventDecl: ON NAME paramList block;
-
-typeDef: COLON type;
 
 type: NAME typeArguments?;
 
@@ -28,9 +26,9 @@ statement
     | DEBUG expression (COMMA expression)* SEMI     #debugStatement
     ;
 
-ifStatement: IF expression block (ELSE ifStatement | ELSE block)?;
+ifStatement: IF expression (PIPE NAME PIPE)? block (ELSE ifStatement | ELSE block)?;
 
-varDef: NAME COLON type (EQUALS expression)?;
+varDef: NAME (COLON type)? (EQUALS expression)?;
 
 expression: addsubPrec;
 
@@ -63,8 +61,8 @@ atom
     | STRING                    #stringLiteral
     ;
 
-seqLiteral: LSQUARE (expression COMMA)* (expression COMMA?)? RSQUARE;
-mapLiteral: LBRACE (mapLiteralPair COMMA)* (mapLiteralPair COMMA?)? RBRACE;
+seqLiteral: NAME? LSQUARE (expression COMMA)* (expression COMMA?)? RSQUARE;
+mapLiteral: NAME? LBRACE (mapLiteralPair COMMA)* (mapLiteralPair COMMA?)? RBRACE;
 
 mapLiteralPair: key=expression COLON value=expression;
 
@@ -110,5 +108,6 @@ LBRACE: '{';
 RBRACE: '}';
 LSQUARE: '[';
 RSQUARE: ']';
+PIPE: '|';
 
 WS: [ \r\n] -> skip;

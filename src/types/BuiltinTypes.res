@@ -2,12 +2,12 @@
 @genType let booleanType = Types.SimpleType("boolean", []);
 @genType let intType     = Types.SimpleType("int", []);
 @genType let floatType   = Types.SimpleType("float", []);
-@genType let stringType   = Types.SimpleType("string", []);
+@genType let stringType  = Types.SimpleType("string", []);
 @genType let unitTypeExact    = Types.SimpleTypeExact("unit", []);
 @genType let booleanTypeExact = Types.SimpleTypeExact("boolean", []);
 @genType let intTypeExact     = Types.SimpleTypeExact("int", []);
 @genType let floatTypeExact   = Types.SimpleTypeExact("float", []);
-@genType let stringTypeExact   = Types.SimpleTypeExact("string", []);
+@genType let stringTypeExact  = Types.SimpleTypeExact("string", []);
 
 exception CompilerBug_RefNonexistentTypeParam
 
@@ -28,6 +28,8 @@ let builtinTypes: array<Types.typeInfo> = {
         members: _ => make()
     };
 
+    let optionOf = (t: Types.knownType) => Types.SimpleType("Option", [t]);
+
     [
         primitive("unit"),
         primitive("boolean"),
@@ -41,7 +43,7 @@ let builtinTypes: array<Types.typeInfo> = {
             members: ctx => toMap({
                 let t = ctx->get("t")->getExn;
                 [
-                    { name: "get", _type: FunctionType([intType], t) },
+                    { name: "get", _type: FunctionType([intType], optionOf(t)) },
                     { name: "set", _type: FunctionType([intType, t], unitType) },
                     { name: "length", _type: intType },
                 ]
@@ -55,9 +57,9 @@ let builtinTypes: array<Types.typeInfo> = {
                 let t = ctx->get("t")->getExn;
                 [
                     { name: "enqueue", _type: FunctionType([t], unitType) },
-                    { name: "pop", _type: FunctionType([], t) },
-                    { name: "peek", _type: FunctionType([], t) },
-                    { name: "peekDeep", _type: FunctionType([intType], t) },
+                    { name: "pop", _type: FunctionType([], optionOf(t)) },
+                    { name: "peek", _type: FunctionType([], optionOf(t)) },
+                    { name: "peekDeep", _type: FunctionType([intType], optionOf(t)) },
                     { name: "length", _type: intType },
                 ]
             })
@@ -70,9 +72,9 @@ let builtinTypes: array<Types.typeInfo> = {
                 let t = ctx->get("t")->getExn;
                 [
                     { name: "push", _type: FunctionType([t], unitType) },
-                    { name: "pop", _type: FunctionType([], t) },
-                    { name: "peek", _type: FunctionType([], t) },
-                    { name: "peekDeep", _type: FunctionType([intType], t) },
+                    { name: "pop", _type: FunctionType([], optionOf(t)) },
+                    { name: "peek", _type: FunctionType([], optionOf(t)) },
+                    { name: "peekDeep", _type: FunctionType([intType], optionOf(t)) },
                     { name: "length", _type: intType },
                 ]
             })
@@ -99,13 +101,13 @@ let builtinTypes: array<Types.typeInfo> = {
                 let t = ctx->get("t")->getExn;
                 [
                     { name: "pushFront", _type: FunctionType([t], unitType) },
-                    { name: "popFront", _type: FunctionType([], t) },
-                    { name: "peekFront", _type: FunctionType([], t) },
-                    { name: "peekDeepFront", _type: FunctionType([intType], t) },
+                    { name: "popFront", _type: FunctionType([], optionOf(t)) },
+                    { name: "peekFront", _type: FunctionType([], optionOf(t)) },
+                    { name: "peekDeepFront", _type: FunctionType([intType], optionOf(t)) },
                     { name: "pushBack", _type: FunctionType([t], unitType) },
-                    { name: "popBack", _type: FunctionType([], t) },
-                    { name: "peekBack", _type: FunctionType([], t) },
-                    { name: "peekDeepBack", _type: FunctionType([intType], t) },
+                    { name: "popBack", _type: FunctionType([], optionOf(t)) },
+                    { name: "peekBack", _type: FunctionType([], optionOf(t)) },
+                    { name: "peekDeepBack", _type: FunctionType([intType], optionOf(t)) },
                     { name: "has", _type: FunctionType([t], booleanType) },
                     { name: "length", _type: intType },
                 ]
@@ -121,7 +123,7 @@ let builtinTypes: array<Types.typeInfo> = {
                 [
                     { name: "put", _type: FunctionType([k, v], unitType) },
                     { name: "remove", _type: FunctionType([k], booleanType) },
-                    { name: "get", _type: FunctionType([k], v) },
+                    { name: "get", _type: FunctionType([k], optionOf(v)) },
                     { name: "has", _type: FunctionType([k], booleanType) },
                     { name: "length", _type: intType },
                 ]
@@ -130,7 +132,7 @@ let builtinTypes: array<Types.typeInfo> = {
         {
             name: "Option",
             typeParameters: ["t"],
-            attributes: [],
+            attributes: [CanIfDestruct],
             members: ctx => toMap({
                 let t = ctx->get("t")->getExn;
                 [
@@ -142,6 +144,7 @@ let builtinTypes: array<Types.typeInfo> = {
     ]
 }
 
+@genType
 let builtinTypesMap = {
     let toMap = (x: array<Types.typeInfo>) => x->Js.Array2.map(x => (x.name, x))->Js_map.fromEntries;
     toMap(builtinTypes)

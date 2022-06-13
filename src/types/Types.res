@@ -27,6 +27,7 @@ let rec weaken = (t: exactType): knownType => switch t {
 type typeAttribute =
     | IsSequenceLike
     | IsMapLike
+    | CanIfDestruct
 
 type typeContext = Js_map.t<string, knownType>
 
@@ -35,6 +36,7 @@ type typeMember = {
     @as("type") _type: knownType
 }
 
+@genType.opaque
 type typeInfo = {
     name: string,
     typeParameters: array<string>,
