@@ -53,8 +53,22 @@ describe('typechecking', () => {
         return result;
     }
 
-    function inferType(expr: Expression<KnownType>): Expression<ExactType> {
-        throw new Error();
+    function inferType(expr: Expression<KnownType>): ExactType {
+        const checker = new Typechecker();
+
+        checker.addType(...types);
+
+        let result!: ExactType;
+        try {
+            result = checker.inferTypeOf(expr);
+        }
+        catch (e) {}
+
+        if (checker.diagnosticsManager.getDiagnostics().length > 0) {
+            throw new Error(JSON.stringify(checker.diagnosticsManager.getDiagnostics(), null, 4));
+        }
+
+        return result;
     }
     
     const types = [] as TypeInfo[];
@@ -280,6 +294,10 @@ describe('typechecking', () => {
                 )
             );
         });
+
+        it('should reject "abc".x', () => {
+            expect(() => resolveExpressionTypes(types, root, parseExpression('"abc".x'))).to.throw();
+        });
     
         it('should type /* Array<float> */ arr.get(1) as Option<float>', () => {
             expect(resolveExpressionTypes(
@@ -362,6 +380,17 @@ describe('typechecking', () => {
                 ]),
                 parseExpression('arr.pop')
             )).to.throw();
+        });
+
+        it('should type Array[1].length as int', () => {
+            expect(resolveExpressionTypes(types, root, parseExpression('Array[1].length')))
+                .to.deep.equal(
+                    makeDereferenceNode(
+                        makeSequenceLiteralNode('Array', [makeIntLiteralNode(1, intType)], makeSimpleType('Array', [intType])),
+                        'length',
+                        intType
+                    )
+                );
         });
     });
 
@@ -679,6 +708,15 @@ describe('typechecking', () => {
 
         it('cannot infer the type of Array{}', () => {
             expect(() => inferType(resolveExpressionTypes(types, root, parseExpression('Array{}')))).to.throw();
+        });
+
+        it('cannot infer the type of Array[Array[]]', () => {
+            expect(() => inferType(resolveExpressionTypes(types, root, parseExpression('Array[Array[]]')))).to.throw();
+        });
+
+        it('should infer Array[Queue[1]] is Array<Queue<int>>', () => {
+            expect(inferType(resolveExpressionTypes(types, root, parseExpression('Array[Queue[1]]'))))
+                .to.deep.equal(makeSimpleType('Array', [makeSimpleType('Queue', [intType])]));
         });
     });
 });

@@ -44,6 +44,15 @@ export type AnyType
     | ExactType
     ;
 
+export function isExactType(type: AnyType): type is ExactType {
+    switch (type.kind) {
+        case TypeKind.Simple:            
+        case TypeKind.Function:            
+            return true;
+    }
+    return false;
+}
+
 export function stringifyType(type: AnyType): string {
     switch (type.kind) {
         case TypeKind.Simple:

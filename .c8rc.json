@@ -1,6 +1,7 @@
 {
     "exclude": [
         "**/tests/**/*",
-        "**/grammar/generated/**/*"
+        "**/grammar/generated/**/*",
+        ".*"
     ]
 }

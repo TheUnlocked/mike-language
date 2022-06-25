@@ -7,7 +7,7 @@ import { stdlibTypes } from '../stdlib';
 import { IsMapLikeAttribute, IsSequenceLikeAttribute, TypeAttributeKind } from '../types/Attribute';
 import { booleanType, floatType, intType, primitiveTypes, stringType } from '../types/Primitives';
 import { TypeInfo } from '../types/Type';
-import { AnyType, ExactType, FunctionType, KnownType, SimpleType, stringifyType, TypeKind } from '../types/TypeReference';
+import { AnyType, ExactType, FunctionType, isExactType, KnownType, SimpleType, stringifyType, TypeKind } from '../types/TypeReference';
 import Scope from './Scope';
 
 
@@ -218,6 +218,9 @@ export class Typechecker extends WithDiagnostics('mike', class {}) {
             case ASTNodeKind.SequenceLiteral: {
                 const elements = ast.elements.map(this.resolveKnownTypes);
                 const eltType = this.getCommonSupertype(elements);
+                if (ast.typeName && eltType && isExactType(eltType)) {
+                    return { ...ast, elements, type: { kind: TypeKind.Simple, name: ast.typeName, typeArguments: [eltType] } };
+                }
                 return { ...ast, elements, type: { kind: TypeKind.SequenceLike, element: eltType } };
             }
             case ASTNodeKind.MapLiteral: {
@@ -225,6 +228,9 @@ export class Typechecker extends WithDiagnostics('mike', class {}) {
                 const keyType = this.getCommonSupertype(pairs.map(x => x[0]));
                 const valueType = this.getCommonSupertype(pairs.map(x => x[1]));
                 const typeArguments = (keyType && valueType) ? [keyType, valueType] as const : undefined;
+                if (ast.typeName && typeArguments && typeArguments.every(isExactType)) {
+                    return { ...ast, pairs, type: { kind: TypeKind.Simple, name: ast.typeName, typeArguments } };
+                }
                 return { ...ast, pairs, type: { kind: TypeKind.MapLike, typeArguments } };
             }
         }
@@ -282,6 +288,23 @@ export class Typechecker extends WithDiagnostics('mike', class {}) {
                 this.fatal(DiagnosticCodes.TargetTypeMismatch, target, ast.type);
             }
         }
+    }
+
+    inferTypeOf(ast: Expression<KnownType>): ExactType {
+        switch (ast.type.kind) {
+            case TypeKind.SequenceLike:
+                if (ast.type.element) {
+                    this.fatal(DiagnosticCodes.CannotInferLiteralType);
+                }
+                this.fatal(DiagnosticCodes.CannotInferEmptyLiteralType);
+            case TypeKind.MapLike:
+                if (ast.type.typeArguments) {
+                    this.fatal(DiagnosticCodes.CannotInferLiteralType);
+                }
+                this.fatal(DiagnosticCodes.CannotInferEmptyLiteralType);
+        }
+
+        return ast.type;
     }
 
     private fatal(code: DiagnosticCodes, ...args: (string | number | AnyType)[]): never {

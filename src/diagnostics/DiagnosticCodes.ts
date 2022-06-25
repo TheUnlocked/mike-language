@@ -19,6 +19,8 @@ export enum DiagnosticCodes {
     UnknownIdentifier = 4006,
     NoCommonType = 4007,
     TargetTypeMismatch = 4008,
+    CannotInferLiteralType = 4009,
+    CannotInferEmptyLiteralType = 4010,
 }
 
 export const diagnosticsList: { [name in DiagnosticCodes]: DiagnosticInfo } = {
@@ -35,4 +37,6 @@ export const diagnosticsList: { [name in DiagnosticCodes]: DiagnosticInfo } = {
     [DiagnosticCodes.UnknownIdentifier]: { severity: Severity.Error, description: 'Unknown identifier {0}' },
     [DiagnosticCodes.NoCommonType]: { severity: Severity.Error, description: 'Type {0} did not match previous best common type {1}' },
     [DiagnosticCodes.TargetTypeMismatch]: { severity: Severity.Error, description: 'Wanted type {0}, but found expression of type {1}' },
+    [DiagnosticCodes.CannotInferLiteralType]: { severity: Severity.Error, description: 'Cannot infer type, is there an unannotated or empty sequence/map literal?' },
+    [DiagnosticCodes.CannotInferEmptyLiteralType]: { severity: Severity.Error, description: 'Cannot infer the type of an empty sequence or map literal' },
 };
