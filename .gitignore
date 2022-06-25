@@ -1,8 +1,5 @@
 node_modules
 .antlr
-.bsb.lock
-.merlin
-lib/bs
 coverage
 
 src/grammar/generated

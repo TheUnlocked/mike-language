@@ -1,6 +1,7 @@
 import { expect } from 'chai';
-import { parseExpression } from '../Expressions';
-import { makeBinaryOpNode_, makeBoolLiteralNode_, makeDereferenceNode_, makeFloatLiteralNode_, makeIntLiteralNode_, makeInvokeNode_, makeMapLiteralNode_, makeSequenceLiteralNode_, makeStringLiteralNode, makeStringLiteralNode_, makeVariableNode_ } from '../../ast/Ast.gen';
+import { parseExpression } from './util';
+import { makeBinaryOpNode_, makeBoolLiteralNode_, makeDereferenceNode_, makeFloatLiteralNode_, makeIntLiteralNode_, makeInvokeNode_, makeMapLiteralNode_, makeSequenceLiteralNode_, makeStringLiteralNode, makeStringLiteralNode_, makeVariableNode_ } from '../../ast/tests/util';
+import { InfixOperator } from '../../ast/Ast';
 
 describe('parse expressions to AST', () => {
 
@@ -90,7 +91,7 @@ describe('parse expressions to AST', () => {
     it('can parse `1 + 2`', () => {
         expect(parseExpression('1 + 2')).to.deep.equal(
             makeBinaryOpNode_(
-                'Add',
+                InfixOperator.Add,
                 makeIntLiteralNode_(1),
                 makeIntLiteralNode_(2)
             )
@@ -100,15 +101,15 @@ describe('parse expressions to AST', () => {
     it('can parse `1 - 2 * 6 / 3 - 5`', () => {
         expect(parseExpression('1 - 2 * 6 / 3 - 5')).to.deep.equal(
             makeBinaryOpNode_(
-                'Subtract',
+                InfixOperator.Subtract,
                 makeIntLiteralNode_(1),
                 makeBinaryOpNode_(
-                    'Subtract',
+                    InfixOperator.Subtract,
                     makeBinaryOpNode_(
-                        'Multiply',
+                        InfixOperator.Multiply,
                         makeIntLiteralNode_(2),
                         makeBinaryOpNode_(
-                            'Divide',
+                            InfixOperator.Divide,
                             makeIntLiteralNode_(6),
                             makeIntLiteralNode_(3)
                         )
@@ -122,9 +123,9 @@ describe('parse expressions to AST', () => {
     it('can parse `(1 - 2) * 6`', () => {
         expect(parseExpression('(1 - 2) * 6')).to.deep.equal(
             makeBinaryOpNode_(
-                'Multiply',
+                InfixOperator.Multiply,
                 makeBinaryOpNode_(
-                    'Subtract',
+                    InfixOperator.Subtract,
                     makeIntLiteralNode_(1),
                     makeIntLiteralNode_(2)
                 ),
@@ -166,7 +167,7 @@ describe('parse expressions to AST', () => {
     it('can parse `a + b.foo`', () => {
         expect(parseExpression('a + b.foo')).to.deep.equal(
             makeBinaryOpNode_(
-                'Add',
+                InfixOperator.Add,
                 makeVariableNode_('a'),
                 makeDereferenceNode_(makeVariableNode_('b'), 'foo')
             )
@@ -232,7 +233,7 @@ describe('parse expressions to AST', () => {
 
     it('can parse [1, 2, 3]', () => {
         expect(parseExpression('[1, 2, 3]')).to.deep.equal(
-            makeSequenceLiteralNode_(null, [
+            makeSequenceLiteralNode_(undefined, [
                 makeIntLiteralNode_(1),
                 makeIntLiteralNode_(2),
                 makeIntLiteralNode_(3)
@@ -243,16 +244,11 @@ describe('parse expressions to AST', () => {
     it('can parse {1: a, b: c, d: 2}', () => {
         expect(parseExpression('{1: a, b: c, d: 2}')).to.deep.equal(
             makeMapLiteralNode_(
-                null,
+                undefined,
                 [
-                    makeIntLiteralNode_(1),
-                    makeVariableNode_('b'),
-                    makeVariableNode_('d')
-                ],
-                [
-                    makeVariableNode_('a'),
-                    makeVariableNode_('c'),
-                    makeIntLiteralNode_(2)
+                    [makeIntLiteralNode_(1), makeVariableNode_('a')],
+                    [makeVariableNode_('b'), makeVariableNode_('c')],
+                    [makeVariableNode_('d'), makeIntLiteralNode_(2)]
                 ]
             )
         );

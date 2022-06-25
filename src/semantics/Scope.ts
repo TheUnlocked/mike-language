@@ -1,13 +1,13 @@
-import { exactType } from '../types/Types.gen';
+import { ExactType } from '../types/TypeReference';
 
 export default class Scope {
-    private bindings: Map<string, exactType>;
+    private bindings: Map<string, ExactType>;
     
-    constructor(private parent?: Scope, bindings?: Iterable<[string, exactType]>) {
+    constructor(private parent?: Scope, bindings?: Iterable<[string, ExactType]>) {
         this.bindings = new Map(bindings);
     }
 
-    get(name: string): exactType | undefined {
+    get(name: string): ExactType | undefined {
         return this.bindings.get(name) ?? this.parent?.get(name);
     }
 
@@ -15,7 +15,7 @@ export default class Scope {
         return this.bindings.has(name) || (this.parent?.has(name) ?? false);
     }
 
-    set(name: string, type: exactType) {
+    set(name: string, type: ExactType) {
         return this.bindings.set(name, type);
     }
 }

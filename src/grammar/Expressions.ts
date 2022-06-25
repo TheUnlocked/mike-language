@@ -1,133 +1,174 @@
 import { MiKeVisitor } from './generated/MiKeVisitor';
 import { AbstractParseTreeVisitor } from 'antlr4ts/tree/AbstractParseTreeVisitor'
-import { untypedExprNode, makeBinaryOpNode_, makeInvokeNode_, makeIntLiteralNode_, makeFloatLiteralNode_, makeBoolLiteralNode_, makeDereferenceNode_, makeVariableNode_, makeSequenceLiteralNode_, makeMapLiteralNode_, makeStringLiteralNode_ } from '../ast/Ast.gen';
-import { AddsubContext, DerefContext, ExpressionContext, FalseLiteralContext, FloatLiteralContext, IntLiteralContext, InvokeContext, MapLiteralContext, MiKeParser, MuldivContext, SeqLiteralContext, StringLiteralContext, TrueLiteralContext, VariableRefContext, WrappedExprContext } from './generated/MiKeParser';
-import { CharStreams, CommonTokenStream, ParserRuleContext, RecognitionException } from 'antlr4ts';
+import { AddsubContext, DerefContext, FalseLiteralContext, FloatLiteralContext, IntLiteralContext, InvokeContext, MapLiteralContext, MiKeParser, MuldivContext, SeqLiteralContext, StringLiteralContext, TrueLiteralContext, VariableRefContext, WrappedExprContext } from './generated/MiKeParser';
+import { CharStreams, CommonTokenStream, ParserRuleContext } from 'antlr4ts';
 import { MiKeLexer } from './generated/MiKeLexer';
-import { DummyMetadataManager, IMetadataManager } from '../metadata/MetadataManager';
-import { MiKeSyntaxError } from '../exception/Exception';
+import { AstMetadata, ASTNodeKind, Expression, InfixOperator } from '../ast/Ast';
+import { DiagnosticsReporter } from '../diagnostics/Diagnostics';
+import { DiagnosticCodes } from '../diagnostics/DiagnosticCodes';
 
 abstract class AbstractMiKeVisitor<T> extends AbstractParseTreeVisitor<T> implements MiKeVisitor<T> {};
 interface AbstractMiKeVisitor<T> extends MiKeVisitor<T> {};
 
-class ExprAstGenVisitor extends AbstractMiKeVisitor<untypedExprNode> {
+export class ExprAstGenVisitor extends AbstractMiKeVisitor<Expression<undefined>> {
 
-    constructor(private metadata: IMetadataManager<ParserRuleContext> = new DummyMetadataManager()) {
-        super();
+    override visitAddsub(ctx: AddsubContext): Expression<undefined> {
+        return {
+            kind: ASTNodeKind.BinaryOp,
+            type: undefined,
+            metadata: this.getMetadata(ctx),
+            op: ctx.PLUS() ? InfixOperator.Add : InfixOperator.Subtract,
+            lhs: ctx._left.accept(this),
+            rhs: ctx._right.accept(this),
+        };
     }
 
-    override visitAddsub(ctx: AddsubContext): untypedExprNode {
-        return this.metadata.withContext(ctx, () => makeBinaryOpNode_(
-            ctx.PLUS() ? 'Add' : 'Subtract',
-            ctx._left.accept(this),
-            ctx._right.accept(this)
-        ));
+    override visitMuldiv(ctx: MuldivContext): Expression<undefined> {
+        return {
+            kind: ASTNodeKind.BinaryOp,
+            type: undefined,
+            metadata: this.getMetadata(ctx),
+            op: ctx.STAR() ? InfixOperator.Multiply : InfixOperator.Divide,
+            lhs: ctx._left.accept(this),
+            rhs: ctx._right.accept(this),
+        };
     }
 
-    override visitMuldiv(ctx: MuldivContext): untypedExprNode {
-        return this.metadata.withContext(ctx, () => makeBinaryOpNode_(
-            ctx.STAR() ? 'Multiply' : 'Divide',
-            ctx._left.accept(this),
-            ctx._right.accept(this)
-        ));
-    }
-
-    override visitInvoke(ctx: InvokeContext): untypedExprNode {
+    override visitInvoke(ctx: InvokeContext): Expression<undefined> {
         const args = ctx.argumentList()?.expression();
         if (args) {
-            return this.metadata.withContext(ctx, () => {
-                return makeInvokeNode_(
-                    ctx.derefPrec().accept(this),
-                    args.map(x => x.accept(this))
-                );
-            });
+            return {
+                kind: ASTNodeKind.Invoke,
+                type: undefined,
+            metadata: this.getMetadata(ctx),
+                fn: ctx.derefPrec().accept(this),
+                args: args.map(x => x.accept(this)),
+            }
         }
         return ctx.derefPrec().accept(this);
     }
 
-    override visitIntLiteral(ctx: IntLiteralContext): untypedExprNode {
-        return this.metadata.withContext(ctx, () =>
-            makeIntLiteralNode_(+ctx.INT() * (ctx.MINUS() ? -1 : 1)));
+    override visitIntLiteral(ctx: IntLiteralContext): Expression<undefined> {
+        return {
+            kind: ASTNodeKind.IntLiteral,
+            type: undefined,
+            metadata: this.getMetadata(ctx),
+            value: +ctx.INT() * (ctx.MINUS() ? -1 : 1),
+        };
     }
 
-    override visitFloatLiteral(ctx: FloatLiteralContext): untypedExprNode {
-        return this.metadata.withContext(ctx, () =>
-            makeFloatLiteralNode_(+ctx.FLOAT() * (ctx.MINUS() ? -1 : 1)));
+    override visitFloatLiteral(ctx: FloatLiteralContext): Expression<undefined> {
+        return {
+            kind: ASTNodeKind.FloatLiteral,
+            type: undefined,
+            metadata: this.getMetadata(ctx),
+            value: +ctx.FLOAT() * (ctx.MINUS() ? -1 : 1),
+        };
     }
     
-    override visitTrueLiteral(ctx: TrueLiteralContext): untypedExprNode {
-        return this.metadata.withContext(ctx, () =>
-            makeBoolLiteralNode_(true));
+    override visitTrueLiteral(ctx: TrueLiteralContext): Expression<undefined> {
+        return {
+            kind: ASTNodeKind.BoolLiteral,
+            type: undefined,
+            metadata: this.getMetadata(ctx),
+            value: true,
+        };
     }
 
-    override visitFalseLiteral(ctx: FalseLiteralContext): untypedExprNode {
-        return this.metadata.withContext(ctx, () =>
-            makeBoolLiteralNode_(false));
+    override visitFalseLiteral(ctx: FalseLiteralContext): Expression<undefined> {
+        return {
+            kind: ASTNodeKind.BoolLiteral,
+            type: undefined,
+            metadata: this.getMetadata(ctx),
+            value: false,
+        };
     }
 
-    override visitDeref(ctx: DerefContext): untypedExprNode {
-        return this.metadata.withContext(ctx, () =>
-            makeDereferenceNode_(
-                ctx.derefPrec().accept(this),
-                ctx.NAME().text
-            ));
+    override visitDeref(ctx: DerefContext): Expression<undefined> {
+        return {
+            kind: ASTNodeKind.Dereference,
+            type: undefined,
+            metadata: this.getMetadata(ctx),
+            obj: ctx.derefPrec().accept(this),
+            memberName: ctx.NAME().text,
+        };
     }
 
-    override visitVariableRef(ctx: VariableRefContext): untypedExprNode {
-        return this.metadata.withContext(ctx, () =>
-            makeVariableNode_(ctx.text));
+    override visitVariableRef(ctx: VariableRefContext): Expression<undefined> {
+        return {
+            kind: ASTNodeKind.Variable,
+            type: undefined,
+            metadata: this.getMetadata(ctx),
+            name: ctx.text,
+        };
     }
 
-    override visitSeqLiteral(ctx: SeqLiteralContext): untypedExprNode {
-        return this.metadata.withContext(ctx, () =>
-            makeSequenceLiteralNode_(
-                ctx.NAME()?.text,
-                ctx.expression().map(x => x.accept(this))
-            ));
+    override visitSeqLiteral(ctx: SeqLiteralContext): Expression<undefined> {
+        return {
+            kind: ASTNodeKind.SequenceLiteral,
+            type: undefined,
+            metadata: this.getMetadata(ctx),
+            typeName: ctx.NAME()?.text,
+            elements: ctx.expression().map(x => x.accept(this)),
+        };
     }
 
-    override visitMapLiteral(ctx: MapLiteralContext): untypedExprNode {
-        return this.metadata.withContext(ctx, () => {
-            const pairs = ctx.mapLiteralPair();
-    
-            return makeMapLiteralNode_(
-                ctx.NAME()?.text,
-                pairs.map(x => x._key.accept(this)),
-                pairs.map(x => x._value.accept(this))
-            );
-        });
+    override visitMapLiteral(ctx: MapLiteralContext): Expression<undefined> {
+        const pairs = ctx.mapLiteralPair();
+
+        return {
+            kind: ASTNodeKind.MapLiteral,
+            type: undefined,
+            metadata: this.getMetadata(ctx),
+            typeName: ctx.NAME()?.text,
+            pairs: pairs.map(x => [x._key.accept(this), x._value.accept(this)] as const)
+        };
     }
 
-    override visitStringLiteral(ctx: StringLiteralContext): untypedExprNode {
-        return this.metadata.withContext(ctx, () =>
-            makeStringLiteralNode_(
-                ctx.STRING().text
-                    .slice(1, -1)
-                    .replaceAll('\\"', '"')
-                    .replaceAll("\\'", "'")
-                    .replaceAll('\\\\', '\\')
-                    .replaceAll(/\r\n|\r|\n/g, '\n')
-            ));
+    override visitStringLiteral(ctx: StringLiteralContext): Expression<undefined> {
+        return {
+            kind: ASTNodeKind.StringLiteral,
+            type: undefined,
+            metadata: this.getMetadata(ctx),
+            value: ctx.STRING().text
+                .slice(1, -1)
+                .replaceAll('\\"', '"')
+                .replaceAll("\\'", "'")
+                .replaceAll('\\\\', '\\')
+                .replaceAll(/\r\n|\r|\n/g, '\n'),
+        };
     }
 
-    protected defaultResult(): untypedExprNode {
+    protected defaultResult(): Expression<undefined> {
         return null!;
     }
 
-    protected aggregateResult(aggregate: untypedExprNode, nextResult: untypedExprNode): untypedExprNode {
+    protected aggregateResult(aggregate: Expression<undefined>, nextResult: Expression<undefined>): Expression<undefined> {
         return aggregate ?? nextResult;
     }
 
+    private getMetadata(ctx: ParserRuleContext): AstMetadata {
+        return {
+            location: {
+                start: { line: ctx.start.line, col: ctx.start.charPositionInLine },
+                end: { line: ctx.stop!.line, col: ctx.stop!.charPositionInLine },
+            }
+        };
+    }
 }
 
-function getParser(str: string) {
+export function getParser(str: string, diagnostics: DiagnosticsReporter) {
     const charStream = CharStreams.fromString(str);
     const lexer = new MiKeLexer(charStream);
 
     lexer.removeErrorListeners();
     lexer.addErrorListener({
         syntaxError(recognizer, offendingSymbol, line, charPositionInLine, msg, e) {
-            throw new MiKeSyntaxError(e?.message ?? '', { cause: e });
+            diagnostics.focus({
+                start: { line, col: charPositionInLine },
+                end: { line: line + 1, col: charPositionInLine + 1 }
+            });
+            diagnostics.report(DiagnosticCodes.GenericLexError, msg);
         },
     });
 
@@ -137,26 +178,13 @@ function getParser(str: string) {
     parser.removeErrorListeners();
     parser.addErrorListener({
         syntaxError(recognizer, offendingSymbol, line, charPositionInLine, msg, e) {
-            throw new MiKeSyntaxError(e?.message ?? '', { cause: e });
+            diagnostics.focus({
+                start: { line, col: charPositionInLine },
+                end: { line: line + 1, col: charPositionInLine + 1 }
+            });
+            diagnostics.report(DiagnosticCodes.GenericParseError, msg);
         },
     });
 
     return parser;
-}
-
-export function parseExpression(expr: string | ExpressionContext, options?: { metadata?: IMetadataManager<ParserRuleContext> }): untypedExprNode {
-    if (typeof expr === 'string') {
-        const parser = getParser(expr);
-        const tree = parser.expression();
-        const ast = tree.accept(new ExprAstGenVisitor(options?.metadata));
-
-        if (parser.currentToken.type !== MiKeParser.EOF) {
-            throw new MiKeSyntaxError('Unexpected trailing input'); 
-        }
-
-        return ast;
-    }
-    else {
-        return expr.accept(new ExprAstGenVisitor(options?.metadata));
-    }
 }

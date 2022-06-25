@@ -2,28 +2,27 @@
   "scripts": {
     "clean": "rimraf src/grammar/generated",
     "antlr4ts": "npm run clean && antlr4ts -visitor src/grammar/MiKe.g4 -o src/grammar/generated",
-    "re:build": "rescript",
-    "re:watch": "rescript build -w",
     "test": "mocha",
     "test:watch": "mocha --watch",
     "coverage": "c8 --reporter=lcov mocha",
     "coverage:watch": "nodemon --exec c8 --reporter=lcov mocha"
   },
   "dependencies": {
-    "@rescript/std": "^9.1.4",
     "antlr4ts": "^0.5.0-alpha.4",
-    "rescript-js-map": "^1.1.0"
+    "autobind-decorator": "^2.4.0",
+    "lodash": "^4.17.21",
+    "omit-deep-lodash": "^1.1.7"
   },
   "devDependencies": {
     "@types/chai": "^4.3.1",
+    "@types/lodash": "^4.14.182",
     "@types/mocha": "^9.1.1",
+    "@types/omit-deep-lodash": "^1.1.1",
     "antlr4ts-cli": "^0.5.0-alpha.4",
     "c8": "^7.11.3",
     "chai": "^4.3.6",
-    "gentype": "^4.4.0",
     "mocha": "^10.0.0",
     "nodemon": "^2.0.16",
-    "rescript": "^9.1.4",
     "rimraf": "^3.0.2",
     "ts-node": "^10.8.0",
     "typescript": "^4.7.2"
