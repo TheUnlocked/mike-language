@@ -24,13 +24,13 @@ argumentList: LPAREN (expression (COMMA expression)*)? RPAREN;
 block: LBRACE statement* RBRACE;
 
 statement
-    : expression SEMI                               #expressionStatement
-    | LET varDef SEMI                               #letStatement
-    | NAME EQUALS expression SEMI                   #varAssignmentStatement
-    | expression EQUALS expression SEMI             #fieldAssignmentStatement
-    | ifStatement                                   #ifStatement_
-    | DEBUG expression (COMMA expression)* SEMI     #debugStatement
-    | block                                         #blockStatement_
+    : expression SEMI                            #expressionStatement
+    | LET varDef SEMI                            #letStatement
+    | NAME EQUALS expression SEMI                #varAssignmentStatement
+    | expression EQUALS expression SEMI          #fieldAssignmentStatement
+    | ifStatement                                #ifStatement_
+    | DEBUG expression (COMMA expression)* SEMI  #debugStatement
+    | block                                      #blockStatement_
     ;
 
 ifStatement: IF ifCase (ELSE IF ifCase)* (ELSE block)?;

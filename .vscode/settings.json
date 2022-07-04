@@ -1,3 +1,4 @@
 {
-    "mochaExplorer.configFile": "./.mocharc.js"
+    "mochaExplorer.configFile": "./.mocharc.js",
+    "editor.rulers": [120],
 }
