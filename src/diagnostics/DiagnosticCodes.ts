@@ -3,32 +3,32 @@ import { DiagnosticInfo, Severity } from './Diagnostics';
 export enum DiagnosticCodes {
     // 2000: Parsing
     GenericLexError = 2000,
-    GenericParseError = 2001,
-    UnexpectedTrailingInput = 2002,
-    AssignToExpression = 2003,
-    LetIsEmpty = 2003,
-    MixedAndOr = 2004,
+    GenericParseError,
+    UnexpectedTrailingInput,
+    AssignToExpression,
+    LetIsEmpty,
+    MixedAndOr,
 
     // 3000: Definitions
     TypeDefinedMultipleTimes = 3000,
 
     // 4000: Types
     Uninvokable = 4000,
-    WrongNumberOfArguments = 4001,
-    ArgumentParameterTypeMismatch = 4002,
-    BadArithmeticOpArgumentType = 4003,
-    BadInequalityOpArgumentType = 4004,
-    BadLogicalOpArgumentType = 4005,
-    DereferenceLiteral = 4006,
-    InvalidMember = 4007,
-    UnknownIdentifier = 4008,
-    NoCommonType = 4009,
-    TargetTypeMismatch = 4010,
-    CannotInferLiteralType = 4011,
-    CannotInferEmptyLiteralType = 4012,
-    EqualityArgumentTypeMismatch = 4013,
-    EqualityArgumentIsLiteral = 4014,
-    CannotInferIntermediateLiteralType = 4015,
+    WrongNumberOfArguments,
+    ArgumentParameterTypeMismatch,
+    BadArithmeticOpArgumentType,
+    BadInequalityOpArgumentType,
+    BadLogicalOpArgumentType,
+    DereferenceLiteral,
+    InvalidMember,
+    UnknownIdentifier,
+    NoCommonType,
+    TargetTypeMismatch,
+    CannotInferLiteralType,
+    CannotInferEmptyLiteralType,
+    EqualityArgumentTypeMismatch,
+    EqualityArgumentIsLiteral,
+    CannotInferIntermediateLiteralType,
 }
 
 export const defaultDiagnosticDetails: { [name in DiagnosticCodes]: DiagnosticInfo } = {
