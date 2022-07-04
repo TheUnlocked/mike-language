@@ -158,82 +158,103 @@ export class Typechecker extends WithDiagnostics('mike', class {}) {
         }
     }
 
-    private resolveBinaryOpType(ast: BinaryOp<undefined>): Expression<KnownType> {
+    private resolveArithmeticBinaryOpType(ast: BinaryOp<undefined>): Expression<KnownType> {
         const lhs = this.resolveKnownTypes(ast.lhs);
         const rhs = this.resolveKnownTypes(ast.rhs);
 
+        if (isEqual(lhs.type, intType)) {
+            if (isEqual(rhs.type, intType)) {
+                return { ...ast, type: intType, lhs, rhs };
+            }
+            else if (isEqual(rhs.type, floatType)) {
+                return { ...ast, type: floatType, lhs, rhs };
+            }
+            this.diagnostics.focus(rhs);
+            this.fatal(DiagnosticCodes.BadArithmeticOpArgumentType, rhs.type);
+        }
+        else if (isEqual(lhs.type, floatType)) {
+            if (isEqual(rhs.type, intType) || isEqual(rhs.type, floatType)) {
+                return { ...ast, type: floatType, lhs, rhs };
+            }
+            this.diagnostics.focus(rhs);
+            this.fatal(DiagnosticCodes.BadArithmeticOpArgumentType, rhs.type);
+        }
+        this.diagnostics.focus(lhs);
+        this.fatal(DiagnosticCodes.BadArithmeticOpArgumentType, lhs.type);
+    }
+
+    private resolveRelationalBinaryOpType(ast: BinaryOp<undefined>): Expression<KnownType> {
+        const lhs = this.resolveKnownTypes(ast.lhs);
+        const rhs = this.resolveKnownTypes(ast.rhs);
+
+        if (!isEqual(lhs.type, intType) && !isEqual(lhs.type, floatType)) {
+            this.diagnostics.focus(lhs);
+            this.nonfatal(DiagnosticCodes.BadInequalityOpArgumentType, lhs.type);
+        }
+        if (!isEqual(rhs.type, intType) && !isEqual(rhs.type, floatType)) {
+            this.diagnostics.focus(rhs);
+            this.nonfatal(DiagnosticCodes.BadInequalityOpArgumentType, rhs.type);
+        }
+        return { ...ast, type: booleanType, lhs, rhs };
+    }
+
+    private resolveEqualityBinaryOpType(ast: BinaryOp<undefined>): Expression<KnownType> {
+        const lhs = this.resolveKnownTypes(ast.lhs);
+        const rhs = this.resolveKnownTypes(ast.rhs);
+
+        if (!isEqual(lhs.type, rhs.type)) {
+            this.nonfatal(DiagnosticCodes.EqualityArgumentTypeMismatch, lhs.type, rhs.type);
+        }
+        if ([ASTNodeKind.SequenceLiteral, ASTNodeKind.MapLiteral].includes(lhs.kind)) {
+            this.diagnostics.focus(lhs);
+            this.nonfatal(DiagnosticCodes.EqualityArgumentIsLiteral);
+        }
+        if ([ASTNodeKind.SequenceLiteral, ASTNodeKind.MapLiteral].includes(rhs.kind)) {
+            this.diagnostics.focus(rhs);
+            this.nonfatal(DiagnosticCodes.EqualityArgumentIsLiteral);
+        }
+        if ([TypeKind.SequenceLike, TypeKind.MapLike].includes(lhs.type.kind)) {
+            this.diagnostics.focus(lhs);
+            this.nonfatal(DiagnosticCodes.CannotInferIntermediateLiteralType);
+        }
+        if ([TypeKind.SequenceLike, TypeKind.MapLike].includes(rhs.type.kind)) {
+            this.diagnostics.focus(rhs);
+            this.nonfatal(DiagnosticCodes.CannotInferIntermediateLiteralType);
+        }
+        return { ...ast, type: booleanType, lhs, rhs };
+    }
+
+    private resolveLogicalBinaryOpType(ast: BinaryOp<undefined>): Expression<KnownType> {
+        const lhs = this.resolveKnownTypes(ast.lhs);
+        const rhs = this.resolveKnownTypes(ast.rhs);
+
+        if (!isEqual(lhs.type, booleanType)) {
+            this.nonfatal(DiagnosticCodes.BadLogicalOpArgumentType, lhs.type);
+        }
+        if (!isEqual(rhs.type, booleanType)) {
+            this.nonfatal(DiagnosticCodes.BadLogicalOpArgumentType, rhs.type);
+        }
+        return { ...ast, type: booleanType, lhs, rhs };
+    }
+
+    private resolveBinaryOpType(ast: BinaryOp<undefined>): Expression<KnownType> {
         switch (ast.op) {
             case InfixOperator.Add:
             case InfixOperator.Subtract:
             case InfixOperator.Multiply:
-            case InfixOperator.Divide: {
-                if (isEqual(lhs.type, intType)) {
-                    if (isEqual(rhs.type, intType)) {
-                        return { ...ast, type: intType, lhs, rhs };
-                    }
-                    else if (isEqual(rhs.type, floatType)) {
-                        return { ...ast, type: floatType, lhs, rhs };
-                    }
-                    this.diagnostics.focus(rhs);
-                    this.fatal(DiagnosticCodes.BadArithmeticOpArgumentType, rhs.type);
-                }
-                else if (isEqual(lhs.type, floatType)) {
-                    if (isEqual(rhs.type, intType) || isEqual(rhs.type, floatType)) {
-                        return { ...ast, type: floatType, lhs, rhs };
-                    }
-                    this.diagnostics.focus(rhs);
-                    this.fatal(DiagnosticCodes.BadArithmeticOpArgumentType, rhs.type);
-                }
-                this.diagnostics.focus(lhs);
-                this.fatal(DiagnosticCodes.BadArithmeticOpArgumentType, lhs.type);
-            }
+            case InfixOperator.Divide:
+                return this.resolveArithmeticBinaryOpType(ast);
             case InfixOperator.GreaterThan:
             case InfixOperator.LessThan:
             case InfixOperator.GreaterThanEqual:
-            case InfixOperator.LessThanEqual: {
-                if (!isEqual(lhs.type, intType) && !isEqual(lhs.type, floatType)) {
-                    this.diagnostics.focus(lhs);
-                    this.nonfatal(DiagnosticCodes.BadInequalityOpArgumentType, lhs.type);
-                }
-                if (!isEqual(rhs.type, intType) && !isEqual(rhs.type, floatType)) {
-                    this.diagnostics.focus(rhs);
-                    this.nonfatal(DiagnosticCodes.BadInequalityOpArgumentType, rhs.type);
-                }
-                return { ...ast, type: booleanType, lhs, rhs };
-            }
+            case InfixOperator.LessThanEqual:
+                return this.resolveRelationalBinaryOpType(ast);
             case InfixOperator.Equals:
-            case InfixOperator.NotEquals: {
-                if (!isEqual(lhs.type, rhs.type)) {
-                    this.nonfatal(DiagnosticCodes.EqualityArgumentTypeMismatch, lhs.type, rhs.type);
-                }
-                if ([ASTNodeKind.SequenceLiteral, ASTNodeKind.MapLiteral].includes(lhs.kind)) {
-                    this.diagnostics.focus(lhs);
-                    this.nonfatal(DiagnosticCodes.EqualityArgumentIsLiteral);
-                }
-                if ([ASTNodeKind.SequenceLiteral, ASTNodeKind.MapLiteral].includes(rhs.kind)) {
-                    this.diagnostics.focus(rhs);
-                    this.nonfatal(DiagnosticCodes.EqualityArgumentIsLiteral);
-                }
-                if ([TypeKind.SequenceLike, TypeKind.MapLike].includes(lhs.type.kind)) {
-                    this.diagnostics.focus(lhs);
-                    this.nonfatal(DiagnosticCodes.CannotInferIntermediateLiteralType);
-                }
-                if ([TypeKind.SequenceLike, TypeKind.MapLike].includes(rhs.type.kind)) {
-                    this.diagnostics.focus(rhs);
-                    this.nonfatal(DiagnosticCodes.CannotInferIntermediateLiteralType);
-                }
-                return { ...ast, type: booleanType, lhs, rhs };
-            }
+            case InfixOperator.NotEquals:
+                return this.resolveEqualityBinaryOpType(ast);
             case InfixOperator.And:
-            case InfixOperator.Or: {
-                if (!isEqual(lhs.type, booleanType)) {
-                    this.nonfatal(DiagnosticCodes.BadLogicalOpArgumentType, lhs.type);
-                }
-                if (!isEqual(rhs.type, booleanType)) {
-                    this.nonfatal(DiagnosticCodes.BadLogicalOpArgumentType, rhs.type);
-                }
-                return { ...ast, type: booleanType, lhs, rhs };
-            }
+            case InfixOperator.Or:
+                return this.resolveLogicalBinaryOpType(ast);
         }
     }
 

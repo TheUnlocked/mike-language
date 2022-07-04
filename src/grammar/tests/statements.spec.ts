@@ -1,6 +1,5 @@
 import { expect } from 'chai';
 import { makeAssignFieldNode, makeAssignVarNode, makeBlockNode, makeBoolLiteralNode_, makeDebugStatementNode, makeDeclareVarNode, makeDereferenceNode_, makeExpressionStatementNode, makeIfElseChainNode, makeIntLiteralNode_, makeInvokeNode_, makeVariableNode_ } from '../../ast/tests/util';
-import { makeDiagnostics } from '../../diagnostics/tests/util';
 import { intType } from '../../types/Primitives';
 import { parseStatement } from './util';
 

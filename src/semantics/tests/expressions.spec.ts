@@ -227,7 +227,11 @@ describe('typechecking', () => {
                 makeBinaryOpNode(
                     InfixOperator.Equals,
                     makeSequenceLiteralNode('Queue', [makeIntLiteralNode(1, intType)], makeSimpleType('Queue', [intType])),
-                    makeSequenceLiteralNode('Queue', [makeIntLiteralNode(1, intType), makeIntLiteralNode(2, intType)], makeSimpleType('Queue', [intType])),
+                    makeSequenceLiteralNode(
+                        'Queue',
+                        [makeIntLiteralNode(1, intType), makeIntLiteralNode(2, intType)],
+                        makeSimpleType('Queue', [intType])
+                    ),
                     booleanType
                 )
             );
@@ -244,7 +248,11 @@ describe('typechecking', () => {
                 makeBinaryOpNode(
                     InfixOperator.Equals,
                     makeSequenceLiteralNode('Queue', [makeIntLiteralNode(1, intType)], makeSimpleType('Queue', [intType])),
-                    makeSequenceLiteralNode('Array', [makeIntLiteralNode(1, intType), makeIntLiteralNode(2, intType)], makeSimpleType('Array', [intType])),
+                    makeSequenceLiteralNode(
+                        'Array',
+                        [makeIntLiteralNode(1, intType), makeIntLiteralNode(2, intType)],
+                        makeSimpleType('Array', [intType])
+                    ),
                     booleanType
                 )
             );
@@ -372,7 +380,11 @@ describe('typechecking', () => {
                     [
                         [
                             makeIntLiteralNode(1, intType),
-                            makeMapLiteralNode(undefined, [[makeFloatLiteralNode(6, floatType), makeBoolLiteralNode(true, booleanType)]], makeMapLike([floatType, booleanType])),
+                            makeMapLiteralNode(
+                                undefined,
+                                [[makeFloatLiteralNode(6, floatType), makeBoolLiteralNode(true, booleanType)]],
+                                makeMapLike([floatType, booleanType])
+                            ),
                         ],
                         [
                             makeIntLiteralNode(2, intType),
@@ -437,8 +449,14 @@ describe('typechecking', () => {
                 makeMapLiteralNode(
                     undefined,
                     [
-                        [makeIntLiteralNode(1, intType), makeSequenceLiteralNode(undefined, [], makeSequenceLike(undefined))],
-                        [makeIntLiteralNode(2, intType), makeSequenceLiteralNode(undefined, [makeIntLiteralNode(1, intType)], makeSequenceLike(intType))]
+                        [
+                            makeIntLiteralNode(1, intType),
+                            makeSequenceLiteralNode(undefined, [], makeSequenceLike(undefined))
+                        ],
+                        [
+                            makeIntLiteralNode(2, intType),
+                            makeSequenceLiteralNode(undefined, [makeIntLiteralNode(1, intType)], makeSequenceLike(intType))
+                        ]
                     ],
                     makeMapLike([intType, makeSequenceLike(intType)])
                 )
