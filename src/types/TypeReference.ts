@@ -5,24 +5,28 @@ export enum TypeKind {
     MapLike,
 }
 
-export interface SimpleType {
+interface TypeReference {
+    
+}
+
+export interface SimpleType extends TypeReference {
     readonly kind: TypeKind.Simple;
     readonly name: string;
     readonly typeArguments: readonly ExactType[];
 }
 
-export interface FunctionType {
+export interface FunctionType extends TypeReference {
     readonly kind: TypeKind.Function;
     readonly parameters: readonly ExactType[];
     readonly returnType: ExactType;
 }
 
-export interface SequenceLike {
+export interface SequenceLike extends TypeReference {
     readonly kind: TypeKind.SequenceLike;
     readonly element: KnownType | undefined;
 }
 
-export interface MapLike {
+export interface MapLike extends TypeReference {
     readonly kind: TypeKind.MapLike;
     readonly typeArguments: readonly [key: KnownType, value: KnownType] | undefined;
 }

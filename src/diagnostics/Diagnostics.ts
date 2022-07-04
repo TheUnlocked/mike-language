@@ -1,5 +1,4 @@
 import { AnyNode, Location } from '../ast/Ast';
-import { diagnosticsList } from './DiagnosticCodes';
 
 export enum Severity {
     Info,
@@ -10,6 +9,7 @@ export enum Severity {
 export interface DiagnosticInfo {
     description: string;
     severity: Severity;
+    specializedMessages?: { when: (...args: string[]) => boolean, message: string }[]
 }
 
 class Diagnostic {
@@ -54,7 +54,17 @@ export class Diagnostics {
         if (this.diagnosticTypes.has(qualifiedId)) {
             throw new Error(`Diagnostic ${qualifiedId} has already been registered`);
         }
-        this.diagnosticTypes.set(qualifiedId, { severity, description });
+        this.diagnosticTypes.set(qualifiedId, { severity, description, specializedMessages: [] });
+    }
+
+    registerDiagnosticMessage(namespace: string, id: number, when: (...args: string[]) => boolean, message: string) {
+        const qualifiedId = this.getQualifiedId(namespace, id);
+        const diagnostic = this.diagnosticTypes.get(qualifiedId)
+        if (!diagnostic) {
+            throw new Error(`Cannot register a message for diagnostic ${qualifiedId} because it does not exist`);
+        }
+        diagnostic.specializedMessages ??= [];
+        diagnostic.specializedMessages.push({ when, message });
     }
 
     private report(namespace: string, id: number, args: string[]) {
@@ -62,11 +72,15 @@ export class Diagnostics {
         const diagnostic = this.diagnosticTypes.get(qualifiedId);
 
         if (!diagnostic) {
-            this.diagnostics.push(new Diagnostic(qualifiedId, Severity.Error, this.currentLocation, 'Unknown Diagnostic', args));
+            this.diagnostics.push(
+                new Diagnostic(qualifiedId, Severity.Error, this.currentLocation, 'Unknown Diagnostic', args)
+            );
             return;
         }
 
-        this.diagnostics.push(new Diagnostic(qualifiedId, diagnostic.severity, this.currentLocation, diagnostic.description, args))
+        this.diagnostics.push(
+            new Diagnostic(qualifiedId, diagnostic.severity, this.currentLocation, diagnostic.description, args)
+        );
     }
 
     getReporter(namespace: string): DiagnosticsReporter {

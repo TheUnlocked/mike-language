@@ -1,17 +1,34 @@
-import { ExactType, KnownType } from '../types/TypeReference';
+import { ExactType } from '../types/TypeReference';
 
 
 export enum InfixOperator {
+    // Arithmetic
     Add,
     Subtract,
     Multiply,
     Divide,
+    // Comparison
+    Equals,
+    NotEquals,
+    LessThan,
+    LessThanEqual,
+    GreaterThan,
+    GreaterThanEqual,
+    // Logical
+    And,
+    Or,
+}
+
+export enum PrefixOperator {
+    Minus,
+    Not,
 }
 
 export enum ASTNodeKind {
     // Expressions
     Invoke,
     BinaryOp,
+    UnaryOp,
     Dereference,
     Variable,
     FloatLiteral,
@@ -66,6 +83,12 @@ export interface BinaryOp<T> extends ExpressionNode<T> {
     readonly rhs: Expression<T>;
 }
 
+export interface UnaryOp<T> extends ExpressionNode<T> {
+    readonly kind: ASTNodeKind.UnaryOp;
+    readonly op: PrefixOperator;
+    readonly expr: Expression<T>;
+}
+
 export interface Dereference<T> extends ExpressionNode<T> {
     readonly kind: ASTNodeKind.Dereference;
     readonly obj: Expression<T>;
@@ -112,6 +135,7 @@ export interface MapLiteral<T> extends ExpressionNode<T> {
 export type Expression<T>
     = Invoke<T>
     | BinaryOp<T>
+    | UnaryOp<T>
     | Dereference<T>
     | Variable<T>
     | FloatLiteral<T>
@@ -130,7 +154,7 @@ export interface ExpressionStatement<T> extends ASTNode {
 export interface DeclareVar<T> extends ASTNode {
     readonly kind: ASTNodeKind.DeclareVar;
     readonly name: string;
-    readonly type: ExactType;
+    readonly type?: ExactType;
     readonly value?: Expression<T>;
 }
 
@@ -149,7 +173,11 @@ export interface AssignField<T> extends ASTNode {
 
 export interface IfElseChain<T> extends ASTNode {
     readonly kind: ASTNodeKind.IfElseChain;
-    readonly conditions: readonly [Expression<T>, Block<T>][];
+    readonly cases: {
+        readonly condition: Expression<T>,
+        readonly deconstructName?: string, 
+        readonly body: Block<T>
+    }[];
     readonly else?: Block<T>;
 }
 
@@ -189,7 +217,10 @@ export interface StateDefinition<T> extends ASTNode {
 export interface ListenerDefinition<T> extends ASTNode {
     readonly kind: ASTNodeKind.ListenerDefinition;
     readonly event: string;
-    readonly parameters: readonly [string, Expression<T>][];
+    readonly parameters: readonly {
+        readonly name: string;
+        readonly type?: ExactType;
+    }[];
     readonly statements: readonly Statement<T>[];
 }
 

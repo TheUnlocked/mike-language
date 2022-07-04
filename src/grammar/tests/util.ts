@@ -1,32 +1,51 @@
-import { cloneDeepWith } from 'lodash';
 import omitDeep from 'omit-deep-lodash';
-import { Expression } from '../../ast/Ast';
-import { Diagnostics } from '../../diagnostics/Diagnostics';
-import { ExprAstGenVisitor, getParser } from '../Expressions';
-import { ExpressionContext, MiKeParser } from '../generated/MiKeParser';
+import { getParser } from '../Parser';
+import { Expression, Statement } from '../../ast/Ast';
+import { Diagnostics, Severity } from '../../diagnostics/Diagnostics';
+import { ExprAstGenVisitor } from '../Expressions';
+import { MiKeParser } from '../generated/MiKeParser';
+import { StatementAstGenVisitor } from '../Statements';
 
-export function parseExpression(expr: string | ExpressionContext, includeMetadata = false): Expression<undefined> {
-    if (typeof expr === 'string') {
-        const diagnostics = new Diagnostics();
-        const parser = getParser(expr, diagnostics.getReporter('mike'));
-        const tree = parser.expression();
-        const ast = tree.accept(new ExprAstGenVisitor());
+export function parseExpression(expr: string, diagnostics = new Diagnostics(), includeMetadata = false): Expression<undefined> {
+    const parser = getParser(expr, diagnostics.getReporter('mike'));
+    const visitor = new ExprAstGenVisitor();
+    visitor.setDiagnostics(diagnostics);
+    const ast = parser.expression().accept(visitor);
 
-        if (parser.currentToken.type !== MiKeParser.EOF) {
-            throw new Error('Unexpected trailing input');
-        }
-
-        if (diagnostics.getDiagnostics().length > 0) {
-            throw new Error(JSON.stringify(diagnostics.getDiagnostics(), null, 4));
-        }
-
-        if (!includeMetadata) {
-            return omitDeep(ast, ['metadata']) as Expression<undefined>;
-        }
-
-        return ast;
+    if (parser.currentToken.type !== MiKeParser.EOF) {
+        throw new Error('Unexpected trailing input');
     }
-    else {
-        return expr.accept(new ExprAstGenVisitor());
+
+    if (diagnostics.getDiagnostics().filter(x => x.severity === Severity.Error).length > 0) {
+        throw new Error(JSON.stringify(diagnostics.getDiagnostics(), null, 4));
     }
+
+    if (!includeMetadata) {
+        return omitDeep(ast, ['metadata']) as Expression<undefined>;
+    }
+
+    return ast;
+}
+
+export function parseStatement(expr: string, diagnostics = new Diagnostics(), includeMetadata = false): Statement<undefined> {
+    const parser = getParser(expr, diagnostics.getReporter('mike'));
+    const exprVisitor = new ExprAstGenVisitor();
+    exprVisitor.setDiagnostics(diagnostics);
+    const statementVisitor = new StatementAstGenVisitor(exprVisitor);
+    statementVisitor.setDiagnostics(diagnostics);
+    const ast = parser.statement().accept(statementVisitor);
+
+    if (parser.currentToken.type !== MiKeParser.EOF) {
+        throw new Error('Unexpected trailing input');
+    }
+
+    if (diagnostics.getDiagnostics().filter(x => x.severity === Severity.Error).length > 0) {
+        throw new Error(JSON.stringify(diagnostics.getDiagnostics(), null, 4));
+    }
+
+    if (!includeMetadata) {
+        return omitDeep(ast, ['metadata']) as Statement<undefined>;
+    }
+
+    return ast;
 }

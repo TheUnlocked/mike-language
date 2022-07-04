@@ -1,9 +1,9 @@
 import { expect } from 'chai';
 import { parseExpression } from './util';
-import { makeBinaryOpNode_, makeBoolLiteralNode_, makeDereferenceNode_, makeFloatLiteralNode_, makeIntLiteralNode_, makeInvokeNode_, makeMapLiteralNode_, makeSequenceLiteralNode_, makeStringLiteralNode, makeStringLiteralNode_, makeVariableNode_ } from '../../ast/tests/util';
-import { InfixOperator } from '../../ast/Ast';
+import { makeBinaryOpNode_, makeBoolLiteralNode_, makeDereferenceNode_, makeFloatLiteralNode_, makeIntLiteralNode_, makeInvokeNode_, makeMapLiteralNode_, makeSequenceLiteralNode_, makeStringLiteralNode, makeStringLiteralNode_, makeUnaryOpNode, makeUnaryOpNode_, makeVariableNode_ } from '../../ast/tests/util';
+import { InfixOperator, PrefixOperator } from '../../ast/Ast';
 
-describe('parse expressions to AST', () => {
+describe('parse expressions', () => {
 
     describe('number types', () => {
         it('should parse 1 as an integer', () => {
@@ -130,6 +130,119 @@ describe('parse expressions to AST', () => {
                     makeIntLiteralNode_(2)
                 ),
                 makeIntLiteralNode_(6)
+            )
+        );
+    });
+
+    it('can parse !true', () => {
+        expect(parseExpression('!true')).to.deep.equal(
+            makeUnaryOpNode_(PrefixOperator.Not, makeBoolLiteralNode_(true))
+        );
+    });
+
+    it('can parse !!x', () => {
+        expect(parseExpression('!!x')).to.deep.equal(
+            makeUnaryOpNode_(PrefixOperator.Not, makeUnaryOpNode_(PrefixOperator.Not, makeVariableNode_('x')))
+        );
+    });
+
+    it('can parse -(a + b)', () => {
+        expect(parseExpression('-(a + b)')).to.deep.equal(
+            makeUnaryOpNode_(
+                PrefixOperator.Minus,
+                makeBinaryOpNode_(InfixOperator.Add, makeVariableNode_('a'), makeVariableNode_('b'))
+            )
+        );
+    });
+
+    it('can parse `-a + b`', () => {
+        expect(parseExpression('-a + b')).to.deep.equal(
+            makeBinaryOpNode_(
+                InfixOperator.Add,
+                makeUnaryOpNode_(PrefixOperator.Minus, makeVariableNode_('a')),
+                makeVariableNode_('b')
+            )
+        );
+    });
+
+    it('can parse x1', () => {
+        expect(parseExpression('x1')).to.deep.equal(
+            makeVariableNode_('x1')
+        );
+    });
+
+    it('should not parse `1x`', () => {
+        expect(() => parseExpression('1x')).to.throw();
+    });
+
+    it('can parse `x > 2`', () => {
+        expect(parseExpression('x > 2')).to.deep.equal(
+            makeBinaryOpNode_(InfixOperator.GreaterThan, makeVariableNode_('x'), makeIntLiteralNode_(2))
+        );
+    });
+
+    it('can parse `x >= 2`', () => {
+        expect(parseExpression('x >= 2')).to.deep.equal(
+            makeBinaryOpNode_(InfixOperator.GreaterThanEqual, makeVariableNode_('x'), makeIntLiteralNode_(2))
+        );
+    });
+
+    it('can parse `x < 2`', () => {
+        expect(parseExpression('x < 2')).to.deep.equal(
+            makeBinaryOpNode_(InfixOperator.LessThan, makeVariableNode_('x'), makeIntLiteralNode_(2))
+        );
+    });
+
+    it('can parse `x <= 2`', () => {
+        expect(parseExpression('x <= 2')).to.deep.equal(
+            makeBinaryOpNode_(InfixOperator.LessThanEqual, makeVariableNode_('x'), makeIntLiteralNode_(2))
+        );
+    });
+
+    it('can parse `x == 2`', () => {
+        expect(parseExpression('x == 2')).to.deep.equal(
+            makeBinaryOpNode_(InfixOperator.Equals, makeVariableNode_('x'), makeIntLiteralNode_(2))
+        );
+    });
+
+    it('can parse `x != 2`', () => {
+        expect(parseExpression('x != 2')).to.deep.equal(
+            makeBinaryOpNode_(InfixOperator.NotEquals, makeVariableNode_('x'), makeIntLiteralNode_(2))
+        );
+    });
+
+    it('can parse `false || 1 + 1 == 2`', () => {
+        expect(parseExpression('false || 1 + 1 == 2')).to.deep.equal(
+            makeBinaryOpNode_(
+                InfixOperator.Or,
+                makeBoolLiteralNode_(false),
+                makeBinaryOpNode_(
+                    InfixOperator.Equals,
+                    makeBinaryOpNode_(InfixOperator.Add, makeIntLiteralNode_(1), makeIntLiteralNode_(1)),
+                    makeIntLiteralNode_(2)
+                )
+            )
+        );
+    });
+
+    it('should not parse `a && b || c`', () => {
+        expect(() => parseExpression('a && b || c')).to.throw();
+    });
+
+    it('can parse `a && (b || c || d)`', () => {
+        expect(parseExpression('a && (b || c || d)')).to.deep.equal(
+            makeBinaryOpNode_(
+                InfixOperator.And,
+                makeVariableNode_('a'),
+                makeBinaryOpNode_(
+                    InfixOperator.Or,
+                    makeVariableNode_('b'),
+                    makeBinaryOpNode_(
+                        InfixOperator.Or,
+                        makeVariableNode_('c'),
+                        makeVariableNode_('d')
+                    )
+                )
             )
         );
     });
