@@ -17,7 +17,7 @@ export const stdlibTypes = [
         numParameters: 1,
         quantify: ([t]) => ({
             attributes: [
-                { kind: TypeAttributeKind.IsSequenceLike, addMethod: 'push' }
+                { kind: TypeAttributeKind.IsSequenceLike, addMethod: 'push', reversed: false }
             ],
             members: {
                 get: { kind: TypeKind.Function, parameters: [intType], returnType: optionOf(t) },
@@ -31,7 +31,7 @@ export const stdlibTypes = [
         numParameters: 1,
         quantify: ([t]) => ({
             attributes: [
-                { kind: TypeAttributeKind.IsSequenceLike, addMethod: 'enqueue' }
+                { kind: TypeAttributeKind.IsSequenceLike, addMethod: 'enqueue', reversed: true }
             ],
             members: {
                 enqueue: { kind: TypeKind.Function, parameters: [t], returnType: unitType },
@@ -47,7 +47,7 @@ export const stdlibTypes = [
         numParameters: 1,
         quantify: ([t]) => ({
             attributes: [
-                { kind: TypeAttributeKind.IsSequenceLike, addMethod: 'push' }
+                { kind: TypeAttributeKind.IsSequenceLike, addMethod: 'push', reversed: false }
             ],
             members: {
                 push: { kind: TypeKind.Function, parameters: [t], returnType: unitType },
@@ -63,7 +63,7 @@ export const stdlibTypes = [
         numParameters: 1,
         quantify: ([t]) => ({
             attributes: [
-                { kind: TypeAttributeKind.IsSequenceLike, addMethod: 'add' }
+                { kind: TypeAttributeKind.IsSequenceLike, addMethod: 'add', reversed: false }
             ],
             members: {
                 add: { kind: TypeKind.Function, parameters: [t], returnType: unitType },
@@ -78,17 +78,18 @@ export const stdlibTypes = [
         numParameters: 1,
         quantify: ([t]) => ({
             attributes: [
-                { kind: TypeAttributeKind.IsSequenceLike, addMethod: 'pushFront' }
+                { kind: TypeAttributeKind.IsSequenceLike, addMethod: 'push', reversed: false }
             ],
             members: {
-                pushFront: { kind: TypeKind.Function, parameters: [t], returnType: unitType },
+                enqueue: { kind: TypeKind.Function, parameters: [t], returnType: unitType },
                 popFront: { kind: TypeKind.Function, parameters: [], returnType: optionOf(t) },
                 peekFront: { kind: TypeKind.Function, parameters: [], returnType: optionOf(t) },
                 peekDeepFront: { kind: TypeKind.Function, parameters: [intType], returnType: optionOf(t) },
-                pushBack: { kind: TypeKind.Function, parameters: [t], returnType: unitType },
-                popBack: { kind: TypeKind.Function, parameters: [], returnType: optionOf(t) },
-                peekBack: { kind: TypeKind.Function, parameters: [], returnType: optionOf(t) },
-                peekDeepBack: { kind: TypeKind.Function, parameters: [intType], returnType: optionOf(t) },
+                push: { kind: TypeKind.Function, parameters: [t], returnType: unitType },
+                pop: { kind: TypeKind.Function, parameters: [], returnType: optionOf(t) },
+                peek: { kind: TypeKind.Function, parameters: [], returnType: optionOf(t) },
+                peekDeep: { kind: TypeKind.Function, parameters: [intType], returnType: optionOf(t) },
+                remove: { kind: TypeKind.Function, parameters: [t], returnType: booleanType },
                 has: { kind: TypeKind.Function, parameters: [t], returnType: booleanType },
                 length: intType,
             }

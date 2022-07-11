@@ -6,7 +6,7 @@ import { AbstractMiKeVisitor } from './Parser';
 import { DiagnosticCodes } from '../diagnostics/DiagnosticCodes';
 import Poison from '../diagnostics/Poison';
 
-export class ExprAstGenVisitor extends WithDiagnostics('mike', AbstractMiKeVisitor<Expression<undefined>>) {
+export class ExprAstGenVisitor extends WithDiagnostics(AbstractMiKeVisitor<Expression<undefined>>) {
 
     private makeExprNode<T>(node: T): T & { type: undefined } {
         return { ...node, type: undefined };
@@ -167,11 +167,11 @@ export class ExprAstGenVisitor extends WithDiagnostics('mike', AbstractMiKeVisit
         });
     }
 
-    protected defaultResult(): Expression<undefined> {
+    protected override defaultResult(): Expression<undefined> {
         return null!;
     }
 
-    protected aggregateResult(aggregate: Expression<undefined>, nextResult: Expression<undefined>): Expression<undefined> {
+    protected override aggregateResult(aggregate: Expression<undefined>, nextResult: Expression<undefined>): Expression<undefined> {
         return aggregate ?? nextResult;
     }
 

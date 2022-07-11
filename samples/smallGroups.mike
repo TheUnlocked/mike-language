@@ -1,0 +1,66 @@
+param subpolicy: Policy;
+param groupSize: int;
+
+state groupByUser: Map<User, GroupInfo> = {};
+// Only need a QueueSet, but that type doesn't currently exist
+state needsMembers: DequeSet<GroupInfo> = [];
+
+type GroupInfo (
+    group: Group,
+    numMembers: int,
+);
+
+on join(user: User) {
+    if groupByUser.get(user) |group| {
+        // User rejoining prior group
+        group.join(user);
+        debug user, "returned to their group";
+    }
+    else {
+        if needsMembers.peek() |groupInfo| {
+            groupInfo.numMembers = groupInfo.numMembers + 1;
+            groupByUser.put(user, groupInfo);
+            if groupInfo.numMembers >= groupSize {
+                needsMembers.pop();
+            }
+
+            groupInfo.group.join(user);
+            debug user, "joined a group which now has", groupInfo.numMembers, "members";
+        }
+        else {
+            let group = Group(subpolicy);
+            let groupInfo = GroupInfo(group, 1);
+            groupByUser.put(user, groupInfo);
+            needsMembers.enqueue(groupInfo);
+
+            group.join(user);
+            debug user, "joined, creating a new group";
+        }
+    }
+}
+
+on leave(user: User) {
+    if groupByUser.get(user) |groupInfo| {
+        groupInfo.group.leave(user);
+        debug user, "went away";
+    }
+    else {
+        debug "BUG:", user, "left even though they never joined";
+    }
+}
+
+on forget(user: User) {
+    if groupByUser.get(user) |groupInfo| {
+        groupInfo.numMembers = groupInfo.numMembers - 1;
+        if groupInfo.numMembers == 0 {
+            needsMembers.remove(groupInfo);
+        }
+        else if !needsMembers.has(groupInfo) {
+            needsMembers.enqueue(groupInfo);
+        }
+        groupByUser.remove(user);
+
+        groupInfo.group.forget(user);
+        debug user, "left their group";
+    }
+}

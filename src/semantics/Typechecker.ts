@@ -11,7 +11,7 @@ import { TypeInfo } from '../types/Type';
 import { AnyType, ExactType, FunctionType, isExactType, KnownType, MapLike, SequenceLike, SimpleType, stringifyType, TypeKind } from '../types/TypeReference';
 import Scope from './Scope';
 
-export class Typechecker extends WithDiagnostics('mike', class {}) {
+export class Typechecker extends WithDiagnostics(class {}) {
     private types = new Map(primitiveTypes.map(x => [x.name, x]));
 
     private currentScope;

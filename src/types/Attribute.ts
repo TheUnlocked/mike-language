@@ -12,6 +12,7 @@ interface BaseAttribute {
 export interface IsSequenceLikeAttribute extends BaseAttribute {
     readonly kind: TypeAttributeKind.IsSequenceLike;
     readonly addMethod: string;
+    readonly reversed: boolean;
 }
 
 export interface IsMapLikeAttribute extends BaseAttribute {

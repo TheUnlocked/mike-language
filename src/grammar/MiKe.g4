@@ -1,12 +1,14 @@
 grammar MiKe;
 
-program: (paramDecl | stateDecl | eventDecl)*;
+program: (paramDecl | stateDecl | eventDecl | typeDef)*;
 
-paramDecl: PARAM varDef SEMI;
+paramDecl: PARAM paramDef SEMI;
 
-stateDecl: PARAM varDef SEMI;
+stateDecl: STATE varDef SEMI;
 
 eventDecl: ON NAME paramList block;
+
+typeDef: TYPE NAME paramList SEMI;
 
 type
     : NAME typeArguments?
@@ -17,7 +19,7 @@ typeArguments: LANGLE (type (COMMA type)*)? RANGLE;
 
 typeList: LPAREN (type (COMMA type)*)? RPAREN;
 
-paramList: LPAREN (varDef (COMMA varDef)*)? RPAREN;
+paramList: LPAREN (paramDef (COMMA paramDef)*)? RPAREN;
 
 argumentList: LPAREN (expression (COMMA expression)*)? RPAREN;
 
@@ -36,6 +38,8 @@ statement
 ifStatement: IF ifCase (ELSE IF ifCase)* (ELSE block)?;
 
 ifCase: expression (PIPE NAME PIPE)? block;
+
+paramDef: NAME COLON type;
 
 varDef: NAME (COLON type)? (EQUALS expression)?;
 
@@ -100,6 +104,8 @@ STRING
     ;
 
 PARAM: 'param';
+STATE: 'state';
+TYPE: 'type';
 ON: 'on';
 LET: 'let';
 DEBUG: 'debug';
@@ -109,7 +115,7 @@ TRUE: 'true';
 FALSE: 'false';
 
 RESERVED
-    : 'type' | 'function' | 'export' | 'import' | 'new'
+    : 'function' | 'export' | 'import' | 'new'
     | 'null' | 'undefined' | 'const' | 'var' | 'val'
     ;
 

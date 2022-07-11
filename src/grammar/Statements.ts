@@ -9,13 +9,13 @@ import { WithDiagnostics } from '../diagnostics/Mixin';
 import Poison from '../diagnostics/Poison';
 import { AbstractMiKeVisitor } from './Parser';
 
-export class StatementAstGenVisitor extends WithDiagnostics('mike', AbstractMiKeVisitor<Statement<undefined>>) {
+export class StatementAstGenVisitor extends WithDiagnostics(AbstractMiKeVisitor<Statement<undefined>>) {
 
     constructor(private exprVisitor: MiKeVisitor<Expression<undefined>>) {
         super();
     }
 
-    visitExpressionStatement(ctx: ExpressionStatementContext): Statement<undefined> {
+    override visitExpressionStatement(ctx: ExpressionStatementContext): Statement<undefined> {
         return {
             kind: ASTNodeKind.ExpressionStatement,
             metadata: this.getMetadata(ctx),
@@ -23,7 +23,7 @@ export class StatementAstGenVisitor extends WithDiagnostics('mike', AbstractMiKe
         };
     }
 
-    visitLetStatement(ctx: LetStatementContext): Statement<undefined> {
+    override visitLetStatement(ctx: LetStatementContext): Statement<undefined> {
         const varDef = ctx.varDef();
         const type = varDef.type();
         const expr = varDef.expression();
@@ -39,7 +39,7 @@ export class StatementAstGenVisitor extends WithDiagnostics('mike', AbstractMiKe
         };
     }
 
-    visitVarAssignmentStatement(ctx: VarAssignmentStatementContext): Statement<undefined> {
+    override visitVarAssignmentStatement(ctx: VarAssignmentStatementContext): Statement<undefined> {
         return {
             kind: ASTNodeKind.AssignVar,
             metadata: this.getMetadata(ctx),
@@ -48,7 +48,7 @@ export class StatementAstGenVisitor extends WithDiagnostics('mike', AbstractMiKe
         }
     }
 
-    visitFieldAssignmentStatement(ctx: FieldAssignmentStatementContext): Statement<undefined> {
+    override visitFieldAssignmentStatement(ctx: FieldAssignmentStatementContext): Statement<undefined> {
         const [lhs, value] = ctx.expression().map(x => x.accept(this.exprVisitor));
 
         if (lhs.kind !== ASTNodeKind.Dereference) {
@@ -64,7 +64,7 @@ export class StatementAstGenVisitor extends WithDiagnostics('mike', AbstractMiKe
         }
     }
 
-    visitIfStatement(ctx: IfStatementContext): Statement<undefined> {
+    override visitIfStatement(ctx: IfStatementContext): Statement<undefined> {
         const elseCtx = ctx.block();
         return {
             kind: ASTNodeKind.IfElseChain,
@@ -78,7 +78,7 @@ export class StatementAstGenVisitor extends WithDiagnostics('mike', AbstractMiKe
         }
     }
 
-    visitDebugStatement(ctx: DebugStatementContext): Statement<undefined> {
+    override visitDebugStatement(ctx: DebugStatementContext): Statement<undefined> {
         return {
             kind: ASTNodeKind.DebugStatement,
             metadata: this.getMetadata(ctx),
@@ -86,7 +86,7 @@ export class StatementAstGenVisitor extends WithDiagnostics('mike', AbstractMiKe
         }
     }
 
-    visitBlock(ctx: BlockContext): Block<undefined> {
+    override visitBlock(ctx: BlockContext): Block<undefined> {
         return {
             kind: ASTNodeKind.Block,
             metadata: this.getMetadata(ctx),
@@ -94,11 +94,11 @@ export class StatementAstGenVisitor extends WithDiagnostics('mike', AbstractMiKe
         }
     }
 
-    protected aggregateResult(aggregate: Statement<undefined>, nextResult: Statement<undefined>): Statement<undefined> {
+    protected override aggregateResult(aggregate: Statement<undefined>, nextResult: Statement<undefined>): Statement<undefined> {
         return aggregate ?? nextResult;
     }
     
-    protected defaultResult(): Statement<undefined> {
+    protected override defaultResult(): Statement<undefined> {
         return null!;
     }
 

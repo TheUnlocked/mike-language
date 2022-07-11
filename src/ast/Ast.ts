@@ -1,29 +1,5 @@
 import { ExactType } from '../types/TypeReference';
 
-
-export enum InfixOperator {
-    // Arithmetic
-    Add,
-    Subtract,
-    Multiply,
-    Divide,
-    // Comparison
-    Equals,
-    NotEquals,
-    LessThan,
-    LessThanEqual,
-    GreaterThan,
-    GreaterThanEqual,
-    // Logical
-    And,
-    Or,
-}
-
-export enum PrefixOperator {
-    Minus,
-    Not,
-}
-
 export enum ASTNodeKind {
     // Expressions
     Invoke,
@@ -49,7 +25,31 @@ export enum ASTNodeKind {
     ParamDefinition,
     StateDefinition,
     ListenerDefinition,
+    TypeDefinition,
     Program,
+}
+
+export enum InfixOperator {
+    // Arithmetic
+    Add,
+    Subtract,
+    Multiply,
+    Divide,
+    // Comparison
+    Equals,
+    NotEquals,
+    LessThan,
+    LessThanEqual,
+    GreaterThan,
+    GreaterThanEqual,
+    // Logical
+    And,
+    Or,
+}
+
+export enum PrefixOperator {
+    Minus,
+    Not,
 }
 
 export interface Location {
@@ -210,7 +210,7 @@ export interface ParamDefinition<T> extends ASTNode {
 export interface StateDefinition<T> extends ASTNode {
     readonly kind: ASTNodeKind.StateDefinition;
     readonly name: string;
-    readonly type: ExactType;
+    readonly type: ExactType extends T ? ExactType : ExactType | undefined;
     readonly default?: Expression<T>;
 }
 
@@ -219,9 +219,17 @@ export interface ListenerDefinition<T> extends ASTNode {
     readonly event: string;
     readonly parameters: readonly {
         readonly name: string;
-        readonly type?: ExactType;
+        readonly type: ExactType;
     }[];
-    readonly statements: readonly Statement<T>[];
+    readonly body: Block<T>;
+}
+
+export interface TypeDefinition<T> extends ASTNode {
+    readonly kind: ASTNodeKind.TypeDefinition;
+    readonly parameters: readonly {
+        readonly name: string;
+        readonly type: ExactType;
+    }[];
 }
 
 export interface Program<T> extends ASTNode {
@@ -229,6 +237,7 @@ export interface Program<T> extends ASTNode {
     readonly params: readonly ParamDefinition<T>[];
     readonly state: readonly StateDefinition<T>[];
     readonly listeners: readonly ListenerDefinition<T>[];
+    readonly types: readonly TypeDefinition<T>[];
 }
 
 export type AnyNode<T>
@@ -237,5 +246,6 @@ export type AnyNode<T>
     | ParamDefinition<T>
     | StateDefinition<T>
     | ListenerDefinition<T>
+    | TypeDefinition<T>
     | Program<T>
     ;
