@@ -87,5 +87,5 @@ export const makeParamDefinitionNode = <T>(name: string, type: ExactType): Param
 export const makeStateDefinitionNode = <T>(name: string, type: ExactType, _default?: Expression<T>): StateDefinition<T> =>
     node({ kind: ASTNodeKind.StateDefinition, name, type });
 
-export const makeListenerDefinitionNode = <T>(event: string, parameters: ListenerDefinition<T>['parameters'], statements: readonly Statement<T>[]): ListenerDefinition<T> =>
-    node({ kind: ASTNodeKind.ListenerDefinition, event, parameters, statements });
+export const makeListenerDefinitionNode = <T>(event: string, parameters: ListenerDefinition<T>['parameters'], body: Block<T>): ListenerDefinition<T> =>
+    node({ kind: ASTNodeKind.ListenerDefinition, event, parameters, body });
