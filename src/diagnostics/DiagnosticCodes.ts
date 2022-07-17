@@ -1,3 +1,4 @@
+import { suggestType } from '../utils/types';
 import { DiagnosticInfo, Severity } from './Diagnostics';
 
 export enum DiagnosticCodes {
@@ -23,15 +24,18 @@ export enum DiagnosticCodes {
     InvalidMember,
     UnknownIdentifier,
     NoCommonType,
-    TargetTypeMismatch,
-    CannotInferLiteralType,
-    CannotInferEmptyLiteralType,
+    TypeDoesNotExist,
+    TypeIsNotSequenceLike,
+    TypeIsNotMapLike,
+    PresumedTypeIsNotSequenceLike,
+    PresumedTypeIsNotMapLike,
+    CannotInferSequenceLiteralType,
+    CannotInferMapLiteralType,
+    EqualityArgumentIsNewObject,
     EqualityArgumentTypeMismatch,
-    EqualityArgumentIsLiteral,
-    CannotInferIntermediateLiteralType,
 }
 
-export const defaultDiagnosticDetails: { [name in DiagnosticCodes]: DiagnosticInfo } = {
+export const defaultDiagnosticDetails = suggestType<{ readonly [name in DiagnosticCodes]: DiagnosticInfo }>()({
     [DiagnosticCodes.GenericLexError]: { severity: Severity.Error, description: 'Generic Lexer error: {0}.' },
     [DiagnosticCodes.GenericParseError]: { severity: Severity.Error, description: 'Generic Parser error: {0}.' },
     [DiagnosticCodes.UnexpectedTrailingInput]: { severity: Severity.Error, description: 'Unexpected input.' },
@@ -49,9 +53,14 @@ export const defaultDiagnosticDetails: { [name in DiagnosticCodes]: DiagnosticIn
     [DiagnosticCodes.InvalidMember]: { severity: Severity.Error, description: 'Type {0} does not have a member {1}.' },
     [DiagnosticCodes.UnknownIdentifier]: { severity: Severity.Error, description: 'Unknown identifier {0}.' },
     [DiagnosticCodes.NoCommonType]: { severity: Severity.Error, description: 'Type {0} did not match previous best common type {1}.' },
-    [DiagnosticCodes.TargetTypeMismatch]: { severity: Severity.Error, description: 'Wanted type {0}, but found expression of type {1}.' },
-    [DiagnosticCodes.CannotInferLiteralType]: { severity: Severity.Error, description: 'Cannot infer type, is there an unannotated or empty sequence/map literal?' },
-    [DiagnosticCodes.CannotInferEmptyLiteralType]: { severity: Severity.Error, description: 'Cannot infer the type of an empty sequence or map literal.' },
+    [DiagnosticCodes.TypeDoesNotExist]: { severity: Severity.Error, description: 'There is no type named {0} in the current context.' },
+    [DiagnosticCodes.TypeIsNotSequenceLike]: { severity: Severity.Error, description: 'Type {0} cannot be used with sequence literals.' },
+    [DiagnosticCodes.TypeIsNotMapLike]: { severity: Severity.Error, description: 'Type {0} cannot be used with map literals.' },
+    [DiagnosticCodes.PresumedTypeIsNotSequenceLike]: { severity: Severity.Error, description: 'Based on context it seems like this literal is intended to be of type {0}, but {1} cannot be used with sequence literals.' },
+    [DiagnosticCodes.PresumedTypeIsNotMapLike]: { severity: Severity.Error, description: 'Based on context it seems like this literal is intended to be of type {0}, but {1} cannot be used with map literals.' },
+    [DiagnosticCodes.CannotInferSequenceLiteralType]: { severity: Severity.Error, description: 'Not enough information to determine the type of this sequence literal.' },
+    [DiagnosticCodes.CannotInferMapLiteralType]: { severity: Severity.Error, description: 'Not enough information to determine the type of this map literal.' },
+    [DiagnosticCodes.EqualityArgumentIsNewObject]: { severity: Severity.Warning, description: 'Equality with a new object will always produce false, since equality is by reference.' },
     [DiagnosticCodes.EqualityArgumentTypeMismatch]: {
         severity: Severity.Warning,
         description: 'A value of type {0} can never equal a value of type {1}.',
@@ -60,6 +69,4 @@ export const defaultDiagnosticDetails: { [name in DiagnosticCodes]: DiagnosticIn
             message: 'Because equality checks between ints and floats are often associated with programming errors, they are disallowed. Use an explicit conversion if you know what you are doing.',
         }]
     },
-    [DiagnosticCodes.EqualityArgumentIsLiteral]: { severity: Severity.Warning, description: 'Equality with a new object will always produce false, since equality is by reference.' },
-    [DiagnosticCodes.CannotInferIntermediateLiteralType]: { severity: Severity.Error, description: 'Impossible to determine type from provided information, but even intermediate expressions must have an exact type.' },
-};
+} as const);

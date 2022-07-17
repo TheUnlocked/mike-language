@@ -1,9 +1,9 @@
 import { TypeAttributeKind } from '../types/Attribute';
 import { booleanType, intType, unitType } from '../types/Primitives';
 import { TypeInfo } from '../types/Type';
-import { ExactType, TypeKind } from '../types/TypeReference';
+import { KnownType, TypeKind } from '../types/KnownType';
 
-function optionOf(t: ExactType): ExactType {
+function optionOf(t: KnownType): KnownType {
     return {
         kind: TypeKind.Simple,
         name: 'Option',

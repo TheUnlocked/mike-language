@@ -1,11 +1,11 @@
 import { TypeAttribute } from './Attribute';
-import { ExactType, KnownType } from './TypeReference';
+import { KnownType, IncompleteType } from './KnownType';
 
 export interface TypeInfo {
     readonly name: string;
     readonly numParameters: number;
-    readonly quantify: (args: readonly ExactType[]) => {
+    readonly quantify: (args: readonly KnownType[]) => {
         readonly attributes: readonly TypeAttribute[];
-        readonly members: { readonly [name: string]: ExactType };
+        readonly members: { readonly [name: string]: KnownType };
     }
 }

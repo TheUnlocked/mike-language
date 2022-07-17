@@ -1,4 +1,4 @@
-import { ExactType } from './TypeReference';
+import { KnownType } from './KnownType';
 
 export enum TypeAttributeKind {
     IsSequenceLike,
@@ -22,7 +22,7 @@ export interface IsMapLikeAttribute extends BaseAttribute {
 
 export interface CanIfDestructAttribute extends BaseAttribute {
     readonly kind: TypeAttributeKind.CanIfDestruct;
-    readonly into: ExactType;
+    readonly into: KnownType;
 }
 
 export type TypeAttribute

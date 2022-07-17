@@ -1,45 +1,41 @@
 import { MiKeVisitor } from './generated/MiKeVisitor';
-import { EventDeclContext, ParamDeclContext, ParamListContext, ProgramContext, StateDeclContext, TypeContext, TypeDefContext } from './generated/MiKeParser';
+import { EventDeclContext, ParamDeclContext, ParamDefContext, ProgramContext, StateDeclContext, TypeContext, TypeDefContext } from './generated/MiKeParser';
 import { ParserRuleContext } from 'antlr4ts';
-import { AstMetadata, Expression, ListenerDefinition, Statement, AnyNode, ASTNodeKind, ParamDefinition, StateDefinition, TypeDefinition, Block } from '../ast/Ast';
-import { ExactType, TypeKind } from '../types/TypeReference';
+import { AstMetadata, Expression, ListenerDefinition, AnyNode, ASTNodeKind, ParamDefinition, StateDefinition, TypeDefinition, Block, ParameterFragment, StatementOrBlock, TopLevelDefinition } from '../ast/Ast';
+import { KnownType, TypeKind } from '../types/KnownType';
 import { boundMethod } from 'autobind-decorator';
 import { WithDiagnostics } from '../diagnostics/Mixin';
 import { AbstractMiKeVisitor } from './Parser';
 
-export class ProgramAstGenVisitor extends WithDiagnostics(AbstractMiKeVisitor<AnyNode<undefined>>) {
+export class ProgramAstGenVisitor extends WithDiagnostics(AbstractMiKeVisitor<AnyNode>) {
 
     constructor(
-        private exprVisitor: MiKeVisitor<Expression<undefined>>,
-        private statementVisitor: MiKeVisitor<Statement<undefined>>,
+        private exprVisitor: MiKeVisitor<Expression>,
+        private statementVisitor: MiKeVisitor<StatementOrBlock>,
     ) {
         super();
     }
 
-    override visitProgram(ctx: ProgramContext): AnyNode<undefined> {
+    override visitProgram(ctx: ProgramContext): AnyNode {
         return {
             kind: ASTNodeKind.Program,
             metadata: this.getMetadata(ctx),
-            listeners: ctx.eventDecl().map(this.visitEventDecl),
-            params: ctx.paramDecl().map(this.visitParamDecl),
-            state: ctx.stateDecl().map(this.visitStateDecl),
-            types: ctx.typeDef().map(this.visitTypeDef),
+            definitions: ctx.topLevelDecl().map(x => x.accept(this)) as readonly TopLevelDefinition[],
+            comments: [],
         };
     }
 
-    @boundMethod
-    override visitEventDecl(ctx: EventDeclContext): ListenerDefinition<undefined> {
+    override visitEventDecl(ctx: EventDeclContext): ListenerDefinition {
         return {
             kind: ASTNodeKind.ListenerDefinition,
             metadata: this.getMetadata(ctx),
             event: ctx.NAME().text,
-            parameters: this.resolveParamList(ctx.paramList()),
-            body: ctx.block().accept(this.statementVisitor) as Block<undefined>,
+            parameters: ctx.paramList().paramDef().map(this.visitParamDef),
+            body: ctx.block().accept(this.statementVisitor) as Block,
         };
     }
 
-    @boundMethod
-    override visitParamDecl(ctx: ParamDeclContext): ParamDefinition<undefined> {
+    override visitParamDecl(ctx: ParamDeclContext): ParamDefinition {
         const paramDef = ctx.paramDef();
         return {
             kind: ASTNodeKind.ParamDefinition,
@@ -49,8 +45,7 @@ export class ProgramAstGenVisitor extends WithDiagnostics(AbstractMiKeVisitor<An
         };
     }
 
-    @boundMethod
-    override visitStateDecl(ctx: StateDeclContext): StateDefinition<undefined> {
+    override visitStateDecl(ctx: StateDeclContext): StateDefinition {
         const varDef = ctx.varDef();
         const typeCtx = varDef.type();
         return {
@@ -63,24 +58,33 @@ export class ProgramAstGenVisitor extends WithDiagnostics(AbstractMiKeVisitor<An
     }
 
     @boundMethod
-    override visitTypeDef(ctx: TypeDefContext): TypeDefinition<undefined> {
+    override visitTypeDef(ctx: TypeDefContext): TypeDefinition {
         return {
             kind: ASTNodeKind.TypeDefinition,
             metadata: this.getMetadata(ctx),
-            parameters: this.resolveParamList(ctx.paramList()),
+            parameters: ctx.paramList().paramDef().map(this.visitParamDef),
         };
     }
 
-    protected aggregateResult(aggregate: AnyNode<undefined>, nextResult: AnyNode<undefined>): AnyNode<undefined> {
+    override visitParamDef(ctx: ParamDefContext): ParameterFragment {
+        return {
+            kind: ASTNodeKind.ParameterFragment,
+            metadata: this.getMetadata(ctx),
+            name: ctx.NAME().text,
+            type: this.resolveType(ctx.type()),
+        }
+    }
+
+    protected aggregateResult(aggregate: AnyNode, nextResult: AnyNode): AnyNode {
         return aggregate ?? nextResult;
     }
     
-    protected defaultResult(): AnyNode<undefined> {
+    protected defaultResult(): AnyNode {
         return null!;
     }
 
     @boundMethod
-    private resolveType(ctx: TypeContext): ExactType {
+    private resolveType(ctx: TypeContext): KnownType {
         if (ctx.DOUBLE_ARROW()) {
             return {
                 kind: TypeKind.Function,
@@ -97,16 +101,9 @@ export class ProgramAstGenVisitor extends WithDiagnostics(AbstractMiKeVisitor<An
         }
     }
 
-    private resolveParamList(ctx: ParamListContext) {
-        return ctx.paramDef().map(paramDef => ({
-            name: paramDef.NAME().text,
-            type: this.resolveType(paramDef.type()),
-        }));
-    }
-
     private getMetadata(ctx: ParserRuleContext): AstMetadata {
         return {
-            location: {
+            extent: {
                 start: { line: ctx.start.line, col: ctx.start.charPositionInLine },
                 end: { line: ctx.stop!.line, col: ctx.stop!.charPositionInLine },
             }

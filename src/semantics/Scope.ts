@@ -1,21 +1,17 @@
-import { ExactType } from '../types/TypeReference';
+import { VariableDefinition } from '../ast/Ast';
 
 export default class Scope {
-    private bindings: Map<string, ExactType>;
+    private bindings: Map<string, VariableDefinition>;
     
-    constructor(private parent?: Scope, bindings?: Iterable<[string, ExactType]>) {
+    constructor(private getParent: () => Scope | undefined, bindings?: Iterable<[string, VariableDefinition]>) {
         this.bindings = new Map(bindings);
     }
 
-    get(name: string): ExactType | undefined {
-        return this.bindings.get(name) ?? this.parent?.get(name);
+    get(name: string): VariableDefinition | undefined {
+        return this.bindings.get(name) ?? this.getParent()?.get(name);
     }
 
-    has(name: string): boolean {
-        return this.bindings.has(name) || (this.parent?.has(name) ?? false);
-    }
-
-    set(name: string, type: ExactType) {
-        return this.bindings.set(name, type);
+    set(name: string, def: VariableDefinition) {
+        return this.bindings.set(name, def);
     }
 }

@@ -1,4 +1,4 @@
-import { AnyNode, Location } from '../ast/Ast';
+import { AnyNode, Range } from '../ast/Ast';
 
 export enum Severity {
     Info,
@@ -7,6 +7,12 @@ export enum Severity {
 }
 
 export interface DiagnosticInfo {
+    readonly description: string;
+    readonly severity: Severity;
+    readonly specializedMessages?: readonly { readonly when: (...args: string[]) => boolean, readonly message: string }[]
+}
+
+export interface MutableDiagnosticInfo {
     description: string;
     severity: Severity;
     specializedMessages?: { when: (...args: string[]) => boolean, message: string }[]
@@ -16,7 +22,7 @@ class Diagnostic {
     constructor(
         public readonly id: string,
         public readonly severity: Severity,
-        public readonly location: Location | undefined,
+        public readonly location: Range | undefined,
         private readonly description: string,
         private readonly args: string[],
     ) {}
@@ -32,13 +38,13 @@ class Diagnostic {
 
 export interface DiagnosticsReporter {
     report(id: number, ...args: string[]): void;
-    focus(node: AnyNode<any> | Location | undefined): void;
+    focus(node: AnyNode | Range | undefined): void;
 }
 
 export class Diagnostics {
-    private currentLocation?: Location;
+    private currentRange?: Range;
 
-    private diagnosticTypes = new Map<string, DiagnosticInfo>();
+    private diagnosticTypes = new Map<string, MutableDiagnosticInfo>();
 
     private diagnostics = [] as Diagnostic[];
 
@@ -73,13 +79,13 @@ export class Diagnostics {
 
         if (!diagnostic) {
             this.diagnostics.push(
-                new Diagnostic(qualifiedId, Severity.Error, this.currentLocation, 'Unknown Diagnostic', args)
+                new Diagnostic(qualifiedId, Severity.Error, this.currentRange, 'Unknown Diagnostic', args)
             );
             return;
         }
 
         this.diagnostics.push(
-            new Diagnostic(qualifiedId, diagnostic.severity, this.currentLocation, diagnostic.description, args)
+            new Diagnostic(qualifiedId, diagnostic.severity, this.currentRange, diagnostic.description, args)
         );
     }
 
@@ -88,12 +94,12 @@ export class Diagnostics {
             report: (id, ...args) => {
                 this.report(namespace, id, args);
             },
-            focus: nodeOrLocation => {
-                if (nodeOrLocation && 'kind' in nodeOrLocation) {
-                    this.currentLocation = nodeOrLocation.metadata?.location;
+            focus: nodeOrRange => {
+                if (nodeOrRange && 'kind' in nodeOrRange) {
+                    this.currentRange = nodeOrRange.metadata.extent;
                 }
                 else {
-                    this.currentLocation = nodeOrLocation;
+                    this.currentRange = nodeOrRange;
                 }
             },
         };

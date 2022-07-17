@@ -1,0 +1,26 @@
+// import { InfixOperator } from '../../src/ast/Ast.ts'
+
+on _() {
+    //v expect $.op == InfixOperator.Add
+    1 + 2;
+    //v expect $.op == InfixOperator.Subtract, $.rhs.op == InfixOperator.Multiply
+    1 - 2 * 3;
+    //    v expect $.op == InfixOperator.Multiply, $.lhs.op == InfixOperator.Divide
+    1 / 2 * 3;
+    //    v expect $.op == InfixOperator.GreaterThanEqual, $.lhs.op == InfixOperator.Add
+    1 + 1 >= 2;
+    //    v expect $.op == InfixOperator.GreaterThan, $.lhs.op == InfixOperator.Add
+    1 + 1 > 2;
+    //    v expect $.op == InfixOperator.LessThanEqual, $.lhs.op == InfixOperator.Add
+    1 + 1 <= 2;
+    //    v expect $.op == InfixOperator.LessThan, $.lhs.op == InfixOperator.Add
+    1 + 1 < 2;
+    //    v expect $.op == InfixOperator.Equals, $.lhs.op == InfixOperator.Add
+    1 + 1 == 2;
+    //    v expect $.op == InfixOperator.NotEquals, $.lhs.op == InfixOperator.Add
+    1 + 2 != 2 * 2;
+    //   v expect $.op == InfixOperator.Or, $.rhs.op == InfixOperator.Equals
+    true || 1 == 1;
+    //   v expect $.op == InfixOperator.And, $.rhs.op == InfixOperator.Equals
+    true && 1 == 1;
+}

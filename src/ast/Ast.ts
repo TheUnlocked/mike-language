@@ -1,4 +1,4 @@
-import { ExactType } from '../types/TypeReference';
+import { KnownType } from '../types/KnownType';
 
 export enum ASTNodeKind {
     // Expressions
@@ -15,18 +15,24 @@ export enum ASTNodeKind {
     MapLiteral,
     // Statements
     ExpressionStatement,
-    DeclareVar,
+    LetStatement,
     AssignVar,
     AssignField,
     IfElseChain,
     DebugStatement,
     Block,
-    // Others
+    // Top-level
     ParamDefinition,
     StateDefinition,
     ListenerDefinition,
     TypeDefinition,
     Program,
+    // Fragments
+    ParameterFragment,
+    IfCaseFragment,
+    PairFragment,
+    // Misc
+    Comment,
 }
 
 export enum InfixOperator {
@@ -52,200 +58,278 @@ export enum PrefixOperator {
     Not,
 }
 
-export interface Location {
-    file?: string;
-    start: { line: number, col: number };
-    end: { line: number, col: number };
+export interface Position {
+    line: number;
+    col: number;
+}
+
+export interface Range {
+    start: Position;
+    end: Position;
 }
 
 export interface AstMetadata {
-    location: Location;
+    extent: Range;
 }
 
 interface ASTNode {
-    metadata?: AstMetadata;
+    readonly metadata: AstMetadata;
 }
 
-interface ExpressionNode<T> extends ASTNode {
-    readonly type: T;
+interface ExpressionNode extends ASTNode {
+
 }
 
-export interface Invoke<T> extends ExpressionNode<T> {
+export interface Invoke extends ExpressionNode {
     readonly kind: ASTNodeKind.Invoke;
-    readonly fn: Expression<T>;
-    readonly args: readonly Expression<T>[];
+    readonly fn: Expression;
+    readonly args: readonly Expression[];
 }
 
-export interface BinaryOp<T> extends ExpressionNode<T> {
+export interface BinaryOp extends ExpressionNode {
     readonly kind: ASTNodeKind.BinaryOp;
     readonly op: InfixOperator;
-    readonly lhs: Expression<T>;
-    readonly rhs: Expression<T>;
+    readonly lhs: Expression;
+    readonly rhs: Expression;
 }
 
-export interface UnaryOp<T> extends ExpressionNode<T> {
+export interface UnaryOp extends ExpressionNode {
     readonly kind: ASTNodeKind.UnaryOp;
     readonly op: PrefixOperator;
-    readonly expr: Expression<T>;
+    readonly expr: Expression;
 }
 
-export interface Dereference<T> extends ExpressionNode<T> {
+export interface Dereference extends ExpressionNode {
     readonly kind: ASTNodeKind.Dereference;
-    readonly obj: Expression<T>;
+    readonly obj: Expression;
     readonly memberName: string;
 }
 
-export interface Variable<T> extends ExpressionNode<T> {
+export interface Variable extends ExpressionNode {
     readonly kind: ASTNodeKind.Variable;
     readonly name: string;
 }
 
-export interface FloatLiteral<T> extends ExpressionNode<T> {
+export interface FloatLiteral extends ExpressionNode {
     readonly kind: ASTNodeKind.FloatLiteral;
     readonly value: number;
 }
 
-export interface IntLiteral<T> extends ExpressionNode<T> {
+export interface IntLiteral extends ExpressionNode {
     readonly kind: ASTNodeKind.IntLiteral;
     readonly value: number;
 }
 
-export interface BoolLiteral<T> extends ExpressionNode<T> {
+export interface BoolLiteral extends ExpressionNode {
     readonly kind: ASTNodeKind.BoolLiteral;
     readonly value: boolean;
 }
 
-export interface StringLiteral<T> extends ExpressionNode<T> {
+export interface StringLiteral extends ExpressionNode {
     readonly kind: ASTNodeKind.StringLiteral;
     readonly value: string;
 }
 
-export interface SequenceLiteral<T> extends ExpressionNode<T> {
+export interface SequenceLiteral extends ExpressionNode {
     readonly kind: ASTNodeKind.SequenceLiteral;
     readonly typeName?: string;
-    readonly elements: readonly Expression<T>[];
+    readonly elements: readonly Expression[];
 }
 
-export interface MapLiteral<T> extends ExpressionNode<T> {
+export interface PairFragment extends ASTNode {
+    readonly kind: ASTNodeKind.PairFragment;
+    readonly key: Expression;
+    readonly value: Expression;
+}
+
+export interface MapLiteral extends ExpressionNode {
     readonly kind: ASTNodeKind.MapLiteral;
     readonly typeName?: string;
-    readonly pairs: readonly (readonly [key: Expression<T>, value: Expression<T>])[];
+    readonly pairs: readonly PairFragment[];
 }
 
-export type Expression<T>
-    = Invoke<T>
-    | BinaryOp<T>
-    | UnaryOp<T>
-    | Dereference<T>
-    | Variable<T>
-    | FloatLiteral<T>
-    | IntLiteral<T>
-    | BoolLiteral<T>
-    | StringLiteral<T>
-    | SequenceLiteral<T>
-    | MapLiteral<T>
+export type Expression
+    = Invoke
+    | BinaryOp
+    | UnaryOp
+    | Dereference
+    | Variable
+    | FloatLiteral
+    | IntLiteral
+    | BoolLiteral
+    | StringLiteral
+    | SequenceLiteral
+    | MapLiteral
     ;
 
-export interface ExpressionStatement<T> extends ASTNode {
+export function isExpression(node: AnyNode): node is Expression {
+    return node.kind === ASTNodeKind.Invoke
+        || node.kind === ASTNodeKind.BinaryOp
+        || node.kind === ASTNodeKind.UnaryOp
+        || node.kind === ASTNodeKind.Dereference
+        || node.kind === ASTNodeKind.Variable
+        || node.kind === ASTNodeKind.FloatLiteral
+        || node.kind === ASTNodeKind.BoolLiteral
+        || node.kind === ASTNodeKind.StringLiteral
+        || node.kind === ASTNodeKind.SequenceLiteral
+        || node.kind === ASTNodeKind.MapLiteral
+        ;
+}
+
+interface StatementNode extends ASTNode {
+
+}
+
+export interface ExpressionStatement extends StatementNode {
     readonly kind: ASTNodeKind.ExpressionStatement;
-    readonly expr: Expression<T>;
+    readonly expr: Expression;
 }
 
-export interface DeclareVar<T> extends ASTNode {
-    readonly kind: ASTNodeKind.DeclareVar;
+export interface LetStatement extends StatementNode {
+    readonly kind: ASTNodeKind.LetStatement;
     readonly name: string;
-    readonly type?: ExactType;
-    readonly value?: Expression<T>;
+    readonly type?: KnownType;
+    readonly value?: Expression;
 }
 
-export interface AssignVar<T> extends ASTNode {
+export interface AssignVar extends StatementNode {
     readonly kind: ASTNodeKind.AssignVar;
     readonly name: string;
-    readonly value: Expression<T>;
+    readonly value: Expression;
 }
 
-export interface AssignField<T> extends ASTNode {
+export interface AssignField extends StatementNode {
     readonly kind: ASTNodeKind.AssignField;
-    readonly obj: Expression<T>;
+    readonly obj: Expression;
     readonly memberName: string;
-    readonly value: Expression<T>;
+    readonly value: Expression;
 }
 
-export interface IfElseChain<T> extends ASTNode {
+export interface IfCaseFragment extends StatementNode {
+    readonly kind: ASTNodeKind.IfCaseFragment;
+    readonly condition: Expression,
+    readonly deconstructName?: string, 
+    readonly body: Block
+}
+
+export interface IfElseChain extends StatementNode {
     readonly kind: ASTNodeKind.IfElseChain;
-    readonly cases: {
-        readonly condition: Expression<T>,
-        readonly deconstructName?: string, 
-        readonly body: Block<T>
-    }[];
-    readonly else?: Block<T>;
+    readonly cases: readonly IfCaseFragment[];
+    readonly else?: Block;
 }
 
-export interface DebugStatement<T> extends ASTNode {
+export interface DebugStatement extends StatementNode {
     readonly kind: ASTNodeKind.DebugStatement;
-    readonly arguments: readonly Expression<T>[];
+    readonly arguments: readonly Expression[];
 }
 
-export interface Block<T> extends ASTNode {
-    readonly kind: ASTNodeKind.Block;
-    readonly statements: readonly Statement<T>[];
-}
-
-export type Statement<T>
-    = ExpressionStatement<T>
-    | DeclareVar<T>
-    | AssignVar<T>
-    | AssignField<T>
-    | IfElseChain<T>
-    | DebugStatement<T>
-    | Block<T>
+export type Statement
+    = ExpressionStatement
+    | LetStatement
+    | AssignVar
+    | AssignField
+    | IfElseChain
+    | DebugStatement
     ;
 
-export interface ParamDefinition<T> extends ASTNode {
+export function isStatement(node: AnyNode): node is Statement {
+    return node.kind === ASTNodeKind.ExpressionStatement
+        || node.kind === ASTNodeKind.LetStatement
+        || node.kind === ASTNodeKind.AssignVar
+        || node.kind === ASTNodeKind.AssignField
+        || node.kind === ASTNodeKind.IfElseChain
+        || node.kind === ASTNodeKind.DebugStatement
+        ;
+}
+
+export interface Block extends ASTNode {
+    readonly kind: ASTNodeKind.Block;
+    readonly statements: readonly StatementOrBlock[];
+}
+
+export type StatementOrBlock
+    = Statement
+    | Block
+    ;
+
+export interface ParamDefinition extends ASTNode {
     readonly kind: ASTNodeKind.ParamDefinition;
     readonly name: string;
-    readonly type: ExactType;
+    readonly type: KnownType;
 }
 
-export interface StateDefinition<T> extends ASTNode {
+export interface StateDefinition extends ASTNode {
     readonly kind: ASTNodeKind.StateDefinition;
     readonly name: string;
-    readonly type: ExactType extends T ? ExactType : ExactType | undefined;
-    readonly default?: Expression<T>;
+    readonly type?: KnownType;
+    readonly default?: Expression;
 }
 
-export interface ListenerDefinition<T> extends ASTNode {
+export interface ParameterFragment extends ASTNode {
+    readonly kind: ASTNodeKind.ParameterFragment;
+    readonly name: string;
+    readonly type: KnownType;
+}
+
+export interface ListenerDefinition extends ASTNode {
     readonly kind: ASTNodeKind.ListenerDefinition;
     readonly event: string;
-    readonly parameters: readonly {
-        readonly name: string;
-        readonly type: ExactType;
-    }[];
-    readonly body: Block<T>;
+    readonly parameters: readonly ParameterFragment[];
+    readonly body: Block;
 }
 
-export interface TypeDefinition<T> extends ASTNode {
+export interface TypeDefinition extends ASTNode {
     readonly kind: ASTNodeKind.TypeDefinition;
     readonly parameters: readonly {
         readonly name: string;
-        readonly type: ExactType;
+        readonly type: KnownType;
     }[];
 }
 
-export interface Program<T> extends ASTNode {
-    readonly kind: ASTNodeKind.Program;
-    readonly params: readonly ParamDefinition<T>[];
-    readonly state: readonly StateDefinition<T>[];
-    readonly listeners: readonly ListenerDefinition<T>[];
-    readonly types: readonly TypeDefinition<T>[];
+export type TopLevelDefinition
+    = ParamDefinition
+    | StateDefinition
+    | ListenerDefinition
+    | TypeDefinition
+
+export interface Comment extends ASTNode {
+    readonly kind: ASTNodeKind.Comment;
+    readonly content: string;
 }
 
-export type AnyNode<T>
-    = Expression<T>
-    | Statement<T>
-    | ParamDefinition<T>
-    | StateDefinition<T>
-    | ListenerDefinition<T>
-    | TypeDefinition<T>
-    | Program<T>
+export interface Program extends ASTNode {
+    readonly kind: ASTNodeKind.Program;
+    readonly definitions: readonly TopLevelDefinition[];
+    readonly comments: readonly Comment[];
+}
+
+export type VariableDefinition
+    = ParamDefinition
+    | StateDefinition
+    | LetStatement
+    | ParameterFragment
+    | IfCaseFragment
     ;
+
+// There's nothing fundamentally relating different fragment nodes,
+// but they're still grouped together so it's easier to include them in AnyNode.
+// For that reason, Fragment is not exported.
+type Fragment
+    = ParameterFragment
+    | IfCaseFragment
+    | PairFragment
+    ;
+
+export type AnyNode
+    = Expression
+    | StatementOrBlock
+    | TopLevelDefinition
+    | Program
+    | Fragment
+    | Comment
+    ;
+
+// TODO: Improve stringification
+export default function stringifyNode(node: AnyNode) {
+    return JSON.stringify(node);
+} 

@@ -5,11 +5,12 @@ import { MiKeLexer } from './generated/MiKeLexer';
 import { DiagnosticsReporter } from '../diagnostics/Diagnostics';
 import { DiagnosticCodes } from '../diagnostics/DiagnosticCodes';
 import { MiKeParser } from './generated/MiKeParser';
+import { ASTNodeKind, Comment } from '../ast/Ast';
 
 export abstract class AbstractMiKeVisitor<T> extends AbstractParseTreeVisitor<T> implements MiKeVisitor<T> {};
 export interface AbstractMiKeVisitor<T> extends MiKeVisitor<T> {};
 
-export function getParser(str: string, diagnostics: DiagnosticsReporter) {
+export function getLexer(str: string, diagnostics: DiagnosticsReporter) {
     const charStream = CharStreams.fromString(str);
     const lexer = new MiKeLexer(charStream);
 
@@ -24,6 +25,11 @@ export function getParser(str: string, diagnostics: DiagnosticsReporter) {
         },
     });
 
+    return lexer;
+}
+
+export function getParser(lexer: MiKeLexer, diagnostics: DiagnosticsReporter) {
+    lexer.reset();
     const tokenStream = new CommonTokenStream(lexer);
     const parser = new MiKeParser(tokenStream);
 
@@ -37,6 +43,14 @@ export function getParser(str: string, diagnostics: DiagnosticsReporter) {
             diagnostics.report(DiagnosticCodes.GenericParseError, msg);
         },
     });
+
+    return parser;
+}
+
+export function getCommentParser(lexer: MiKeLexer): MiKeParser {
+    lexer.reset();
+    const tokenStream = new CommonTokenStream(lexer, 2);
+    const parser = new MiKeParser(tokenStream);
 
     return parser;
 }

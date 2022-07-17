@@ -2,6 +2,7 @@
   "scripts": {
     "clean": "rimraf src/grammar/generated",
     "antlr4ts": "npm run clean && antlr4ts -visitor src/grammar/MiKe.g4 -o src/grammar/generated",
+    "typecheck": "tsc --noEmit",
     "test": "mocha",
     "test:watch": "mocha --watch",
     "coverage": "c8 --reporter=lcov mocha",

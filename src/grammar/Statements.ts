@@ -1,21 +1,20 @@
 import { MiKeVisitor } from './generated/MiKeVisitor';
-import { BlockContext, DebugStatementContext, ExpressionStatementContext, FieldAssignmentStatementContext, IfStatementContext, LetStatementContext, TypeContext, VarAssignmentStatementContext } from './generated/MiKeParser';
+import { BlockContext, DebugStatementContext, ExpressionStatementContext, FieldAssignmentStatementContext, IfCaseContext, IfStatementContext, LetStatementContext, TypeContext, VarAssignmentStatementContext } from './generated/MiKeParser';
 import { ParserRuleContext } from 'antlr4ts';
-import { AstMetadata, ASTNodeKind, Expression, Statement, Block, AnyNode } from '../ast/Ast';
+import { AstMetadata, ASTNodeKind, Expression, Statement, Block, AnyNode, StatementOrBlock, LetStatement, AssignField, IfCaseFragment } from '../ast/Ast';
 import { DiagnosticCodes } from '../diagnostics/DiagnosticCodes';
-import { ExactType, TypeKind } from '../types/TypeReference';
+import { KnownType, TypeKind } from '../types/KnownType';
 import { boundMethod } from 'autobind-decorator';
 import { WithDiagnostics } from '../diagnostics/Mixin';
-import Poison from '../diagnostics/Poison';
 import { AbstractMiKeVisitor } from './Parser';
 
-export class StatementAstGenVisitor extends WithDiagnostics(AbstractMiKeVisitor<Statement<undefined>>) {
+export class StatementAstGenVisitor extends WithDiagnostics(AbstractMiKeVisitor<StatementOrBlock>) {
 
-    constructor(private exprVisitor: MiKeVisitor<Expression<undefined>>) {
+    constructor(private exprVisitor: MiKeVisitor<Expression>) {
         super();
     }
 
-    override visitExpressionStatement(ctx: ExpressionStatementContext): Statement<undefined> {
+    override visitExpressionStatement(ctx: ExpressionStatementContext): Statement {
         return {
             kind: ASTNodeKind.ExpressionStatement,
             metadata: this.getMetadata(ctx),
@@ -23,23 +22,27 @@ export class StatementAstGenVisitor extends WithDiagnostics(AbstractMiKeVisitor<
         };
     }
 
-    override visitLetStatement(ctx: LetStatementContext): Statement<undefined> {
+    override visitLetStatement(ctx: LetStatementContext): Statement {
         const varDef = ctx.varDef();
         const type = varDef.type();
         const expr = varDef.expression();
-        if (!expr && !type) {
-            this.fatal(DiagnosticCodes.LetIsEmpty, ctx);
-        }
-        return {
-            kind: ASTNodeKind.DeclareVar,
+        
+        const node = {
+            kind: ASTNodeKind.LetStatement,
             metadata: this.getMetadata(ctx),
             name: varDef.NAME().text,
             type: type ? this.resolveType(type) : undefined,
             value: expr?.accept(this.exprVisitor),
-        };
+        } as LetStatement;
+
+        if (!expr && !type) {
+            this.diagnostics.focus(node);
+            this.error(DiagnosticCodes.LetIsEmpty);
+        }
+        return node;
     }
 
-    override visitVarAssignmentStatement(ctx: VarAssignmentStatementContext): Statement<undefined> {
+    override visitVarAssignmentStatement(ctx: VarAssignmentStatementContext): Statement {
         return {
             kind: ASTNodeKind.AssignVar,
             metadata: this.getMetadata(ctx),
@@ -48,11 +51,20 @@ export class StatementAstGenVisitor extends WithDiagnostics(AbstractMiKeVisitor<
         }
     }
 
-    override visitFieldAssignmentStatement(ctx: FieldAssignmentStatementContext): Statement<undefined> {
+    override visitFieldAssignmentStatement(ctx: FieldAssignmentStatementContext): Statement {
         const [lhs, value] = ctx.expression().map(x => x.accept(this.exprVisitor));
 
         if (lhs.kind !== ASTNodeKind.Dereference) {
-            this.fatal(DiagnosticCodes.AssignToExpression, lhs);
+            const node = {
+                kind: ASTNodeKind.AssignField,
+                metadata: this.getMetadata(ctx),
+                memberName: '',
+                obj: lhs,
+                value,
+            } as AssignField;
+            this.diagnostics.focus(node);
+            this.error(DiagnosticCodes.AssignToExpression);
+            return node;
         }
 
         return {
@@ -64,21 +76,28 @@ export class StatementAstGenVisitor extends WithDiagnostics(AbstractMiKeVisitor<
         }
     }
 
-    override visitIfStatement(ctx: IfStatementContext): Statement<undefined> {
+    override visitIfStatement(ctx: IfStatementContext): Statement {
         const elseCtx = ctx.block();
         return {
             kind: ASTNodeKind.IfElseChain,
             metadata: this.getMetadata(ctx),
-            cases: ctx.ifCase().map(x => ({
-                condition: x.expression().accept(this.exprVisitor),
-                deconstructName: x.NAME()?.text,
-                body: this.visitBlock(x.block()),
-            } as const)),
+            cases: ctx.ifCase().map(this._visitIfCase),
             else: elseCtx ? this.visitBlock(elseCtx) : undefined,
         }
     }
 
-    override visitDebugStatement(ctx: DebugStatementContext): Statement<undefined> {
+    @boundMethod
+    private _visitIfCase(ctx: IfCaseContext): IfCaseFragment {
+        return {
+            kind: ASTNodeKind.IfCaseFragment,
+            metadata: this.getMetadata(ctx),
+            condition: ctx.expression().accept(this.exprVisitor),
+            deconstructName: ctx.NAME()?.text,
+            body: this.visitBlock(ctx.block()),
+        };
+    }
+
+    override visitDebugStatement(ctx: DebugStatementContext): Statement {
         return {
             kind: ASTNodeKind.DebugStatement,
             metadata: this.getMetadata(ctx),
@@ -86,7 +105,7 @@ export class StatementAstGenVisitor extends WithDiagnostics(AbstractMiKeVisitor<
         }
     }
 
-    override visitBlock(ctx: BlockContext): Block<undefined> {
+    override visitBlock(ctx: BlockContext): Block {
         return {
             kind: ASTNodeKind.Block,
             metadata: this.getMetadata(ctx),
@@ -94,16 +113,16 @@ export class StatementAstGenVisitor extends WithDiagnostics(AbstractMiKeVisitor<
         }
     }
 
-    protected override aggregateResult(aggregate: Statement<undefined>, nextResult: Statement<undefined>): Statement<undefined> {
+    protected override aggregateResult(aggregate: Statement, nextResult: Statement): Statement {
         return aggregate ?? nextResult;
     }
     
-    protected override defaultResult(): Statement<undefined> {
+    protected override defaultResult(): Statement {
         return null!;
     }
 
     @boundMethod
-    private resolveType(ctx: TypeContext): ExactType {
+    private resolveType(ctx: TypeContext): KnownType {
         if (ctx.DOUBLE_ARROW()) {
             return {
                 kind: TypeKind.Function,
@@ -122,27 +141,10 @@ export class StatementAstGenVisitor extends WithDiagnostics(AbstractMiKeVisitor<
 
     private getMetadata(ctx: ParserRuleContext): AstMetadata {
         return {
-            location: {
+            extent: {
                 start: { line: ctx.start.line, col: ctx.start.charPositionInLine },
                 end: { line: ctx.stop!.line, col: ctx.stop!.charPositionInLine },
             }
         };
-    }
-
-    private fatal(code: DiagnosticCodes, ctx: ParserRuleContext | AnyNode<undefined>, ...args: (string | number)[]): never {
-        this.nonfatal(code, ctx, ...args);
-        throw new Poison();
-    }
-
-    private nonfatal(code: DiagnosticCodes, ctx: ParserRuleContext | AnyNode<undefined>, ...args: (string | number)[]): void {
-        if (ctx instanceof ParserRuleContext) {
-            this.diagnostics.focus(this.getMetadata(ctx).location);
-        }
-        else {
-            this.diagnostics.focus(ctx);
-        }
-        this.diagnostics.report(code, ...args.map(x => {
-            return x.toString();
-        }));
     }
 }

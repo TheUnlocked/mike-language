@@ -1,6 +1,13 @@
 grammar MiKe;
 
-program: (paramDecl | stateDecl | eventDecl | typeDef)*;
+program: topLevelDecl*;
+
+topLevelDecl
+    : paramDecl
+    | stateDecl
+    | eventDecl
+    | typeDef
+    ;
 
 paramDecl: PARAM paramDef SEMI;
 
@@ -46,7 +53,7 @@ varDef: NAME (COLON type)? (EQUALS expression)?;
 expression: logicalPrec;
 
 logicalPrec
-    : left=comparisonPrec (AND_AND | PIPE_PIPE) right=logicalPrec #logical
+    : left=logicalPrec (AND_AND | PIPE_PIPE) right=comparisonPrec #logical
     | comparisonPrec #logicalFallthrough
     ;
 
@@ -55,17 +62,17 @@ comparisonPrec
         ( EQUALS_EQUALS | BANG_EQUALS
         | LANGLE | RANGLE
         | LANGLE_EQUALS | RANGLE_EQUALS
-        ) right=comparisonPrec #comparison
+        ) right=addsubPrec #comparison
     | addsubPrec #comparisonFallthrough
     ;
 
 addsubPrec
-    : left=muldivPrec (PLUS | MINUS) right=addsubPrec #addsub
+    : left=addsubPrec (PLUS | MINUS) right=muldivPrec #addsub
     | muldivPrec #addsubFallthrough
     ;
 
 muldivPrec
-    : left=unaryPrec (STAR | SLASH) right=muldivPrec #muldiv
+    : left=muldivPrec (STAR | SLASH) right=unaryPrec #muldiv
     | unaryPrec #muldivFallthrough
     ;
 
@@ -98,10 +105,14 @@ mapLiteral: NAME? LBRACE (mapLiteralPair COMMA)* (mapLiteralPair COMMA?)? RBRACE
 
 mapLiteralPair: key=expression COLON value=expression;
 
+comments: COMMENT*;
+
 STRING
     : '\'' (~['\\] | '\\\'' | '\\\\')*? '\''
     | '"' (~["\\] | '\\"' | '\\\\')*? '"'
     ;
+
+COMMENT: '//' .*? '\n' -> channel(2);
 
 PARAM: 'param';
 STATE: 'state';
