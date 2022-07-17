@@ -1,6 +1,6 @@
 import { CommentsContext } from './generated/MiKeParser';
 import { ASTNodeKind, Comment } from '../ast/Ast';
-import { AbstractMiKeVisitor } from './Parser';
+import { AbstractMiKeVisitor } from './BaseVisitor';
 
 export class CommentsAstGenVisitor extends AbstractMiKeVisitor<readonly Comment[]> {
 
@@ -17,9 +17,5 @@ export class CommentsAstGenVisitor extends AbstractMiKeVisitor<readonly Comment[
                 content: ctx.text.slice(2).replace(/\n$/, '')
             } as Comment;
         });
-    }
-
-    protected override defaultResult(): readonly Comment[] {
-        return null!;
     }
 }

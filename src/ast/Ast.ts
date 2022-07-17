@@ -22,17 +22,23 @@ export enum ASTNodeKind {
     DebugStatement,
     Block,
     // Top-level
-    ParamDefinition,
+    ParameterDefinition,
     StateDefinition,
     ListenerDefinition,
     TypeDefinition,
     Program,
     // Fragments
-    ParameterFragment,
-    IfCaseFragment,
-    PairFragment,
+    Identifier,
+    Parameter,
+    IfCase,
+    Pair,
+    // Types
+    TypeIdentifier,
+    GenericType,
+    FunctionType,
     // Misc
     Comment,
+    OutOfTree,
 }
 
 export enum InfixOperator {
@@ -102,11 +108,16 @@ export interface UnaryOp extends ExpressionNode {
 export interface Dereference extends ExpressionNode {
     readonly kind: ASTNodeKind.Dereference;
     readonly obj: Expression;
-    readonly memberName: string;
+    readonly member: Identifier;
 }
 
 export interface Variable extends ExpressionNode {
     readonly kind: ASTNodeKind.Variable;
+    readonly identifier: Identifier;
+}
+
+export interface Identifier extends ExpressionNode {
+    readonly kind: ASTNodeKind.Identifier;
     readonly name: string;
 }
 
@@ -132,20 +143,20 @@ export interface StringLiteral extends ExpressionNode {
 
 export interface SequenceLiteral extends ExpressionNode {
     readonly kind: ASTNodeKind.SequenceLiteral;
-    readonly typeName?: string;
+    readonly type?: TypeIdentifier;
     readonly elements: readonly Expression[];
 }
 
-export interface PairFragment extends ASTNode {
-    readonly kind: ASTNodeKind.PairFragment;
+export interface Pair extends ASTNode {
+    readonly kind: ASTNodeKind.Pair;
     readonly key: Expression;
     readonly value: Expression;
 }
 
 export interface MapLiteral extends ExpressionNode {
     readonly kind: ASTNodeKind.MapLiteral;
-    readonly typeName?: string;
-    readonly pairs: readonly PairFragment[];
+    readonly type?: TypeIdentifier;
+    readonly pairs: readonly Pair[];
 }
 
 export type Expression
@@ -187,34 +198,34 @@ export interface ExpressionStatement extends StatementNode {
 
 export interface LetStatement extends StatementNode {
     readonly kind: ASTNodeKind.LetStatement;
-    readonly name: string;
-    readonly type?: KnownType;
+    readonly name: Identifier;
+    readonly type?: Type;
     readonly value?: Expression;
 }
 
 export interface AssignVar extends StatementNode {
     readonly kind: ASTNodeKind.AssignVar;
-    readonly name: string;
+    readonly variable: Identifier;
     readonly value: Expression;
 }
 
 export interface AssignField extends StatementNode {
     readonly kind: ASTNodeKind.AssignField;
     readonly obj: Expression;
-    readonly memberName: string;
+    readonly member: Identifier;
     readonly value: Expression;
 }
 
-export interface IfCaseFragment extends StatementNode {
-    readonly kind: ASTNodeKind.IfCaseFragment;
+export interface IfCase extends StatementNode {
+    readonly kind: ASTNodeKind.IfCase;
     readonly condition: Expression,
-    readonly deconstructName?: string, 
+    readonly deconstruct?: Identifier, 
     readonly body: Block
 }
 
 export interface IfElseChain extends StatementNode {
     readonly kind: ASTNodeKind.IfElseChain;
-    readonly cases: readonly IfCaseFragment[];
+    readonly cases: readonly IfCase[];
     readonly else?: Block;
 }
 
@@ -252,42 +263,63 @@ export type StatementOrBlock
     | Block
     ;
 
-export interface ParamDefinition extends ASTNode {
-    readonly kind: ASTNodeKind.ParamDefinition;
-    readonly name: string;
-    readonly type: KnownType;
+export interface ParameterDefinition extends ASTNode {
+    readonly kind: ASTNodeKind.ParameterDefinition;
+    readonly identifier: Identifier;
+    readonly type: Type;
 }
 
 export interface StateDefinition extends ASTNode {
     readonly kind: ASTNodeKind.StateDefinition;
-    readonly name: string;
-    readonly type?: KnownType;
+    readonly identifier: Identifier;
+    readonly type?: Type;
     readonly default?: Expression;
 }
 
-export interface ParameterFragment extends ASTNode {
-    readonly kind: ASTNodeKind.ParameterFragment;
-    readonly name: string;
-    readonly type: KnownType;
+export interface Parameter extends ASTNode {
+    readonly kind: ASTNodeKind.Parameter;
+    readonly name: Identifier;
+    readonly type: Type;
 }
+
+export interface TypeIdentifier extends ASTNode {
+    readonly kind: ASTNodeKind.TypeIdentifier;
+    readonly name: string;
+}
+
+export interface GenericType extends ASTNode {
+    readonly kind: ASTNodeKind.GenericType;
+    readonly name: TypeIdentifier;
+    readonly typeArguments: readonly Type[];
+}
+
+export interface FunctionType extends ASTNode {
+    readonly kind: ASTNodeKind.FunctionType;
+    readonly parameters: readonly Type[];
+    readonly returnType: Type;
+}
+
+export type Type
+    = TypeIdentifier
+    | GenericType
+    | FunctionType
+    ;
 
 export interface ListenerDefinition extends ASTNode {
     readonly kind: ASTNodeKind.ListenerDefinition;
     readonly event: string;
-    readonly parameters: readonly ParameterFragment[];
+    readonly parameters: readonly Parameter[];
     readonly body: Block;
 }
 
 export interface TypeDefinition extends ASTNode {
     readonly kind: ASTNodeKind.TypeDefinition;
-    readonly parameters: readonly {
-        readonly name: string;
-        readonly type: KnownType;
-    }[];
+    readonly name: TypeIdentifier;
+    readonly parameters: readonly Parameter[];
 }
 
 export type TopLevelDefinition
-    = ParamDefinition
+    = ParameterDefinition
     | StateDefinition
     | ListenerDefinition
     | TypeDefinition
@@ -303,21 +335,25 @@ export interface Program extends ASTNode {
     readonly comments: readonly Comment[];
 }
 
+export interface ExternalVariableDefinition {
+    readonly kind: ASTNodeKind.OutOfTree;
+    readonly type: KnownType;
+}
+
 export type VariableDefinition
-    = ParamDefinition
+    = ExternalVariableDefinition
+    | ParameterDefinition
     | StateDefinition
     | LetStatement
-    | ParameterFragment
-    | IfCaseFragment
+    | Parameter
+    | IfCase
     ;
 
-// There's nothing fundamentally relating different fragment nodes,
-// but they're still grouped together so it's easier to include them in AnyNode.
-// For that reason, Fragment is not exported.
 type Fragment
-    = ParameterFragment
-    | IfCaseFragment
-    | PairFragment
+    = Parameter
+    | IfCase
+    | Pair
+    | Identifier
     ;
 
 export type AnyNode
@@ -326,6 +362,7 @@ export type AnyNode
     | TopLevelDefinition
     | Program
     | Fragment
+    | Type
     | Comment
     ;
 

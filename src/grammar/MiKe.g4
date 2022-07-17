@@ -15,12 +15,14 @@ stateDecl: STATE varDef SEMI;
 
 eventDecl: ON NAME paramList block;
 
-typeDef: TYPE NAME paramList SEMI;
+typeDef: TYPE typeIdentifier paramList SEMI;
 
 type
-    : NAME typeArguments?
-    | typeList DOUBLE_ARROW type
+    : typeIdentifier typeArguments?     #maybeGenericType
+    | typeList DOUBLE_ARROW type        #functionType
     ;
+
+typeIdentifier: NAME;
 
 typeArguments: LANGLE (type (COMMA type)*)? RANGLE;
 
@@ -35,7 +37,7 @@ block: LBRACE statement* RBRACE;
 statement
     : expression SEMI                            #expressionStatement
     | LET varDef SEMI                            #letStatement
-    | NAME EQUALS expression SEMI                #varAssignmentStatement
+    | identifier EQUALS expression SEMI          #varAssignmentStatement
     | expression EQUALS expression SEMI          #fieldAssignmentStatement
     | ifStatement                                #ifStatement_
     | DEBUG expression (COMMA expression)* SEMI  #debugStatement
@@ -44,11 +46,11 @@ statement
 
 ifStatement: IF ifCase (ELSE IF ifCase)* (ELSE block)?;
 
-ifCase: expression (PIPE NAME PIPE)? block;
+ifCase: expression (PIPE identifier PIPE)? block;
 
-paramDef: NAME COLON type;
+paramDef: identifier COLON type;
 
-varDef: NAME (COLON type)? (EQUALS expression)?;
+varDef: identifier (COLON type)? (EQUALS expression)?;
 
 expression: logicalPrec;
 
@@ -84,13 +86,13 @@ unaryPrec
 invoke: derefPrec argumentList?;
 
 derefPrec
-    : derefPrec DOT NAME #deref
+    : derefPrec DOT identifier #deref
     | atom #derefFallthrough
     ;
 
 atom
     : LPAREN expression RPAREN  #wrappedExpr
-    | NAME                      #variableRef
+    | identifier                #variableRef
     | FLOAT                     #floatLiteral
     | INT                       #intLiteral
     | TRUE                      #trueLiteral
@@ -100,10 +102,12 @@ atom
     | STRING                    #stringLiteral
     ;
 
-seqLiteral: NAME? LSQUARE (expression COMMA)* (expression COMMA?)? RSQUARE;
-mapLiteral: NAME? LBRACE (mapLiteralPair COMMA)* (mapLiteralPair COMMA?)? RBRACE;
+seqLiteral: typeIdentifier? LSQUARE (expression COMMA)* (expression COMMA?)? RSQUARE;
+mapLiteral: typeIdentifier? LBRACE (mapLiteralPair COMMA)* (mapLiteralPair COMMA?)? RBRACE;
 
 mapLiteralPair: key=expression COLON value=expression;
+
+identifier: NAME;
 
 comments: COMMENT*;
 

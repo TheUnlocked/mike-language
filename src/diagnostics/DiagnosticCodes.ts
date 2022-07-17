@@ -1,5 +1,5 @@
 import { suggestType } from '../utils/types';
-import { DiagnosticInfo, Severity } from './Diagnostics';
+import { DiagnosticInfo, DiagnosticsManager, Severity } from './Diagnostics';
 
 export enum DiagnosticCodes {
     // 2000: Parsing
@@ -70,3 +70,16 @@ export const defaultDiagnosticDetails = suggestType<{ readonly [name in Diagnost
         }]
     },
 } as const);
+
+export function createMiKeDiagnosticsManager() {
+    const diagnostics = new DiagnosticsManager();
+    Object.entries(defaultDiagnosticDetails as { [name: number]: DiagnosticInfo })
+        .map(([idStr, { severity, description, specializedMessages }]) => {
+            diagnostics.registerDiagnostic('mike', +idStr, severity, description);
+            for (const details of specializedMessages ?? []) {
+                diagnostics.registerDiagnosticMessage('mike', +idStr, details.when, details.message);
+            }
+        });
+    
+    return diagnostics;
+}

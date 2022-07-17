@@ -41,7 +41,7 @@ export interface DiagnosticsReporter {
     focus(node: AnyNode | Range | undefined): void;
 }
 
-export class Diagnostics {
+export class DiagnosticsManager {
     private currentRange?: Range;
 
     private diagnosticTypes = new Map<string, MutableDiagnosticInfo>();

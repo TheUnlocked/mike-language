@@ -1,4 +1,4 @@
-import stringifyNode, { AnyNode, ASTNodeKind, Block, Expression, Invoke, ListenerDefinition, Program, Statement, TopLevelDefinition, BinaryOp, UnaryOp, Dereference, StringLiteral, BoolLiteral, IntLiteral, FloatLiteral, Variable, SequenceLiteral, MapLiteral, ExpressionStatement, LetStatement, AssignVar, AssignField, IfElseChain, DebugStatement, ParamDefinition, StateDefinition, TypeDefinition, isExpression, isStatement, StatementOrBlock, ParameterFragment, IfCaseFragment, PairFragment } from '../ast/Ast';
+import stringifyNode, { AnyNode, ASTNodeKind, Block, Expression, Invoke, ListenerDefinition, Program, Statement, TopLevelDefinition, BinaryOp, UnaryOp, Dereference, StringLiteral, BoolLiteral, IntLiteral, FloatLiteral, Variable, SequenceLiteral, MapLiteral, ExpressionStatement, LetStatement, AssignVar, AssignField, IfElseChain, DebugStatement, ParameterDefinition, StateDefinition, TypeDefinition, isExpression, isStatement, StatementOrBlock, Parameter, IfCase, Pair, Comment, GenericType, TypeIdentifier, FunctionType, Type, Identifier } from '../ast/Ast';
 import Scope from './Scope';
 
 export class Binder {
@@ -11,16 +11,18 @@ export class Binder {
 
     }
 
-    getParent(node: Expression): Exclude<Expression, MapLiteral> | PairFragment | Statement;
+    getParent(node: Expression): Exclude<Expression, MapLiteral> | Pair | Statement;
     getParent(node: Statement): Block;
     getParent(node: Block): Block | ListenerDefinition;
     getParent(node: TopLevelDefinition): Program;
     getParent(node: Program): undefined;
-    getParent(node: PairFragment): MapLiteral;
-    getParent(node: IfCaseFragment): IfElseChain;
-    getParent(node: ParameterFragment): ListenerDefinition;
+    getParent(node: Pair): MapLiteral;
+    getParent(node: IfCase): IfElseChain;
+    getParent(node: Parameter): ListenerDefinition;
+    getParent(node: Comment): Program;
+    getParent(node: Type): GenericType | FunctionType | Parameter | LetStatement | ParameterDefinition | StateDefinition;
     // Combo overloads (can be removed if https://github.com/microsoft/TypeScript/issues/14107 gets resolved)
-    getParent(node: Expression | Statement | PairFragment): Expression | Statement | PairFragment | Block;
+    getParent(node: Expression | Statement | Pair): Expression | Statement | Pair | Block;
     // Fallback
     getParent(node: AnyNode): AnyNode;
     getParent(node: AnyNode) {
@@ -28,20 +30,30 @@ export class Binder {
     }
 
     getPositionInParent(child: Expression, parent: UnaryOp | Dereference | ExpressionStatement | LetStatement | AssignVar | StateDefinition): 0;
-    getPositionInParent(child: Expression, parent: BinaryOp | AssignField | PairFragment): 0 | 1;
+    getPositionInParent(child: Expression, parent: BinaryOp | AssignField | Pair): 0 | 1;
     /**
      * @returns `-1` if the child is the function, otherwise the argument's index
      */
     getPositionInParent(child: Expression, parent: Invoke): number;
     getPositionInParent(child: Expression, parent: SequenceLiteral | DebugStatement): number;
-    getPositionInParent(child: PairFragment, parent: MapLiteral): number;
+    getPositionInParent(child: Pair, parent: MapLiteral): number;
     getPositionInParent(child: Block, parent: IfElseChain): 0;
-    getPositionInParent(child: IfCaseFragment, parent: IfElseChain): number;
-    getPositionInParent(child: Expression | Block, parent: IfCaseFragment): 0;
+    getPositionInParent(child: IfCase, parent: IfElseChain): number;
+    getPositionInParent(child: Expression | Block, parent: IfCase): 0;
     getPositionInParent(child: StatementOrBlock, parent: Block): number;
     getPositionInParent(child: Block, parent: ListenerDefinition): 0;
-    getPositionInParent(child: ParameterFragment, parent: ListenerDefinition): number;
+    getPositionInParent(child: Parameter, parent: ListenerDefinition): number;
     getPositionInParent(child: TopLevelDefinition, parent: Program): number;
+    getPositionInParent(child: Comment, parent: Program): number;
+    getPositionInParent(child: Type, parent: Parameter | LetStatement | ParameterDefinition | StateDefinition): 0;
+    /**
+     * @returns `-1` if the child is the generic type, otherwise the argument's index
+     */
+    getPositionInParent(child: Type, parent: GenericType): number;
+    /**
+     * @returns `-1` if the child is the return type, otherwise the parameter's index
+     */
+    getPositionInParent(child: Type, parent: FunctionType): number;
     // Everything else is impossible
     getPositionInParent(child: AnyNode, parent: AnyNode): never;
     getPositionInParent(child: AnyNode, parent: AnyNode) {
@@ -53,8 +65,8 @@ export class Binder {
 
     getScope(node: Program | Block | Variable) {
         if (node.kind === ASTNodeKind.Variable) {
-            let parent: Expression | StatementOrBlock | PairFragment = this.getParent(node);
-            while (isExpression(parent) || isStatement(parent) || parent.kind === ASTNodeKind.PairFragment) {
+            let parent: Expression | StatementOrBlock | Pair = this.getParent(node);
+            while (isExpression(parent) || isStatement(parent) || parent.kind === ASTNodeKind.Pair) {
                 parent = this.getParent(parent);
             }
             node = parent;
@@ -80,12 +92,13 @@ export class Binder {
         return scope;
     }
 
-    bind(node: AnyNode) {
+    bind(node: AnyNode): void {
         if (this.parentMap.has(node)) {
             // This subtree is already bound
             return;
         }
         switch (node.kind) {
+            default: // Causes exhaustiveness check
             case ASTNodeKind.Invoke:
                 return this.bindInvoke(node);
             case ASTNodeKind.BinaryOp:
@@ -95,11 +108,12 @@ export class Binder {
             case ASTNodeKind.Dereference:
                 return this.bindDereference(node);
             case ASTNodeKind.Variable:
+                return this.bindVariable(node);
             case ASTNodeKind.FloatLiteral:
             case ASTNodeKind.IntLiteral:
             case ASTNodeKind.BoolLiteral:
             case ASTNodeKind.StringLiteral:
-                return this.bindAtomicExpression(node);
+                return this.bindAtomicLiteral(node);
             case ASTNodeKind.SequenceLiteral:
                 return this.bindSequenceLiteral(node);
             case ASTNodeKind.MapLiteral:
@@ -118,8 +132,8 @@ export class Binder {
                 return this.bindDebugStatement(node);
             case ASTNodeKind.Block:
                 return this.bindBlock(node);
-            case ASTNodeKind.ParamDefinition:
-                return this.bindParamDefinition(node);
+            case ASTNodeKind.ParameterDefinition:
+                return this.bindParameterDefinition(node);
             case ASTNodeKind.StateDefinition:
                 return this.bindStateDefinition(node);
             case ASTNodeKind.ListenerDefinition:
@@ -128,12 +142,22 @@ export class Binder {
                 return this.bindTypeDefinition(node);
             case ASTNodeKind.Program:
                 return this.bindProgram(node);
-            case ASTNodeKind.ParameterFragment:
-                return this.bindParameterFragment(node);
-            case ASTNodeKind.IfCaseFragment:
-                return this.bindIfCaseFragment(node);
-            case ASTNodeKind.PairFragment:
-                return this.bindPairFragment(node);
+            case ASTNodeKind.Parameter:
+                return this.bindParameter(node);
+            case ASTNodeKind.IfCase:
+                return this.bindIfCase(node);
+            case ASTNodeKind.Pair:
+                return this.bindPair(node);
+            case ASTNodeKind.GenericType:
+                return this.bindGenericType(node);
+            case ASTNodeKind.TypeIdentifier:
+                return this.bindTypeIdentifier(node);
+            case ASTNodeKind.FunctionType:
+                return this.bindFunctionType(node);
+            case ASTNodeKind.Comment:
+                return this.bindComment(node);
+            case ASTNodeKind.Identifier:
+                return this.bindIdentifier(node);
         }
     }
     
@@ -155,16 +179,26 @@ export class Binder {
         this.bindChild(node, node.obj, 0);
     }
 
-    private bindAtomicExpression(node: Variable | FloatLiteral | IntLiteral | BoolLiteral | StringLiteral) {
+    private bindVariable(node: Variable) {
+        this.bindChild(node, node.identifier, 0);
+    }
+
+    private bindAtomicLiteral(node: FloatLiteral | IntLiteral | BoolLiteral | StringLiteral) {
         
     }
 
     private bindSequenceLiteral(node: SequenceLiteral) {
         this.bindChildren(node, node.elements);
+        if (node.type) {
+            this.bindChild(node, node.type, 0);
+        }
     }
 
     private bindMapLiteral(node: MapLiteral) {
         this.bindChildren(node, node.pairs);
+        if (node.type) {
+            this.bindChild(node, node.type, 0);
+        }
     }
 
     private bindExpressionStatement(node: ExpressionStatement) {
@@ -172,16 +206,19 @@ export class Binder {
     }
 
     private bindDeclareVar(node: LetStatement) {
+        this.bindChild(node, node.name, 0);
         if (node.value) {
             this.bindChild(node, node.value, 0);
         }
     }
 
     private bindAssignVar(node: AssignVar) {
+        this.bindChild(node, node.variable, 0);
         this.bindChild(node, node.value, 0);
     }
 
     private bindAssignField(node: AssignField) {
+        this.bindChild(node, node.member, 0);
         this.bindChild(node, node.obj, 0);
         this.bindChild(node, node.value, 0);
     }
@@ -202,61 +239,92 @@ export class Binder {
 
         for (const child of node.statements) {
             if (child.kind === ASTNodeKind.LetStatement) {
-                scope.set(child.name, child);
+                scope.set(child.name.name, child);
             }
         }
         this.bindChildren(node, node.statements);
     }
 
-    private bindParamDefinition(node: ParamDefinition) {
-        
+    private bindParameterDefinition(node: ParameterDefinition) {
+        this.bindChild(node, node.identifier, 0);
+        this.bindChild(node, node.type, 0);
     }
 
     private bindStateDefinition(node: StateDefinition) {
         if (node.default) {
             this.bindChild(node, node.default, 0);
         }
+        if (node.type) {
+            this.bindChild(node, node.type, 0);
+        }
+        this.bindChild(node, node.identifier, 0);
     }
 
     private bindListenerDefinition(node: ListenerDefinition) {
         this.bindChildren(node, node.parameters);
         const scope = this.getOrCreateScope(node.body);
         for (const param of node.parameters) {
-            scope.set(param.name, param);
+            scope.set(param.name.name, param);
         }
         this.bindChild(node, node.body, 0);
     }
 
     private bindTypeDefinition(node: TypeDefinition) {
-        
+        this.bindChild(node, node.name, 0);
+        this.bindChildren(node, node.parameters);
     }
 
     private bindProgram(node: Program) {
         const scope = this.getOrCreateScope(node);
         for (const child of node.definitions) {
-            if (child.kind === ASTNodeKind.ParamDefinition || child.kind === ASTNodeKind.StateDefinition) {
-                scope.set(child.name, child);
+            if (child.kind === ASTNodeKind.ParameterDefinition || child.kind === ASTNodeKind.StateDefinition) {
+                scope.set(child.identifier.name, child);
             }
         }
         this.bindChildren(node, node.definitions);
+        this.bindChildren(node, node.comments);
     }
 
-    private bindParameterFragment(node: ParameterFragment) {
-
+    private bindParameter(node: Parameter) {
+        this.bindChild(node, node.name, 0);
+        this.bindChild(node, node.type, 0);
     }
 
-    private bindIfCaseFragment(node: IfCaseFragment) {
+    private bindIfCase(node: IfCase) {
         const scope = this.getOrCreateScope(node.body);
-        if (node.deconstructName) {
-            scope.set(node.deconstructName, node);
+        if (node.deconstruct) {
+            scope.set(node.deconstruct.name, node);
+            this.bindChild(node, node.deconstruct, 0);
         }
         this.bindChild(node, node.condition, 0);
         this.bindChild(node, node.body, 0);
     }
 
-    private bindPairFragment(node: PairFragment) {
+    private bindPair(node: Pair) {
         this.bindChild(node, node.key, 0);
         this.bindChild(node, node.value, 1);
+    }
+    
+    private bindFunctionType(node: FunctionType) {
+        this.bindChild(node, node.returnType, -1);
+        this.bindChildren(node, node.parameters);
+    }
+
+    private bindTypeIdentifier(node: TypeIdentifier) {
+        
+    }
+
+    private bindGenericType(node: GenericType) {
+        this.bindChild(node, node.name, -1);
+        this.bindChildren(node, node.typeArguments);
+    }
+
+    private bindComment(node: Comment) {
+        
+    }
+
+    private bindIdentifier(node: Identifier) {
+        
     }
 
     private bindChild(self: AnyNode, child: AnyNode, pos: number) {

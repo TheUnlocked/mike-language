@@ -1,14 +1,15 @@
-import { MiKeVisitor } from './generated/MiKeVisitor';
-import { AbstractParseTreeVisitor } from 'antlr4ts/tree/AbstractParseTreeVisitor'
 import { CharStreams, CommonTokenStream } from 'antlr4ts';
 import { MiKeLexer } from './generated/MiKeLexer';
 import { DiagnosticsReporter } from '../diagnostics/Diagnostics';
 import { DiagnosticCodes } from '../diagnostics/DiagnosticCodes';
 import { MiKeParser } from './generated/MiKeParser';
-import { ASTNodeKind, Comment } from '../ast/Ast';
-
-export abstract class AbstractMiKeVisitor<T> extends AbstractParseTreeVisitor<T> implements MiKeVisitor<T> {};
-export interface AbstractMiKeVisitor<T> extends MiKeVisitor<T> {};
+import { ASTNodeKind, Program } from '../ast/Ast';
+import { ExprAstGenVisitor } from './Expressions';
+import { StatementAstGenVisitor } from './Statements';
+import { TopLevelDefinitionAstGenVisitor } from './TopLevelDefinitions';
+import { CommentsAstGenVisitor } from './Comments';
+import { TypeAstGenVisitor } from './Types';
+import { AstUtils } from '../ast/AstUtils';
 
 export function getLexer(str: string, diagnostics: DiagnosticsReporter) {
     const charStream = CharStreams.fromString(str);
@@ -53,4 +54,33 @@ export function getCommentParser(lexer: MiKeLexer): MiKeParser {
     const parser = new MiKeParser(tokenStream);
 
     return parser;
+}
+
+export function parseMiKe(source: string, diagnostics: DiagnosticsReporter): Program {
+    const lexer = getLexer(source, diagnostics);
+    const parser = getParser(lexer, diagnostics);
+    
+    const typeVisitor = new TypeAstGenVisitor();
+    const exprVisitor = new ExprAstGenVisitor();
+    exprVisitor.setDiagnostics(diagnostics);
+    const statementVisitor = new StatementAstGenVisitor(typeVisitor, exprVisitor);
+    statementVisitor.setDiagnostics(diagnostics);
+    const topLevelDefinitionVisitor = new TopLevelDefinitionAstGenVisitor(typeVisitor, exprVisitor, statementVisitor);
+    topLevelDefinitionVisitor.setDiagnostics(diagnostics);
+    const definitions = parser.program().topLevelDecl().map(x => x.accept(topLevelDefinitionVisitor));
+
+    const commentParser = getCommentParser(lexer);
+    const comments = commentParser.comments().accept(new CommentsAstGenVisitor());
+
+    return {
+        kind: ASTNodeKind.Program,
+        metadata: {
+            extent: {
+                start: { line: 1, col: 0 },
+                end: AstUtils.getLastPosition(source)
+            }
+        },
+        definitions,
+        comments,
+    };
 }

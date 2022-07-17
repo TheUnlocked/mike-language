@@ -15,7 +15,7 @@ const data = files.map(filename => {
 
 describe('grammar', () => {
     for (const [filename, contents] of data) {
-        describe(filename, () => {
+        describe(filename.replace(/\..*$/, ''), () => {
             const mike = new MiKe();
             mike.init();
             mike.loadScript(filename, contents);

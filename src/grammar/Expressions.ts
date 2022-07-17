@@ -1,9 +1,8 @@
 import { AddsubContext, ComparisonContext, DerefContext, FalseLiteralContext, FloatLiteralContext, IntLiteralContext, InvokeContext, LogicalContext, MapLiteralContext, MapLiteralPairContext, MuldivContext, SeqLiteralContext, StringLiteralContext, TrueLiteralContext, UnaryContext, VariableRefContext } from './generated/MiKeParser';
-import { ParserRuleContext } from 'antlr4ts';
-import { AnyNode, AstMetadata, ASTNodeKind, BinaryOp, Expression, InfixOperator, PairFragment, PrefixOperator } from '../ast/Ast';
+import { ASTNodeKind, BinaryOp, Expression, InfixOperator, Pair, PrefixOperator } from '../ast/Ast';
 import { WithDiagnostics } from '../diagnostics/Mixin';
-import { AbstractMiKeVisitor } from './Parser';
 import { DiagnosticCodes } from '../diagnostics/DiagnosticCodes';
+import { AbstractMiKeVisitor } from './BaseVisitor';
 
 export class ExprAstGenVisitor extends WithDiagnostics(AbstractMiKeVisitor<Expression>) {
 
@@ -121,7 +120,7 @@ export class ExprAstGenVisitor extends WithDiagnostics(AbstractMiKeVisitor<Expre
             kind: ASTNodeKind.Dereference,
             metadata: this.getMetadata(ctx),
             obj: ctx.derefPrec().accept(this),
-            memberName: ctx.NAME().text,
+            member: this._visitIdentifier(ctx.identifier()),
         };
     }
 
@@ -129,31 +128,33 @@ export class ExprAstGenVisitor extends WithDiagnostics(AbstractMiKeVisitor<Expre
         return {
             kind: ASTNodeKind.Variable,
             metadata: this.getMetadata(ctx),
-            name: ctx.text,
+            identifier: this._visitIdentifier(ctx.identifier()),
         };
     }
 
     override visitSeqLiteral(ctx: SeqLiteralContext): Expression {
+        const type = ctx.typeIdentifier();
         return {
             kind: ASTNodeKind.SequenceLiteral,
             metadata: this.getMetadata(ctx),
-            typeName: ctx.NAME()?.text,
+            type: type ? this._visitTypeIdentifier(type) : undefined,
             elements: ctx.expression().map(x => x.accept(this)),
         };
     }
 
     override visitMapLiteral(ctx: MapLiteralContext): Expression {
+        const type = ctx.typeIdentifier();
         return {
             kind: ASTNodeKind.MapLiteral,
             metadata: this.getMetadata(ctx),
-            typeName: ctx.NAME()?.text,
+            type: type ? this._visitTypeIdentifier(type) : undefined,
             pairs: ctx.mapLiteralPair().map(this._visitPairFragment),
         };
     }
 
-    private _visitPairFragment(ctx: MapLiteralPairContext): PairFragment {
+    private _visitPairFragment(ctx: MapLiteralPairContext): Pair {
         return {
-            kind: ASTNodeKind.PairFragment,
+            kind: ASTNodeKind.Pair,
             metadata: this.getMetadata(ctx),
             key: ctx._key.accept(this),
             value: ctx._value.accept(this),
@@ -170,22 +171,6 @@ export class ExprAstGenVisitor extends WithDiagnostics(AbstractMiKeVisitor<Expre
                 .replaceAll("\\'", "'")
                 .replaceAll('\\\\', '\\')
                 .replaceAll(/\r\n|\r|\n/g, '\n'),
-        };
-    }
-
-    protected override defaultResult(): Expression {
-        return null!;
-    }
-
-    protected override aggregateResult(aggregate: Expression, nextResult: Expression): Expression {
-        return aggregate ?? nextResult;
-    }
-
-    private getMetadata(ctx: ParserRuleContext): AstMetadata {
-        const start = { line: ctx.start.line, col: ctx.start.charPositionInLine };
-        const end = ctx.stop ? { line: ctx.stop!.line, col: ctx.stop!.charPositionInLine } : start;
-        return {
-            extent: { start, end }
         };
     }
 }
