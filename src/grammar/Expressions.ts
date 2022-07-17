@@ -182,11 +182,10 @@ export class ExprAstGenVisitor extends WithDiagnostics(AbstractMiKeVisitor<Expre
     }
 
     private getMetadata(ctx: ParserRuleContext): AstMetadata {
+        const start = { line: ctx.start.line, col: ctx.start.charPositionInLine };
+        const end = ctx.stop ? { line: ctx.stop!.line, col: ctx.stop!.charPositionInLine } : start;
         return {
-            extent: {
-                start: { line: ctx.start.line, col: ctx.start.charPositionInLine },
-                end: { line: ctx.stop!.line, col: ctx.stop!.charPositionInLine },
-            }
+            extent: { start, end }
         };
     }
 }

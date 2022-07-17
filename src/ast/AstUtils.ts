@@ -2,7 +2,7 @@ import { WithDiagnostics } from '../diagnostics/Mixin';
 import { CommentsAstGenVisitor } from '../grammar/Comments';
 import { ExprAstGenVisitor } from '../grammar/Expressions';
 import { getCommentParser, getLexer, getParser } from '../grammar/Parser';
-import { ProgramAstGenVisitor } from '../grammar/Program';
+import { TopLevelDefinitionAstGenVisitor } from '../grammar/TopLevelDefinitions';
 import { StatementAstGenVisitor } from '../grammar/Statements';
 import { AnyNode, ASTNodeKind, Range, Program, Position } from './Ast';
 
@@ -15,14 +15,24 @@ export class AstUtils extends WithDiagnostics(class {}) {
         exprVisitor.setDiagnostics(this.diagnosticsManager);
         const statementVisitor = new StatementAstGenVisitor(exprVisitor);
         statementVisitor.setDiagnostics(this.diagnosticsManager);
-        const programVisitor = new ProgramAstGenVisitor(exprVisitor, statementVisitor);
-        programVisitor.setDiagnostics(this.diagnosticsManager);
-        const ast = parser.program().accept(programVisitor);
+        const topLevelDefinitionVisitor = new TopLevelDefinitionAstGenVisitor(exprVisitor, statementVisitor);
+        topLevelDefinitionVisitor.setDiagnostics(this.diagnosticsManager);
+        const definitions = parser.program().topLevelDecl().map(x => x.accept(topLevelDefinitionVisitor));
 
         const commentParser = getCommentParser(lexer);
         const comments = commentParser.comments().accept(new CommentsAstGenVisitor());
 
-        return { ...ast, comments } as Program;
+        return {
+            kind: ASTNodeKind.Program,
+            metadata: {
+                extent: {
+                    start: { line: 1, col: 0 },
+                    end: getLastPosition(source)
+                }
+            },
+            definitions,
+            comments,
+        };
     }
 
     getNodeAt(ast: AnyNode, position: Position): AnyNode | undefined {
@@ -110,4 +120,19 @@ function inRange({ start, end }: Range, position: Position) {
         return true;
     }
     return false;
+}
+
+function getLastPosition(str: string): Position {
+    let line = 1;
+    let lastLineSourcePosition = 0;
+    for (let i = 0; i < str.length; i++) {
+        if (str[i] === '\n') {
+            line++;
+            lastLineSourcePosition = i;
+        }
+    }
+    return {
+        line,
+        col: str.length - lastLineSourcePosition - 1
+    };
 }

@@ -1,0 +1,4 @@
+// import { ASTNodeKind } from '../../src/ast/Ast.ts'
+
+// v expect $.kind == ASTNodeKind.Comment, $.content == " this is a comment."
+// this is a comment.

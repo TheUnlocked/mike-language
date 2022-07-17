@@ -112,7 +112,7 @@ STRING
     | '"' (~["\\] | '\\"' | '\\\\')*? '"'
     ;
 
-COMMENT: '//' .*? '\n' -> channel(2);
+COMMENT: '//' .*? ('\n' | EOF) -> channel(2);
 
 PARAM: 'param';
 STATE: 'state';

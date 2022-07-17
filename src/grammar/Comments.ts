@@ -14,16 +14,12 @@ export class CommentsAstGenVisitor extends AbstractMiKeVisitor<readonly Comment[
                         end: { line: ctx.symbol.line, col: ctx.symbol.charPositionInLine + ctx.text.length }
                     }
                 },
-                content: ctx.text.slice(2, -1)
+                content: ctx.text.slice(2).replace(/\n$/, '')
             } as Comment;
         });
     }
 
     protected override defaultResult(): readonly Comment[] {
         return null!;
-    }
-
-    protected override aggregateResult(aggregate: readonly Comment[], nextResult: readonly Comment[]): readonly Comment[] {
-        return aggregate ?? nextResult;
     }
 }

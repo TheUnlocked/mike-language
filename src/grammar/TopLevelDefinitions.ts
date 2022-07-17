@@ -7,7 +7,7 @@ import { boundMethod } from 'autobind-decorator';
 import { WithDiagnostics } from '../diagnostics/Mixin';
 import { AbstractMiKeVisitor } from './Parser';
 
-export class ProgramAstGenVisitor extends WithDiagnostics(AbstractMiKeVisitor<AnyNode>) {
+export class TopLevelDefinitionAstGenVisitor extends WithDiagnostics(AbstractMiKeVisitor<TopLevelDefinition>) {
 
     constructor(
         private exprVisitor: MiKeVisitor<Expression>,
@@ -16,21 +16,12 @@ export class ProgramAstGenVisitor extends WithDiagnostics(AbstractMiKeVisitor<An
         super();
     }
 
-    override visitProgram(ctx: ProgramContext): AnyNode {
-        return {
-            kind: ASTNodeKind.Program,
-            metadata: this.getMetadata(ctx),
-            definitions: ctx.topLevelDecl().map(x => x.accept(this)) as readonly TopLevelDefinition[],
-            comments: [],
-        };
-    }
-
     override visitEventDecl(ctx: EventDeclContext): ListenerDefinition {
         return {
             kind: ASTNodeKind.ListenerDefinition,
             metadata: this.getMetadata(ctx),
             event: ctx.NAME().text,
-            parameters: ctx.paramList().paramDef().map(this.visitParamDef),
+            parameters: ctx.paramList().paramDef().map(this._visitParamDef),
             body: ctx.block().accept(this.statementVisitor) as Block,
         };
     }
@@ -57,16 +48,15 @@ export class ProgramAstGenVisitor extends WithDiagnostics(AbstractMiKeVisitor<An
         };
     }
 
-    @boundMethod
     override visitTypeDef(ctx: TypeDefContext): TypeDefinition {
         return {
             kind: ASTNodeKind.TypeDefinition,
             metadata: this.getMetadata(ctx),
-            parameters: ctx.paramList().paramDef().map(this.visitParamDef),
+            parameters: ctx.paramList().paramDef().map(this._visitParamDef),
         };
     }
 
-    override visitParamDef(ctx: ParamDefContext): ParameterFragment {
+    _visitParamDef(ctx: ParamDefContext): ParameterFragment {
         return {
             kind: ASTNodeKind.ParameterFragment,
             metadata: this.getMetadata(ctx),
@@ -74,12 +64,8 @@ export class ProgramAstGenVisitor extends WithDiagnostics(AbstractMiKeVisitor<An
             type: this.resolveType(ctx.type()),
         }
     }
-
-    protected aggregateResult(aggregate: AnyNode, nextResult: AnyNode): AnyNode {
-        return aggregate ?? nextResult;
-    }
     
-    protected defaultResult(): AnyNode {
+    protected defaultResult(): TopLevelDefinition {
         return null!;
     }
 
@@ -102,11 +88,10 @@ export class ProgramAstGenVisitor extends WithDiagnostics(AbstractMiKeVisitor<An
     }
 
     private getMetadata(ctx: ParserRuleContext): AstMetadata {
+        const start = { line: ctx.start.line, col: ctx.start.charPositionInLine };
+        const end = ctx.stop ? { line: ctx.stop!.line, col: ctx.stop!.charPositionInLine } : start;
         return {
-            extent: {
-                start: { line: ctx.start.line, col: ctx.start.charPositionInLine },
-                end: { line: ctx.stop!.line, col: ctx.stop!.charPositionInLine },
-            }
+            extent: { start, end }
         };
     }
 }
