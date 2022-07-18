@@ -3,6 +3,7 @@ import { EventDeclContext, ParamDeclContext, ParamDefContext, StateDeclContext, 
 import { Expression, ListenerDefinition, ASTNodeKind, ParameterDefinition, StateDefinition, TypeDefinition, Block, Parameter, StatementOrBlock, TopLevelDefinition, Type } from '../ast/Ast';
 import { WithDiagnostics } from '../diagnostics/Mixin';
 import { AbstractMiKeVisitor } from './BaseVisitor';
+import { boundMethod } from 'autobind-decorator';
 
 export class TopLevelDefinitionAstGenVisitor extends WithDiagnostics(AbstractMiKeVisitor<TopLevelDefinition>) {
 
@@ -54,6 +55,7 @@ export class TopLevelDefinitionAstGenVisitor extends WithDiagnostics(AbstractMiK
         };
     }
 
+    @boundMethod
     _visitParamDef(ctx: ParamDefContext): Parameter {
         return {
             kind: ASTNodeKind.Parameter,

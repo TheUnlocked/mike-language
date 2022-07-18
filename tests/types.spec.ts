@@ -1,10 +1,10 @@
 import { expect } from 'chai';
 import { readdirSync, readFileSync } from 'fs';
 import path from 'path';
-import { AnyNode } from '../src/ast/Ast';
+import { AnyNode, isExpression } from '../src/ast/Ast';
 import { TestFileContext, createContextFromImports, createTestFunction, getTestData } from './util';
 
-const sourceFilesDir = path.join(__dirname, './grammar');
+const sourceFilesDir = path.join(__dirname, './types');
 
 const files = readdirSync(sourceFilesDir);
 
@@ -13,7 +13,7 @@ const data = files.map(filename => {
     return [filename, contents] as const;
 });
 
-describe('grammar', () => {
+describe('types', () => {
     for (const [filename, contents] of data) {
         const filenameWithoutExt = filename.replace(/\..*$/, '');
         describe(filenameWithoutExt.replace(/\..*$/, ''), () => {
@@ -44,7 +44,8 @@ describe('grammar', () => {
                             const node = mike.getNodeAt(filename, position);
                             createTestFunction(condition, {
                                 ...context,
-                                $: node
+                                $: node,
+                                ...node && isExpression(node) ? { $t: mike.typechecker.fetchType(node) } : undefined,
                             })();
                         });
                     }

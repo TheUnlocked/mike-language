@@ -5,6 +5,7 @@ module.exports = {
         "tests/*.spec.ts"
     ],
     "watch-files": [
-        "src"
+        "src/**",
+        "tests/**",
     ]
 };

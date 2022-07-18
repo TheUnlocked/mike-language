@@ -1,0 +1,39 @@
+// import { ASTNodeKind } from '../../src/ast/Ast.ts'
+
+// v expect $.kind == ASTNodeKind.TypeDefinition, $.name.name == 'Foo'
+type Foo (
+//   v expect $.name.name == 'x', $.type.name == 'int'
+    x: int,
+    //         v expect $.kind == ASTNodeKind.FunctionType
+    //            v expect $.name == 'option'
+    //                  v expect $.kind == ASTNodeKind.GenericType
+    foo: (int) => option<string>,
+);
+
+// v expect $.kind == ASTNodeKind.ParameterDefinition
+param increment: int;
+param multiplyMode: boolean;
+
+// v expect $.kind == ASTNodeKind.StateDefinition, $.default.value == 0
+state points = 0;
+// v expect $.default == undefined, $.type.kind == ASTNodeKind.GenericType
+state messages: Queue<string>;
+
+//  v expect $.kind == ASTNodeKind.ListenerDefinition
+//                 v expect $.kind == ASTNodeKind.Parameter
+    on send(message: string) {
+        // v expect parent($).kind == ASTNodeKind.Variable
+        //       v expect $.kind == ASTNodeKind.Identifier
+        //              v expect $.kind == ASTNodeKind.Invoke, $.fn.kind == ASTNodeKind.Dereference
+        messages.enqueue(message);
+    }
+
+on score() {
+    if multiplyMode {
+        //     v expect $.kind == ASTNodeKind.AssignVar
+        points = points * increment;
+    }
+    else {
+        points = points + increment;
+    }
+}

@@ -88,12 +88,12 @@ export class AstUtils extends WithDiagnostics(class {}) {
         if (position.line >= start.line && position.line <= end.line) {
             if (position.line === start.line) {
                 if (position.line === end.line) {
-                    return position.col >= start.col && position.col <= end.col;
+                    return position.col >= start.col && position.col < end.col;
                 }
                 return position.col >= start.col;
             }
             else if (position.line === end.line) {
-                return position.col <= end.col;
+                return position.col < end.col;
             }
             return true;
         }

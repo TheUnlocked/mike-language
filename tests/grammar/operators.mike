@@ -1,4 +1,4 @@
-// import { InfixOperator } from '../../src/ast/Ast.ts'
+// import { InfixOperator, PrefixOperator } from '../../src/ast/Ast.ts'
 
 on _() {
     //v expect $.op == InfixOperator.Add
@@ -23,4 +23,9 @@ on _() {
     true || 1 == 1;
     //   v expect $.op == InfixOperator.And, $.rhs.op == InfixOperator.Equals
     true && 1 == 1;
+
+    // v expect $.op == PrefixOperator.Minus
+       -(5);
+    // v expect $.op == PrefixOperator.Not
+       !true;
 }

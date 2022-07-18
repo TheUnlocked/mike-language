@@ -18,17 +18,17 @@ export interface MutableDiagnosticInfo {
     specializedMessages?: { when: (...args: string[]) => boolean, message: string }[]
 }
 
-class Diagnostic {
+export class Diagnostic {
     constructor(
         public readonly id: string,
         public readonly severity: Severity,
-        public readonly location: Range | undefined,
+        public readonly range: Range | undefined,
         private readonly description: string,
         private readonly args: string[],
     ) {}
 
     getDescription() {
-        return this.description.replace(/{[0-9]+}/, (match, key) => this.args[+key] ?? match);
+        return this.description.replace(/{([0-9]+)}/, (match, key) => this.args[+key] ?? match);
     }
 
     toString() {

@@ -1,0 +1,25 @@
+// import { TypeKind } from '../../src/types/KnownType.ts'
+
+on _() {
+    //v expect $t.kind == TypeKind.Simple, $t.name == 'int'
+    1 + 2;
+    //    v expect $t.kind == TypeKind.Simple, $t.name == 'boolean'
+    1 + 1 >= 2;
+    //    v expect $t.kind == TypeKind.Simple, $t.name == 'boolean'
+    1 + 1 == 2;
+    //    v expect $t.kind == TypeKind.Simple, $t.name == 'boolean'
+    //         v expect $t.kind == TypeKind.Simple, $t.name == 'int'
+    1 + 2 != 2 * 2;
+    // v expect $t.kind == TypeKind.Simple, $t.name == 'boolean'
+    //   v expect $t.kind == TypeKind.Simple, $t.name == 'boolean'
+    //        v expect $t.kind == TypeKind.Simple, $t.name == 'boolean'
+    true || 1 == 1;
+
+    // v expect $t.kind == TypeKind.Simple, $t.name == 'int'
+       -(5);
+    // v expect $t.kind == TypeKind.Simple, $t.name == 'float'
+    //   v expect $t.kind == TypeKind.Simple, $t.name == 'float'
+       -(5.0);
+    // v expect $t.kind == TypeKind.Simple, $t.name == 'boolean'
+       !true;
+}

@@ -28,7 +28,7 @@ typeArguments: LANGLE (type (COMMA type)*)? RANGLE;
 
 typeList: LPAREN (type (COMMA type)*)? RPAREN;
 
-paramList: LPAREN (paramDef (COMMA paramDef)*)? RPAREN;
+paramList: LPAREN (paramDef (COMMA paramDef)* COMMA?)? RPAREN;
 
 argumentList: LPAREN (expression (COMMA expression)*)? RPAREN;
 

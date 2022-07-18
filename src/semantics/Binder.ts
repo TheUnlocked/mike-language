@@ -4,6 +4,7 @@ import Scope from './Scope';
 export class Binder {
     // WeakMap so that the GC can pick up dead nodes.
     private parentMap = new WeakMap<AnyNode, AnyNode>();
+    private visited = new WeakSet<AnyNode>();
     private positionMap = new WeakMap<AnyNode, number>();
     private symbolTable = new WeakMap<Block | Program, Scope>();
 
@@ -30,6 +31,7 @@ export class Binder {
     }
 
     getPositionInParent(child: Expression, parent: UnaryOp | Dereference | ExpressionStatement | LetStatement | AssignVar | StateDefinition): 0;
+    getPositionInParent(child: Identifier, parent: Dereference | LetStatement | AssignVar | StateDefinition): 0;
     getPositionInParent(child: Expression, parent: BinaryOp | AssignField | Pair): 0 | 1;
     /**
      * @returns `-1` if the child is the function, otherwise the argument's index
@@ -93,10 +95,11 @@ export class Binder {
     }
 
     bind(node: AnyNode): void {
-        if (this.parentMap.has(node)) {
+        if (this.visited.has(node)) {
             // This subtree is already bound
             return;
         }
+        this.visited.add(node);
         switch (node.kind) {
             default: // Causes exhaustiveness check
             case ASTNodeKind.Invoke:
@@ -177,6 +180,7 @@ export class Binder {
 
     private bindDereference(node: Dereference) {
         this.bindChild(node, node.obj, 0);
+        this.bindChild(node, node.member, 0);
     }
 
     private bindVariable(node: Variable) {

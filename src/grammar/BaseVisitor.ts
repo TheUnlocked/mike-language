@@ -33,7 +33,10 @@ export abstract class AbstractMiKeVisitor<T> extends AbstractParseTreeVisitor<T>
 
     protected getMetadata(ctx: ParserRuleContext): AstMetadata {
         const start = { line: ctx.start.line, col: ctx.start.charPositionInLine };
-        const end = ctx.stop ? { line: ctx.stop!.line, col: ctx.stop!.charPositionInLine } : start;
+        const end = ctx.stop ? {
+            line: ctx.stop.line,
+            col: ctx.stop.charPositionInLine + (ctx.stop.text?.length ?? 0)
+        } : start;
         return {
             extent: { start, end }
         };
