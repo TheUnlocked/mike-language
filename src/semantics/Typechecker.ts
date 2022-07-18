@@ -1,6 +1,6 @@
 import { boundMethod } from 'autobind-decorator';
 import { isEqual, spread, zip } from 'lodash';
-import { ASTNodeKind, BinaryOp, Dereference, Expression, InfixOperator, Invoke, MapLiteral, PrefixOperator, SequenceLiteral, Type, UnaryOp, Variable as Variable, VariableDefinition } from '../ast/Ast';
+import { ASTNodeKind, BinaryOp, Dereference, Expression, Identifier, InfixOperator, Invoke, MapLiteral, PrefixOperator, SequenceLiteral, Type, UnaryOp, Variable as Variable, VariableDefinition } from '../ast/Ast';
 import { DiagnosticCodes } from '../diagnostics/DiagnosticCodes';
 import { WithDiagnostics } from '../diagnostics/Mixin';
 import { CanIfDestructAttribute, TypeAttributeKind } from '../types/Attribute';
@@ -291,7 +291,7 @@ export class Typechecker extends WithDiagnostics(class {}) {
     }
 
     @boundMethod
-    private getTypeOfTypeNode(ast: Type): KnownType {
+    getTypeOfTypeNode(ast: Type): KnownType {
         switch (ast.kind) {
             case ASTNodeKind.TypeIdentifier:
                 return { kind: TypeKind.Simple, name: ast.name, typeArguments: [] };
@@ -342,6 +342,15 @@ export class Typechecker extends WithDiagnostics(class {}) {
             case ASTNodeKind.OutOfTree:
                 return ast.type;
         }
+    }
+
+    fetchSymbolType(ast: Identifier): KnownType {
+        const varDef = this.binder.getScope(ast).get(ast.name);
+        if (varDef) {
+            return this.fetchVariableDefinitionType(varDef);
+        }
+        this.error(DiagnosticCodes.UnknownIdentifier, ast.name);
+        return TOXIC;
     }
  
     private fetchVariableType(ast: Variable): KnownType {

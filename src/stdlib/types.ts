@@ -6,7 +6,7 @@ import { KnownType, TypeKind } from '../types/KnownType';
 function optionOf(t: KnownType): KnownType {
     return {
         kind: TypeKind.Simple,
-        name: 'Option',
+        name: 'option',
         typeArguments: [t]
     };
 }
@@ -112,7 +112,7 @@ export const stdlibTypes = [
         })
     },
     {
-        name: 'Option',
+        name: 'option',
         numParameters: 1,
         quantify: ([t]) => ({
             attributes: [

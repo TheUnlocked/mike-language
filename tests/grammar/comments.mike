@@ -2,3 +2,5 @@
 
 // v expect $.kind == ASTNodeKind.Comment, $.content == " this is a comment."
 // this is a comment.
+
+// assert diagnostics ~ none

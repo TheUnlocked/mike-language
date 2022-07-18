@@ -11,15 +11,40 @@ export function createTestFunction(assertion: string, variables: { [name: string
     return () => new Function(...args, assertionToJs(assertion))(...args.map(x => testContext[x]));
 }
 
+const COMMA_REGEX = /,(?=(?:(?:[^']*'){2})*[^']*$)/;
+
 function assertionToJs(assertion: string): string {
-    if (assertion.includes(',')) {
-        return assertion.split(',').map(assertionToJs).join('');
+    if (COMMA_REGEX.test(assertion)) {
+        return assertion.split(COMMA_REGEX).map(assertionToJs).join('');
+    }
+    if (assertion.includes('~')) {
+        const [lhs, operator, ...rest] = assertion.split('~').map(x => x.trim());
+
+        switch (operator) {
+            case 'none':
+                if (rest.length === 0) {
+                    return `expect(${lhs}).empty;`
+                }
+            case 'has':
+                if (rest.length > 0) {
+                    return `expect(${lhs}.some(___$ => {
+                        eval(\`var {\${Object.keys(___$)}} = ___$;\`);
+                        try {
+                            ${assertionToJs(rest.join('~'))}
+                        }
+                        catch (e) {
+                            return false;
+                        }
+                        return true;
+                    })).true;`;
+                }
+        }
     }
     if (assertion.includes('==')) {
         const [lhs, rhs] = assertion.split('==').map(x => x.trim());
-        return `expect(${lhs}).to.equal(${rhs});`;
+        return `expect(${lhs}).deep.equal(${rhs});`;
     }
-    return ``;
+    return `expect.fail('Invalid assertion: ' + ${JSON.stringify(assertion)});`;
 }
 
 export interface TestAssertion {
@@ -40,7 +65,7 @@ export interface TestData {
     imports: TestImport[];
 }
 
-export interface TestFileContext {
+export interface AssertionContext {
     [name: string]: any;
 }
 
@@ -61,6 +86,7 @@ export function getTestData(filename: string, contents: string): TestData {
             const comment = comments[i];
             if (comment.content.includes('expect')) {
                 const condition = comment.content.match(/v\s+expect\s+(.*)/)?.[1].trim();
+                
                 if (condition) {
                     const cursorPosInString = comment.content.indexOf('v');
                     let commentIndex = i;
@@ -80,6 +106,12 @@ export function getTestData(filename: string, contents: string): TestData {
                         line++;
                     }
                     assertions.push({ position: { line, col }, condition });
+                }
+            }
+            else if (comment.content.includes('assert')) {
+                const condition = comment.content.match(/assert\s+(.*)/)?.[1].trim();
+                if (condition) {
+                    assertions.push({ position: comment.metadata.extent.start, condition });
                 }
             }
             else if (comment.content.includes('import')) {
@@ -113,7 +145,7 @@ export function getTestData(filename: string, contents: string): TestData {
     };
 }
 
-export async function createContextFromImports(imports: TestImport[], relativeTo: string): Promise<TestFileContext> {
+export async function createContextFromImports(imports: TestImport[], relativeTo: string): Promise<AssertionContext> {
     return Object.fromEntries((await Promise.all(imports.map(async ({ members, path: importPath }) => {
         const contents = await import(path.join(relativeTo, importPath));
         if (/^{(.*)}$/.test(members)) {

@@ -22,8 +22,10 @@ export class Binder {
     getParent(node: Parameter): ListenerDefinition;
     getParent(node: Comment): Program;
     getParent(node: Type): GenericType | FunctionType | Parameter | LetStatement | ParameterDefinition | StateDefinition;
+    getParent(node: Identifier): Variable | LetStatement | AssignVar | AssignField | ParameterDefinition | StateDefinition | IfCase;
     // Combo overloads (can be removed if https://github.com/microsoft/TypeScript/issues/14107 gets resolved)
     getParent(node: Expression | Statement | Pair): Expression | Statement | Pair | Block;
+    getParent(node: Expression | Statement | Pair | Identifier): Expression | Statement | Pair | Block | Variable | LetStatement | AssignVar | AssignField | ParameterDefinition | StateDefinition | IfCase;
     // Fallback
     getParent(node: AnyNode): AnyNode;
     getParent(node: AnyNode) {
@@ -65,9 +67,15 @@ export class Binder {
         return this.positionMap.get(child);
     }
 
-    getScope(node: Program | Block | Variable) {
-        if (node.kind === ASTNodeKind.Variable) {
-            let parent: Expression | StatementOrBlock | Pair = this.getParent(node);
+    getScope(node: Program | Block | Variable | Identifier) {
+        if (node.kind === ASTNodeKind.Variable || node.kind === ASTNodeKind.Identifier) {
+            let parent = this.getParent(node);
+            if (parent.kind === ASTNodeKind.ParameterDefinition || parent.kind === ASTNodeKind.StateDefinition) {
+                return this.symbolTable.get(this.getParent(parent)) ?? this.topLevelScope;
+            }
+            if (parent.kind === ASTNodeKind.IfCase) {
+                parent = parent.body;
+            }
             while (isExpression(parent) || isStatement(parent) || parent.kind === ASTNodeKind.Pair) {
                 parent = this.getParent(parent);
             }

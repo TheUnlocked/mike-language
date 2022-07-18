@@ -1,4 +1,5 @@
 // import { TypeKind } from '../../src/types/KnownType.ts'
+// import { DiagnosticCodes } from '../../src/diagnostics/DiagnosticCodes.ts'
 
 on _() {
     //v expect $t.kind == TypeKind.Simple, $t.name == 'int'
@@ -22,4 +23,9 @@ on _() {
        -(5.0);
     // v expect $t.kind == TypeKind.Simple, $t.name == 'boolean'
        !true;
+    
+    //v expect diagnostics ~ has ~ id == 'mike' + DiagnosticCodes.BadArithmeticOpArgumentType
+    1 + '';
 }
+
+// assert diagnostics.length == 1

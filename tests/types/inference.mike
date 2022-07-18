@@ -1,0 +1,18 @@
+
+on _() {
+    let arr: Stack<int> = [];
+    let x = 5;
+    //v expect $t == type('Stack<int>')
+    // v expect $t == type('(int) => unit')
+    //      v expect $t == type('unit')
+    //       v expect $t == type('int')
+    arr.push(x);
+    //        v expect $t == type('option<int>')
+    //            v expect $t == type('int')
+    if arr.pop() |result| {
+        //    v expect $t == type('int')
+        debug result;
+    }
+}
+
+// assert diagnostics ~ none

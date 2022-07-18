@@ -67,7 +67,7 @@ export class AstUtils extends WithDiagnostics(class {}) {
             case ASTNodeKind.Parameter:
                 return [ast.name, ast.type];
             case ASTNodeKind.IfCase:
-                return [ast.condition, ast.body];
+                return [ast.condition, ...ast.deconstruct ? [ast.deconstruct]: [], ast.body];
             case ASTNodeKind.Pair:
                 return [ast.key, ast.value];
             case ASTNodeKind.Comment:

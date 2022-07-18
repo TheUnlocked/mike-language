@@ -29,3 +29,5 @@ on _() {
     // v expect $.op == PrefixOperator.Not
        !true;
 }
+
+// assert diagnostics ~ none

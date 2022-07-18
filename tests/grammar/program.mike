@@ -37,3 +37,5 @@ on score() {
         points = points + increment;
     }
 }
+
+// assert diagnostics ~ none

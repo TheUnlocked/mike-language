@@ -1,73 +1,28 @@
-import { expect } from 'chai';
-import { readdirSync, readFileSync } from 'fs';
-import path from 'path';
-import { AnyNode, isExpression } from '../src/ast/Ast';
-import { TestFileContext, createContextFromImports, createTestFunction, getTestData } from './util';
+import { AnyNode, ASTNodeKind, isExpression } from '../src/ast/Ast';
+import { getLexer, getParser } from '../src/grammar/Parser';
+import { TypeAstGenVisitor } from '../src/grammar/Types';
+import scaffoldTests from './scaffolding';
 
-const sourceFilesDir = path.join(__dirname, './types');
-
-const files = readdirSync(sourceFilesDir);
-
-const data = files.map(filename => {
-    const contents = readFileSync(path.join(sourceFilesDir, filename), { encoding: 'utf8' });
-    return [filename, contents] as const;
-});
-
-describe('types', () => {
-    for (const [filename, contents] of data) {
-        const filenameWithoutExt = filename.replace(/\..*$/, '');
-        describe(filenameWithoutExt.replace(/\..*$/, ''), () => {
-            try {
-                const {
-                    mike,
-                    diagnosticsManager,
-                    assertions,
-                    imports,
-                    isEmpty
-                } = getTestData(filename, contents);
-                
-                if (isEmpty) {
-                    it('there are no tests in this file');
-                    return;
-                }
-                else {
-                    let context: TestFileContext;
-                    before(async () => {
-                        context = {
-                            ...await createContextFromImports(imports, sourceFilesDir),
-                            parent: (node: AnyNode) => mike.binder.getParent(node),
-                        }
-                    });
-        
-                    for (const { position, condition } of assertions) {
-                        it(`${filenameWithoutExt}:${position.line}:${position.col + 1} -- ${condition.trim()}`, () => {
-                            const node = mike.getNodeAt(filename, position);
-                            createTestFunction(condition, {
-                                ...context,
-                                $: node,
-                                ...node && isExpression(node) ? { $t: mike.typechecker.fetchType(node) } : undefined,
-                            })();
-                        });
-                    }
-                }
-    
-                for (const diagnostic of diagnosticsManager.getDiagnostics()) {
-                    let locationStr = '';
-                    if (diagnostic.range) {
-                        const { line, col } = diagnostic.range.start;
-                        locationStr = `${filenameWithoutExt}:${line}:${col + 1} -- `;
-                    }
-                    it(`${locationStr}${diagnostic.id}: ${diagnostic.getDescription().replace(/\.$/, '')}`, () => {
-                        expect.fail(diagnostic.getDescription());
-                    });
-                }
-            }
-            catch (e) {
-                const err = e as Error;
-                it(`${err.name}: ${err.message}`, () => {
-                    expect.fail(err.toString());
-                });
-            }
-        });
+scaffoldTests('types', ({ mike, diagnosticsManager }) => {
+    function fetchType(node: AnyNode) {
+        if (isExpression(node)) {
+            return mike.typechecker.fetchType(node);
+        }
+        if (node.kind === ASTNodeKind.Identifier) {
+            return mike.typechecker.fetchSymbolType(node);
+        }
     }
+    
+    function parseType(str: string) {
+        const lexer = getLexer(str, diagnosticsManager.getReporter('test'))
+        const parser = getParser(lexer, diagnosticsManager.getReporter('test'));
+        const ast = parser.type().accept(new TypeAstGenVisitor());
+        return mike.typechecker.getTypeOfTypeNode(ast);
+    }
+
+    return node => ({
+        $t: node ? fetchType(node) : undefined,
+        fetchType,
+        type: parseType,
+    });
 });
