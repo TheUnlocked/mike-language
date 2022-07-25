@@ -5,7 +5,7 @@ import { DiagnosticCodes } from '../diagnostics/DiagnosticCodes';
 import { boundMethod } from 'autobind-decorator';
 import { WithDiagnostics } from '../diagnostics/Mixin';
 import { AbstractMiKeVisitor } from './BaseVisitor';
-import { AstUtils } from '../ast/AstUtils';
+import { DUMMY_IDENTIFIER } from '../ast/AstUtils';
 
 export class StatementAstGenVisitor extends WithDiagnostics(AbstractMiKeVisitor<StatementOrBlock>) {
 
@@ -60,7 +60,7 @@ export class StatementAstGenVisitor extends WithDiagnostics(AbstractMiKeVisitor<
             const node = {
                 kind: ASTNodeKind.AssignField,
                 metadata: this.getMetadata(ctx),
-                member: AstUtils.DUMMY_IDENTIFIER,
+                member: DUMMY_IDENTIFIER,
                 obj: lhs,
                 value,
             } as AssignField;

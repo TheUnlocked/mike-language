@@ -6,6 +6,7 @@ import { DiagnosticsReporter } from './Diagnostics';
 
 const DUMMY_REPORTER: DiagnosticsReporter = {
     focus: () => {},
+    withFocus: (_, c) => c(),
     report: () => {},
 };
 
@@ -23,6 +24,10 @@ export function WithDiagnostics<C extends abstract new (...args: any[]) => {}>(B
 
         protected focus(node: AnyNode | Range | undefined) {
             return this.diagnostics.focus(node);
+        }
+
+        protected withFocus<R>(node: AnyNode | Range | undefined, callback: () => R): R {
+            return this.diagnostics.withFocus(node, callback);
         }
 
         protected error<D extends DiagnosticCodes>(code: D, ...args: InterpolatedStringArgumentList<string | number | AnyType, DiagnosticDescription<D>>): void {

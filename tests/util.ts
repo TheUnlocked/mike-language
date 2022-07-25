@@ -1,6 +1,6 @@
 import { expect } from 'chai';
 import MiKe from '../src/api/MiKe';
-import { Position } from '../src/ast/Ast';
+import { Position, Program } from '../src/ast/Ast';
 import { createMiKeDiagnosticsManager } from '../src/diagnostics/DiagnosticCodes';
 import { DiagnosticsManager } from '../src/diagnostics/Diagnostics';
 import path from 'path';
@@ -59,6 +59,7 @@ export interface TestImport {
 
 export interface TestData {
     mike: MiKe;
+    filename: string;
     diagnosticsManager: DiagnosticsManager;
     isEmpty: boolean;
     assertions: TestAssertion[];
@@ -124,6 +125,7 @@ export function getTestData(filename: string, contents: string): TestData {
 
         return {
             mike,
+            filename,
             diagnosticsManager,
             isEmpty: assertions.length === 0,
             assertions,
@@ -138,6 +140,7 @@ export function getTestData(filename: string, contents: string): TestData {
 
     return {
         mike,
+        filename,
         diagnosticsManager,
         isEmpty: false,
         assertions: [],

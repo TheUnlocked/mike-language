@@ -9,9 +9,15 @@ export enum DiagnosticCodes {
     AssignToExpression,
     LetIsEmpty,
     MixedAndOr,
-
-    // 3000: Definitions
+    
+    // 3000: Definitions & Flow
     TypeDefinedMultipleTimes = 3000,
+    VariableDefinedMultipleTimes,
+    NoStateInitialValue,
+    StateNotSerializable,
+    InvalidParameterType,
+    NotYetDefined,
+    NotYetInitialized,
 
     // 4000: Types
     Uninvokable = 4000,
@@ -25,6 +31,7 @@ export enum DiagnosticCodes {
     UnknownIdentifier,
     NoCommonType,
     TypeDoesNotExist,
+    WrongNumberOfTypeArguments,
     TypeIsNotSequenceLike,
     TypeIsNotMapLike,
     PresumedTypeIsNotSequenceLike,
@@ -33,6 +40,7 @@ export enum DiagnosticCodes {
     CannotInferMapLiteralType,
     EqualityArgumentIsNewObject,
     EqualityArgumentTypeMismatch,
+    AssignmentTypeMismatch,
 }
 
 export const defaultDiagnosticDetails = suggestType<{ readonly [name in DiagnosticCodes]: DiagnosticInfo }>()({
@@ -42,7 +50,13 @@ export const defaultDiagnosticDetails = suggestType<{ readonly [name in Diagnost
     [DiagnosticCodes.AssignToExpression]: { severity: Severity.Error, description: 'Cannot understand assignment, did you intend the left side to be a field dereference?' },
     [DiagnosticCodes.LetIsEmpty]: { severity: Severity.Error, description: 'A let statement must have a type, or a value from which its type can be inferred.' },
     [DiagnosticCodes.MixedAndOr]: { severity: Severity.Error, description: '&& and || have the same precedence, so order of operations must be explicitly declared using parentheses.' },
-    [DiagnosticCodes.TypeDefinedMultipleTimes]: { severity: Severity.Error, description: 'Type {0} is defined multiple times' },
+    [DiagnosticCodes.TypeDefinedMultipleTimes]: { severity: Severity.Error, description: 'Type {0} was already defined.' },
+    [DiagnosticCodes.VariableDefinedMultipleTimes]: { severity: Severity.Error, description: 'Variable {0} was already defined in this scope.' },
+    [DiagnosticCodes.NoStateInitialValue]: { severity: Severity.Error, description: 'State declarations must have initial values.' },
+    [DiagnosticCodes.StateNotSerializable]: { severity: Severity.Error, description: 'State variables must be serializable, but type {0} is not serializable.' },
+    [DiagnosticCodes.InvalidParameterType]: { severity: Severity.Error, description: 'Type {0} is not a valid parameter type.' },
+    [DiagnosticCodes.NotYetDefined]: { severity: Severity.Error, description: 'Variable {0} is used before it is defined.' },
+    [DiagnosticCodes.NotYetInitialized]: { severity: Severity.Error, description: 'Variable {0} is not definitely assigned here.' },
     [DiagnosticCodes.Uninvokable]: { severity: Severity.Error, description: 'Expected a function type, found {0}.' },
     [DiagnosticCodes.WrongNumberOfArguments]: { severity: Severity.Error, description: 'Wrong number of arguments: expected {0}, found {1}.' },
     [DiagnosticCodes.ArgumentParameterTypeMismatch]: { severity: Severity.Error, description: 'Cannot fit argument of type {0} into parameter of type {1}.' },
@@ -54,6 +68,7 @@ export const defaultDiagnosticDetails = suggestType<{ readonly [name in Diagnost
     [DiagnosticCodes.UnknownIdentifier]: { severity: Severity.Error, description: 'Unknown identifier {0}.' },
     [DiagnosticCodes.NoCommonType]: { severity: Severity.Error, description: 'Type {0} did not match previous best common type {1}.' },
     [DiagnosticCodes.TypeDoesNotExist]: { severity: Severity.Error, description: 'There is no type named {0} in the current context.' },
+    [DiagnosticCodes.WrongNumberOfTypeArguments]: { severity: Severity.Error, description: 'Wrong number of type arguments: expected {0}, found {1}.' },
     [DiagnosticCodes.TypeIsNotSequenceLike]: { severity: Severity.Error, description: 'Type {0} cannot be used with sequence literals.' },
     [DiagnosticCodes.TypeIsNotMapLike]: { severity: Severity.Error, description: 'Type {0} cannot be used with map literals.' },
     [DiagnosticCodes.PresumedTypeIsNotSequenceLike]: { severity: Severity.Error, description: 'Based on context it seems like this literal is intended to be of type {0}, but {1} cannot be used with sequence literals.' },
@@ -69,6 +84,7 @@ export const defaultDiagnosticDetails = suggestType<{ readonly [name in Diagnost
             message: 'Because equality checks between ints and floats are often associated with programming errors, they are disallowed. Use an explicit conversion if you know what you are doing.',
         }]
     },
+    [DiagnosticCodes.AssignmentTypeMismatch]: { severity: Severity.Warning, description: 'Cannot assign a value of type {0} to a variable of type {1}.' },
 } as const);
 
 export function createMiKeDiagnosticsManager() {

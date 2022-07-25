@@ -1,5 +1,6 @@
+import { TypeDefinition } from '../ast/Ast';
 import { TypeAttribute } from './Attribute';
-import { KnownType, IncompleteType } from './KnownType';
+import { KnownType } from './KnownType';
 
 export interface TypeInfo {
     readonly name: string;
@@ -8,4 +9,5 @@ export interface TypeInfo {
         readonly attributes: readonly TypeAttribute[];
         readonly members: { readonly [name: string]: KnownType };
     }
+    readonly definedBy?: TypeDefinition;
 }

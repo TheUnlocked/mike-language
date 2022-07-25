@@ -1,0 +1,30 @@
+state f = Foo(none);
+state b = Bar(none);
+state a = A(B(C(none, none)), none);
+state b = B(C(none, none), none);
+state c = C(none, none);
+
+type Foo(
+    bar: option<Bar>,
+);
+
+type Bar(
+    foo: option<Foo>,
+);
+
+type A(
+    x: B,
+    y: option<A>,
+);
+
+type B(
+    x: C,
+    y: option<B>,
+);
+
+type C(
+    x: option<A>,
+    y: option<C>,
+);
+
+// assert diagnostics ~ none

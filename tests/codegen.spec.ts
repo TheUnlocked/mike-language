@@ -3,8 +3,8 @@ import { getLexer, getParser } from '../src/grammar/Parser';
 import { TypeAstGenVisitor } from '../src/grammar/Types';
 import scaffoldTests from './scaffolding';
 
-scaffoldTests('types', ({ mike, filename, diagnosticsManager }) => {
-    mike.validate(filename);
+scaffoldTests('codegen', ({ mike, diagnosticsManager }) => {
+    // mike.codegen.fetchProgram(root);
 
     function fetchType(node: AnyNode) {
         if (isExpression(node)) {

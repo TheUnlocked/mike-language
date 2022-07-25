@@ -2,8 +2,9 @@ import { VariableDefinition } from '../ast/Ast';
 
 export default class Scope {
     private bindings: Map<string, VariableDefinition>;
+    private _duplicateBindings = [] as VariableDefinition[];
     
-    constructor(private getParent: () => Scope | undefined, bindings?: Iterable<[string, VariableDefinition]>) {
+    constructor(private getParent: () => Scope | undefined, bindings?: Iterable<readonly [string, VariableDefinition]>) {
         this.bindings = new Map(bindings);
     }
 
@@ -12,6 +13,16 @@ export default class Scope {
     }
 
     set(name: string, def: VariableDefinition) {
-        return this.bindings.set(name, def);
+        const original = this.bindings.get(name);
+        if (original) {
+            this._duplicateBindings.push(def);
+        }
+        else {   
+            return this.bindings.set(name, def);
+        }
+    }
+
+    get duplicateBindings() {
+        return this._duplicateBindings;
     }
 }

@@ -1,6 +1,6 @@
 import { TypeAttributeKind } from '../types/Attribute';
 import { booleanType, intType, unitType } from '../types/Primitives';
-import { TypeInfo } from '../types/Type';
+import { TypeInfo } from '../types/TypeInfo';
 import { KnownType, TypeKind } from '../types/KnownType';
 
 function optionOf(t: KnownType): KnownType {
@@ -17,7 +17,7 @@ export const stdlibTypes = [
         numParameters: 1,
         quantify: ([t]) => ({
             attributes: [
-                { kind: TypeAttributeKind.IsSequenceLike, addMethod: 'push', reversed: false }
+                { kind: TypeAttributeKind.IsSequenceLike, addMethod: 'push', reversed: false },
             ],
             members: {
                 get: { kind: TypeKind.Function, parameters: [intType], returnType: optionOf(t) },
@@ -31,7 +31,7 @@ export const stdlibTypes = [
         numParameters: 1,
         quantify: ([t]) => ({
             attributes: [
-                { kind: TypeAttributeKind.IsSequenceLike, addMethod: 'enqueue', reversed: true }
+                { kind: TypeAttributeKind.IsSequenceLike, addMethod: 'enqueue', reversed: true },
             ],
             members: {
                 enqueue: { kind: TypeKind.Function, parameters: [t], returnType: unitType },
@@ -47,7 +47,7 @@ export const stdlibTypes = [
         numParameters: 1,
         quantify: ([t]) => ({
             attributes: [
-                { kind: TypeAttributeKind.IsSequenceLike, addMethod: 'push', reversed: false }
+                { kind: TypeAttributeKind.IsSequenceLike, addMethod: 'push', reversed: false },
             ],
             members: {
                 push: { kind: TypeKind.Function, parameters: [t], returnType: unitType },
@@ -63,7 +63,7 @@ export const stdlibTypes = [
         numParameters: 1,
         quantify: ([t]) => ({
             attributes: [
-                { kind: TypeAttributeKind.IsSequenceLike, addMethod: 'add', reversed: false }
+                { kind: TypeAttributeKind.IsSequenceLike, addMethod: 'add', reversed: false },
             ],
             members: {
                 add: { kind: TypeKind.Function, parameters: [t], returnType: unitType },
@@ -78,7 +78,7 @@ export const stdlibTypes = [
         numParameters: 1,
         quantify: ([t]) => ({
             attributes: [
-                { kind: TypeAttributeKind.IsSequenceLike, addMethod: 'push', reversed: false }
+                { kind: TypeAttributeKind.IsSequenceLike, addMethod: 'push', reversed: false },
             ],
             members: {
                 enqueue: { kind: TypeKind.Function, parameters: [t], returnType: unitType },
@@ -100,7 +100,7 @@ export const stdlibTypes = [
         numParameters: 2,
         quantify: ([k, v]) => ({
             attributes: [
-                { kind: TypeAttributeKind.IsMapLike, setMethod: 'put' }
+                { kind: TypeAttributeKind.IsMapLike, setMethod: 'put' },
             ],
             members: {
                 put: { kind: TypeKind.Function, parameters: [k, v], returnType: unitType },
@@ -116,7 +116,7 @@ export const stdlibTypes = [
         numParameters: 1,
         quantify: ([t]) => ({
             attributes: [
-                { kind: TypeAttributeKind.CanIfDestruct, into: t }
+                { kind: TypeAttributeKind.CanIfDestruct, into: t },
             ],
             members: {
                 getOrDefault: { kind: TypeKind.Function, parameters: [t], returnType: t },

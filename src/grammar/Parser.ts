@@ -9,7 +9,7 @@ import { StatementAstGenVisitor } from './Statements';
 import { TopLevelDefinitionAstGenVisitor } from './TopLevelDefinitions';
 import { CommentsAstGenVisitor } from './Comments';
 import { TypeAstGenVisitor } from './Types';
-import { AstUtils } from '../ast/AstUtils';
+import { getLastPosition } from '../ast/AstUtils';
 
 export function getLexer(str: string, diagnostics: DiagnosticsReporter) {
     const charStream = CharStreams.fromString(str);
@@ -77,7 +77,7 @@ export function parseMiKe(source: string, diagnostics: DiagnosticsReporter): Pro
         metadata: {
             extent: {
                 start: { line: 1, col: 0 },
-                end: AstUtils.getLastPosition(source)
+                end: getLastPosition(source)
             }
         },
         definitions,

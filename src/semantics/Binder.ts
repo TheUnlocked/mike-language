@@ -1,11 +1,14 @@
-import stringifyNode, { AnyNode, ASTNodeKind, Block, Expression, Invoke, ListenerDefinition, Program, Statement, TopLevelDefinition, BinaryOp, UnaryOp, Dereference, StringLiteral, BoolLiteral, IntLiteral, FloatLiteral, Variable, SequenceLiteral, MapLiteral, ExpressionStatement, LetStatement, AssignVar, AssignField, IfElseChain, DebugStatement, ParameterDefinition, StateDefinition, TypeDefinition, isExpression, isStatement, StatementOrBlock, Parameter, IfCase, Pair, Comment, GenericType, TypeIdentifier, FunctionType, Type, Identifier } from '../ast/Ast';
+import stringifyNode, { AnyNode, ASTNodeKind, Block, Expression, Invoke, ListenerDefinition, Program, Statement, TopLevelDefinition, BinaryOp, UnaryOp, Dereference, StringLiteral, BoolLiteral, IntLiteral, FloatLiteral, Variable, SequenceLiteral, MapLiteral, ExpressionStatement, LetStatement, AssignVar, AssignField, IfElseChain, DebugStatement, ParameterDefinition, StateDefinition, TypeDefinition, isExpression, isStatement, StatementOrBlock, Parameter, IfCase, Pair, Comment, GenericType, TypeIdentifier, FunctionType, Type, Identifier, VariableDefinition, isVariableDefinition } from '../ast/Ast';
 import Scope from './Scope';
+
+type AssignmentMap = Map<string, number>;
 
 export class Binder {
     // WeakMap so that the GC can pick up dead nodes.
     private parentMap = new WeakMap<AnyNode, AnyNode>();
     private visited = new WeakSet<AnyNode>();
     private positionMap = new WeakMap<AnyNode, number>();
+    private assignmentMap = new WeakMap<Block, AssignmentMap>();
     private symbolTable = new WeakMap<Block | Program, Scope>();
 
     constructor(private topLevelScope: Scope) {
@@ -14,7 +17,7 @@ export class Binder {
 
     getParent(node: Expression): Exclude<Expression, MapLiteral> | Pair | Statement;
     getParent(node: Statement): Block;
-    getParent(node: Block): Block | ListenerDefinition;
+    getParent(node: StatementOrBlock): Block | IfCase | ListenerDefinition;
     getParent(node: TopLevelDefinition): Program;
     getParent(node: Program): undefined;
     getParent(node: Pair): MapLiteral;
@@ -24,6 +27,7 @@ export class Binder {
     getParent(node: Type): GenericType | FunctionType | Parameter | LetStatement | ParameterDefinition | StateDefinition;
     getParent(node: Identifier): Variable | LetStatement | AssignVar | AssignField | ParameterDefinition | StateDefinition | IfCase;
     // Combo overloads (can be removed if https://github.com/microsoft/TypeScript/issues/14107 gets resolved)
+    getParent(node: Expression | Pair): Expression | Statement | Pair;
     getParent(node: Expression | Statement | Pair): Expression | Statement | Pair | Block;
     getParent(node: Expression | Statement | Pair | Identifier): Expression | Statement | Pair | Block | Variable | LetStatement | AssignVar | AssignField | ParameterDefinition | StateDefinition | IfCase;
     // Fallback
@@ -93,6 +97,9 @@ export class Binder {
                     if (parent.kind === ASTNodeKind.Block) {
                         return this.getScope(parent);
                     }
+                    if (parent.kind === ASTNodeKind.IfCase) {
+                        return this.getScope(this.getParent(this.getParent(parent)));
+                    }
                     return this.getScope(this.getParent(parent));
                 }
                 return this.topLevelScope;
@@ -100,6 +107,49 @@ export class Binder {
             this.symbolTable.set(node, scope);
         }
         return scope;
+    }
+
+    getFirstAssignmentPositionInBlock(name: string, block: Block) {
+        return this.assignmentMap.get(block)?.get(name);
+    }
+
+    private getOrCreateAssignmentMap(node: Block) {
+        const existing = this.assignmentMap.get(node);
+        if (existing) {
+            return existing;
+        }
+        const assignmentMap = new Map() as AssignmentMap;
+        this.assignmentMap.set(node, assignmentMap);
+        return assignmentMap;
+    }
+
+    getPositionInBlock(expr: Expression, targetBlock: Block) {
+        let child = this.getParentStatement(expr) as StatementOrBlock;
+        while (true) {
+            const parent = this.getParent(child);
+            switch (parent.kind) {
+                default: // exhaustiveness check
+                case ASTNodeKind.Block:
+                    if (parent === targetBlock) {
+                        return this.getPositionInParent(child, parent);
+                    }
+                    child = parent;
+                    break;
+                case ASTNodeKind.IfCase:
+                    child = this.getParent(this.getParent(parent));
+                    break;
+                case ASTNodeKind.ListenerDefinition:
+                    return;
+            }
+        }
+    }
+
+    getParentStatement(expr: Expression) {
+        let parent: Expression | Statement | Pair = this.getParent(expr);
+        while (isExpression(parent) || parent.kind === ASTNodeKind.Pair) {
+            parent = this.getParent(parent);
+        }
+        return parent;
     }
 
     bind(node: AnyNode): void {
@@ -248,17 +298,40 @@ export class Binder {
 
     private bindBlock(node: Block) {
         let scope = this.getOrCreateScope(node);
+        const assignmentMap = this.getOrCreateAssignmentMap(node);
 
-        for (const child of node.statements) {
-            if (child.kind === ASTNodeKind.LetStatement) {
-                scope.set(child.name.name, child);
+        for (let i = 0; i < node.statements.length; i++) {
+            const child = node.statements[i]!;
+            this.bindChild(node, child, i);
+            switch (child.kind) {
+                case ASTNodeKind.LetStatement:
+                    this.setInScope(scope, child.name, child);
+                    if (child.value) {
+                        this.setAssignmentPosition(assignmentMap, child.name.name, i);
+                    }
+                    break;
+                case ASTNodeKind.AssignVar:
+                    this.setAssignmentPosition(assignmentMap, child.variable.name, i);
+                    break;
+                case ASTNodeKind.Block:
+                    this.getOrCreateAssignmentMap(child).forEach((_, name) => {
+                        this.setAssignmentPosition(assignmentMap, name, i);
+                    });
+                    break;
+                case ASTNodeKind.IfElseChain:
+                    if (child.else) {
+                        const caseAssignmentMaps = child.cases.map(x => this.getOrCreateAssignmentMap(x.body));
+                        [...this.getOrCreateAssignmentMap(child.else).keys()]
+                            .filter(name => caseAssignmentMaps.every(map => map.has(name)))
+                            .forEach(name => this.setAssignmentPosition(assignmentMap, name, i));
+                    }
+                    break;
             }
         }
-        this.bindChildren(node, node.statements);
     }
 
     private bindParameterDefinition(node: ParameterDefinition) {
-        this.bindChild(node, node.identifier, 0);
+        this.bindChild(node, node.name, 0);
         this.bindChild(node, node.type, 0);
     }
 
@@ -269,14 +342,14 @@ export class Binder {
         if (node.type) {
             this.bindChild(node, node.type, 0);
         }
-        this.bindChild(node, node.identifier, 0);
+        this.bindChild(node, node.name, 0);
     }
 
     private bindListenerDefinition(node: ListenerDefinition) {
         this.bindChildren(node, node.parameters);
         const scope = this.getOrCreateScope(node.body);
         for (const param of node.parameters) {
-            scope.set(param.name.name, param);
+            this.setInScope(scope, param.name, param);
         }
         this.bindChild(node, node.body, 0);
     }
@@ -289,8 +362,8 @@ export class Binder {
     private bindProgram(node: Program) {
         const scope = this.getOrCreateScope(node);
         for (const child of node.definitions) {
-            if (child.kind === ASTNodeKind.ParameterDefinition || child.kind === ASTNodeKind.StateDefinition) {
-                scope.set(child.identifier.name, child);
+            if (isVariableDefinition(child)) {
+                this.setInScope(scope, child.name, child);
             }
         }
         this.bindChildren(node, node.definitions);
@@ -303,10 +376,12 @@ export class Binder {
     }
 
     private bindIfCase(node: IfCase) {
-        const scope = this.getOrCreateScope(node.body);
         if (node.deconstruct) {
-            scope.set(node.deconstruct.name, node);
             this.bindChild(node, node.deconstruct, 0);
+            const scope = this.getOrCreateScope(node.body);
+            this.setInScope(scope, node.deconstruct, node);
+            const assignmentMap = this.getOrCreateAssignmentMap(node.body);
+            this.setAssignmentPosition(assignmentMap, node.deconstruct.name, -1);
         }
         this.bindChild(node, node.condition, 0);
         this.bindChild(node, node.body, 0);
@@ -347,7 +422,17 @@ export class Binder {
 
     private bindChildren(self: AnyNode, children: readonly AnyNode[]) {
         for (let i = 0; i < children.length; i++) {
-            this.bindChild(self, children[i], i);
+            this.bindChild(self, children[i]!, i);
+        }
+    }
+
+    private setInScope(scope: Scope, ident: Identifier | TypeIdentifier, varDef: VariableDefinition) {
+        scope.set(ident.name, varDef);
+    }
+
+    private setAssignmentPosition(assignmentMap: AssignmentMap, name: string, position: number) {
+        if (!assignmentMap.has(name)) {
+            assignmentMap.set(name, position);
         }
     }
 }

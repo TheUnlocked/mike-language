@@ -1,11 +1,13 @@
 
 on _() {
     let arr: Stack<int> = [];
+    //  v expect $t == type('Queue<float>')
+    let q = Queue[1.0];
+    //  v expect $t == type('int')
     let x = 5;
     //v expect $t == type('Stack<int>')
     // v expect $t == type('(int) => unit')
     //      v expect $t == type('unit')
-    //       v expect $t == type('int')
     arr.push(x);
     //        v expect $t == type('option<int>')
     //            v expect $t == type('int')

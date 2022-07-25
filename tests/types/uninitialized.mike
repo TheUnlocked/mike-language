@@ -1,0 +1,22 @@
+on _() {
+    // v expect $t == type('int')
+       x;
+    let x = 0;
+    
+    let y: float;
+    if (true) {
+        y = 4.0;
+    }
+    // v expect $t == type('int')
+       y;
+    
+    let z: int;
+    if (true) {}
+    else {
+        z = 4.0;
+    }
+    // v expect $t == type('int')
+       z;
+}
+
+// assert diagnostics.length == 3

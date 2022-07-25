@@ -39,6 +39,7 @@ export class Diagnostic {
 export interface DiagnosticsReporter {
     report(id: number, ...args: string[]): void;
     focus(node: AnyNode | Range | undefined): void;
+    withFocus<R>(node: AnyNode | Range | undefined, callback: () => R): R;
 }
 
 export class DiagnosticsManager {
@@ -90,18 +91,26 @@ export class DiagnosticsManager {
     }
 
     getReporter(namespace: string): DiagnosticsReporter {
+        const focus: DiagnosticsReporter['focus'] = nodeOrRange => {
+            if (nodeOrRange && 'kind' in nodeOrRange) {
+                this.currentRange = nodeOrRange.metadata.extent;
+            }
+            else {
+                this.currentRange = nodeOrRange;
+            }
+        };
         return {
             report: (id, ...args) => {
                 this.report(namespace, id, args);
             },
-            focus: nodeOrRange => {
-                if (nodeOrRange && 'kind' in nodeOrRange) {
-                    this.currentRange = nodeOrRange.metadata.extent;
-                }
-                else {
-                    this.currentRange = nodeOrRange;
-                }
-            },
+            focus,
+            withFocus: (nodeOrRange, callback) => {
+                const oldRange = this.currentRange;
+                focus(nodeOrRange);
+                const result = callback();
+                this.currentRange = oldRange;
+                return result;
+            }
         };
     }
 

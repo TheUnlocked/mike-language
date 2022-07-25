@@ -265,13 +265,13 @@ export type StatementOrBlock
 
 export interface ParameterDefinition extends ASTNode {
     readonly kind: ASTNodeKind.ParameterDefinition;
-    readonly identifier: Identifier;
+    readonly name: Identifier;
     readonly type: Type;
 }
 
 export interface StateDefinition extends ASTNode {
     readonly kind: ASTNodeKind.StateDefinition;
-    readonly identifier: Identifier;
+    readonly name: Identifier;
     readonly type?: Type;
     readonly default?: Expression;
 }
@@ -344,10 +344,21 @@ export type VariableDefinition
     = ExternalVariableDefinition
     | ParameterDefinition
     | StateDefinition
+    | TypeDefinition
     | LetStatement
     | Parameter
     | IfCase
     ;
+
+export function isVariableDefinition(node: AnyNode): node is Exclude<VariableDefinition, ExternalVariableDefinition> {
+    return node.kind === ASTNodeKind.ParameterDefinition
+        || node.kind === ASTNodeKind.StateDefinition
+        || node.kind === ASTNodeKind.TypeDefinition
+        || node.kind === ASTNodeKind.LetStatement
+        || node.kind === ASTNodeKind.Parameter
+        || node.kind === ASTNodeKind.IfCase
+        ;
+}
 
 type Fragment
     = Parameter

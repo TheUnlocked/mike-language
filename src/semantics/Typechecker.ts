@@ -1,73 +1,138 @@
 import { boundMethod } from 'autobind-decorator';
 import { isEqual, spread, zip } from 'lodash';
-import { ASTNodeKind, BinaryOp, Dereference, Expression, Identifier, InfixOperator, Invoke, MapLiteral, PrefixOperator, SequenceLiteral, Type, UnaryOp, Variable as Variable, VariableDefinition } from '../ast/Ast';
+import { ASTNodeKind, BinaryOp, Dereference, Expression, Identifier, InfixOperator, Invoke, MapLiteral, PrefixOperator, SequenceLiteral, Type, TypeDefinition, TypeIdentifier, UnaryOp, Variable as Variable, VariableDefinition } from '../ast/Ast';
 import { DiagnosticCodes } from '../diagnostics/DiagnosticCodes';
 import { WithDiagnostics } from '../diagnostics/Mixin';
 import { CanIfDestructAttribute, TypeAttributeKind } from '../types/Attribute';
 import { booleanType, floatType, intType, primitiveTypes, stringType } from '../types/Primitives';
-import { TypeInfo } from '../types/Type';
+import { TypeInfo } from '../types/TypeInfo';
 import { KnownType, FunctionType, IncompleteType, MapLike, SequenceLike, SimpleType, TypeKind, TOXIC, ToxicType, matchesSequenceLike, matchesMapLike } from '../types/KnownType';
 import { Binder } from './Binder';
+import { withCache } from '../utils/cache';
 
 export class Typechecker extends WithDiagnostics(class {}) {
-    private types = new Map(primitiveTypes.map(x => [x.name, x]));
+    private typeCache = new Map<Expression | Identifier, KnownType>();
+    private typeNodeCache = new Map<Type, KnownType>();
 
-    constructor(private binder: Binder) {
+    private types!: Map<string, TypeInfo>;
+
+    constructor(private stdlibTypes: readonly TypeInfo[], private binder: Binder) {
         super();
+        this.notifyChange();
     }
 
-    addType(...types: TypeInfo[]) {
-        for (const type of types) {
-            if (this.types.has(type.name)) {
-                this.error(DiagnosticCodes.TypeDefinedMultipleTimes, type.name);
-                continue;
+    notifyChange() {
+        this.types = new Map(primitiveTypes.concat(this.stdlibTypes).map(x => [x.name, x]));
+        this.clearCache();
+    }
+
+    private clearCache() {
+        this.typeCache.clear();
+        this.typeNodeCache.clear();
+    }
+
+    loadTypes(types: readonly TypeDefinition[]) {
+        types = types.filter(type => {
+            if (this.types.has(type.name.name)) {
+                this.error(DiagnosticCodes.TypeDefinedMultipleTimes, type.name.name);
+                return false;
             }
-            this.types.set(type.name, type);
+            return true;
+        })
+
+        // forward declarations to resolve cycles
+        for (const typeDef of types) {
+            const name = typeDef.name.name;
+            this.types.set(name, {
+                name,
+                numParameters: 0,
+                definedBy: typeDef,
+                quantify: () => ({ attributes: [], members: {} })
+            });
         }
+        // actual declarations
+        for (const typeDef of types) {
+            const name = typeDef.name.name;
+
+            const members = typeDef.parameters.map(({ name, type }) => [
+                name.name,
+                this.fetchTypeOfTypeNode(type)
+            ] as const);
+
+            this.types.set(name, {
+                name,
+                numParameters: 0,
+                definedBy: typeDef,
+                quantify: () => ({
+                    attributes: [
+                        { kind: TypeAttributeKind.IsUserDefined },
+                    ],
+                    members: Object.fromEntries(members)
+                })
+            });
+        }
+        this.clearCache();
+    }
+
+    fetchTypeInfoFromSimpleType(type: SimpleType, emitDiagnostics = false) {
+        const info = this.types.get(type.name);
+        if (!info) {
+            if (emitDiagnostics) {
+                this.error(DiagnosticCodes.TypeDoesNotExist, type.name);
+            }
+            return;
+        }
+        if (type.typeArguments.length !== info.numParameters) {
+            if (emitDiagnostics) {
+                this.error(DiagnosticCodes.WrongNumberOfTypeArguments, info.numParameters, type.typeArguments.length);
+            }
+            return;
+        }
+        return this.types.get(type.name)?.quantify(type.typeArguments);
     }
 
     @boundMethod
     fetchType(ast: Expression): KnownType {
-        this.focus(ast);
-        switch (ast.kind) {
-            case ASTNodeKind.Invoke:
-                return this.fetchInvokeType(ast);
-            case ASTNodeKind.BinaryOp:
-                return this.fetchBinaryOpType(ast);
-            case ASTNodeKind.UnaryOp:
-                return this.fetchUnaryOpType(ast);
-            case ASTNodeKind.Dereference:
-                return this.fetchDereferenceType(ast);
-            case ASTNodeKind.Variable:
-                return this.fetchVariableType(ast);
-            case ASTNodeKind.FloatLiteral:
-                return floatType;
-            case ASTNodeKind.IntLiteral:
-                return intType;
-            case ASTNodeKind.BoolLiteral:
-                return booleanType;
-            case ASTNodeKind.StringLiteral:
-                return stringType;
-            case ASTNodeKind.SequenceLiteral:
-                return this.fetchSequenceLiteralType(ast);
-            case ASTNodeKind.MapLiteral:
-                return this.fetchMapLiteralType(ast);
-        }
+        return withCache(ast, this.typeCache, () => {
+            this.focus(ast);
+            switch (ast.kind) {
+                case ASTNodeKind.Invoke:
+                    return this.fetchInvokeType(ast);
+                case ASTNodeKind.BinaryOp:
+                    return this.fetchBinaryOpType(ast);
+                case ASTNodeKind.UnaryOp:
+                    return this.fetchUnaryOpType(ast);
+                case ASTNodeKind.Dereference:
+                    return this.fetchDereferenceType(ast);
+                case ASTNodeKind.Variable:
+                    return this.fetchVariableType(ast);
+                case ASTNodeKind.FloatLiteral:
+                    return floatType;
+                case ASTNodeKind.IntLiteral:
+                    return intType;
+                case ASTNodeKind.BoolLiteral:
+                    return booleanType;
+                case ASTNodeKind.StringLiteral:
+                    return stringType;
+                case ASTNodeKind.SequenceLiteral:
+                    return this.fetchSequenceLiteralType(ast);
+                case ASTNodeKind.MapLiteral:
+                    return this.fetchMapLiteralType(ast);
+            }
+        });
     }
     
     private fitsInSimpleType(other: IncompleteType, target: SimpleType) {
         if (other.kind === TypeKind.SequenceLike) {
-            return Boolean(this.types.get(target.name)
-                    ?.quantify(target.typeArguments).attributes
-                    .find(x => x.kind === TypeAttributeKind.IsSequenceLike))
-                && target.typeArguments.length === 1
+            return target.typeArguments.length === 1
+                && Boolean(this.fetchTypeInfoFromSimpleType(target)
+                    ?.attributes.some(x => x.kind === TypeAttributeKind.IsSequenceLike))
                 && (!other.element || this.fitsInType(other.element, target.typeArguments[0]));
         }
         else if (other.kind === TypeKind.MapLike) {
-            return Boolean(this.types.get(target.name)
-                    ?.quantify(target.typeArguments).attributes
-                    .find(x => x.kind === TypeAttributeKind.IsMapLike))
-                && target.typeArguments.length === 2
+            return target.typeArguments.length === 2
+                && Boolean(this.fetchTypeInfoFromSimpleType(target)
+                    ?.attributes.some(x => x.kind === TypeAttributeKind.IsMapLike))
                 && (!other.typeArguments || (
                     this.fitsInType(other.typeArguments[0], target.typeArguments[0]) &&
                     this.fitsInType(other.typeArguments[1], target.typeArguments[1])
@@ -94,7 +159,7 @@ export class Typechecker extends WithDiagnostics(class {}) {
     }
 
     @boundMethod
-    private fitsInType(other: IncompleteType, target: KnownType): boolean {
+    fitsInType(other: IncompleteType, target: KnownType): boolean {
         if (other.kind === TypeKind.Toxic) {
             return true;
         }
@@ -274,8 +339,7 @@ export class Typechecker extends WithDiagnostics(class {}) {
         const objType = this.fetchType(ast.obj);
         switch (objType.kind) {
             case TypeKind.Simple: {
-                const objTypeInfo = this.types.get(objType.name)!;
-                const memberType = objTypeInfo.quantify(objType.typeArguments).members[ast.member.name];
+                const memberType = this.fetchTypeInfoFromSimpleType(objType)!.members[ast.member.name];
                 if (!memberType) {
                     this.error(DiagnosticCodes.InvalidMember, objType, ast.member.name);
                     return TOXIC;
@@ -291,41 +355,59 @@ export class Typechecker extends WithDiagnostics(class {}) {
     }
 
     @boundMethod
-    getTypeOfTypeNode(ast: Type): KnownType {
-        switch (ast.kind) {
-            case ASTNodeKind.TypeIdentifier:
-                return { kind: TypeKind.Simple, name: ast.name, typeArguments: [] };
-            case ASTNodeKind.GenericType:
-                return {
-                    kind: TypeKind.Simple,
-                    name: ast.name.name,
-                    typeArguments: ast.typeArguments.map(this.getTypeOfTypeNode)
-                };
-            case ASTNodeKind.FunctionType:
-                return {
-                    kind: TypeKind.Function,
-                    parameters: ast.parameters.map(this.getTypeOfTypeNode),
-                    returnType: this.getTypeOfTypeNode(ast.returnType)
-                };
-        }
+    fetchTypeOfTypeNode(ast: Type): KnownType {
+        return withCache(ast, this.typeNodeCache, () => this.withFocus(ast, () => {
+            let result: KnownType;
+            switch (ast.kind) {
+                case ASTNodeKind.TypeIdentifier:
+                    result = { kind: TypeKind.Simple, name: ast.name, typeArguments: [] } as SimpleType;
+                    if (!this.fetchTypeInfoFromSimpleType(result, true)) {
+                        result = TOXIC;
+                    }
+                    break;
+                case ASTNodeKind.GenericType: {
+                    result = {
+                        kind: TypeKind.Simple,
+                        name: ast.name.name,
+                        typeArguments: ast.typeArguments.map(this.fetchTypeOfTypeNode)
+                    } as SimpleType;
+                    if (!this.fetchTypeInfoFromSimpleType(result, true)) {
+                        result = TOXIC;
+                    }
+                    break;
+                }
+                case ASTNodeKind.FunctionType:
+                    result = {
+                        kind: TypeKind.Function,
+                        parameters: ast.parameters.map(this.fetchTypeOfTypeNode),
+                        returnType: this.fetchTypeOfTypeNode(ast.returnType)
+                    };
+                    break;
+            }
+            return result;
+        }));
     }
 
     private fetchVariableDefinitionType(ast: VariableDefinition): KnownType {
         switch (ast.kind) {
             case ASTNodeKind.ParameterDefinition:
             case ASTNodeKind.Parameter:
-                return this.getTypeOfTypeNode(ast.type);
+                return this.fetchTypeOfTypeNode(ast.type);
             case ASTNodeKind.StateDefinition:
                 if (ast.type) {
-                    return this.getTypeOfTypeNode(ast.type);
+                    return this.fetchTypeOfTypeNode(ast.type);
                 }
                 return ast.default ? this.fetchType(ast.default) : TOXIC;
+            case ASTNodeKind.TypeDefinition:
+                return {
+                    kind: TypeKind.Function,
+                    parameters: ast.parameters.map(x => this.fetchTypeOfTypeNode(x.type)),
+                    returnType: { kind: TypeKind.Simple, name: ast.name.name, typeArguments: [] },
+                };
             case ASTNodeKind.IfCase: {
                 const conditionType = this.fetchType(ast.condition);
                 if (conditionType.kind === TypeKind.Simple) {
-                    const typeInfo = this.types.get(conditionType.name);
-                    const deconstructAttr = typeInfo!
-                        .quantify(conditionType.typeArguments).attributes
+                    const deconstructAttr = this.fetchTypeInfoFromSimpleType(conditionType)!.attributes
                         .find((x): x is CanIfDestructAttribute => x.kind === TypeAttributeKind.CanIfDestruct);
                     
                     if (deconstructAttr) {
@@ -336,7 +418,7 @@ export class Typechecker extends WithDiagnostics(class {}) {
             }
             case ASTNodeKind.LetStatement:
                 if (ast.type) {
-                    return this.getTypeOfTypeNode(ast.type);
+                    return this.fetchTypeOfTypeNode(ast.type);
                 }
                 return ast.value ? this.fetchType(ast.value) : TOXIC;
             case ASTNodeKind.OutOfTree:
@@ -345,17 +427,35 @@ export class Typechecker extends WithDiagnostics(class {}) {
     }
 
     fetchSymbolType(ast: Identifier): KnownType {
-        const varDef = this.binder.getScope(ast).get(ast.name);
-        if (varDef) {
-            return this.fetchVariableDefinitionType(varDef);
-        }
-        this.error(DiagnosticCodes.UnknownIdentifier, ast.name);
-        return TOXIC;
+        return withCache(ast, this.typeCache, () => {
+            const varDef = this.binder.getScope(ast).get(ast.name);
+            if (varDef) {
+                return this.fetchVariableDefinitionType(varDef);
+            }
+            this.focus(ast);
+            this.error(DiagnosticCodes.UnknownIdentifier, ast.name);
+            return TOXIC;
+        });
     }
  
     private fetchVariableType(ast: Variable): KnownType {
         const varDef = this.binder.getScope(ast).get(ast.identifier.name);
         if (varDef) {
+            if (varDef.kind === ASTNodeKind.LetStatement) {
+                // This is a local, so we need to make sure it has been assigned.
+                const block = this.binder.getParent(varDef);
+                const defPos = this.binder.getPositionInParent(varDef, block);
+                const varPos = this.binder.getPositionInBlock(ast, block);
+                if (varPos === undefined || varPos <= defPos) {
+                    this.error(DiagnosticCodes.NotYetDefined, ast.identifier.name);
+                }
+                else {
+                    const assignmentPos = this.binder.getFirstAssignmentPositionInBlock(ast.identifier.name, block);
+                    if (assignmentPos === undefined || varPos <= assignmentPos) {
+                        this.error(DiagnosticCodes.NotYetInitialized, ast.identifier.name);
+                    }
+                }
+            }
             return this.fetchVariableDefinitionType(varDef);
         }
         this.error(DiagnosticCodes.UnknownIdentifier, ast.identifier.name);
@@ -462,7 +562,7 @@ export class Typechecker extends WithDiagnostics(class {}) {
         const parent = this.binder.getParent(ast);
         switch (parent.kind) {
             case ASTNodeKind.LetStatement:
-                return parent.type ? this.getTypeOfTypeNode(parent.type) : undefined;
+                return parent.type ? this.fetchTypeOfTypeNode(parent.type) : undefined;
             case ASTNodeKind.Invoke: {
                 const position = this.binder.getPositionInParent(ast, parent);
                 if (position === -1) {

@@ -4,6 +4,7 @@ export enum TypeAttributeKind {
     IsSequenceLike,
     IsMapLike,
     CanIfDestruct,
+    IsUserDefined,
 }
 
 interface BaseAttribute {
@@ -25,8 +26,13 @@ export interface CanIfDestructAttribute extends BaseAttribute {
     readonly into: KnownType;
 }
 
+export interface IsUserDefinedAttribute extends BaseAttribute {
+    readonly kind: TypeAttributeKind.IsUserDefined;
+}
+
 export type TypeAttribute
     = IsSequenceLikeAttribute
     | IsMapLikeAttribute
     | CanIfDestructAttribute
+    | IsUserDefinedAttribute
     ;

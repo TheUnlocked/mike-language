@@ -4,6 +4,7 @@ import { Expression, ListenerDefinition, ASTNodeKind, ParameterDefinition, State
 import { WithDiagnostics } from '../diagnostics/Mixin';
 import { AbstractMiKeVisitor } from './BaseVisitor';
 import { boundMethod } from 'autobind-decorator';
+import { DiagnosticCodes } from '../diagnostics/DiagnosticCodes';
 
 export class TopLevelDefinitionAstGenVisitor extends WithDiagnostics(AbstractMiKeVisitor<TopLevelDefinition>) {
 
@@ -30,19 +31,23 @@ export class TopLevelDefinitionAstGenVisitor extends WithDiagnostics(AbstractMiK
         return {
             kind: ASTNodeKind.ParameterDefinition,
             metadata: this.getMetadata(ctx),
-            identifier: this._visitIdentifier(paramDef.identifier()),
+            name: this._visitIdentifier(paramDef.identifier()),
             type: paramDef.type().accept(this.typeVisitor),
         };
     }
 
     override visitStateDecl(ctx: StateDeclContext): StateDefinition {
         const varDef = ctx.varDef();
+        const expr = varDef.expression()?.accept(this.exprVisitor);
+        if (!expr) {
+            this.error(DiagnosticCodes.NoStateInitialValue);
+        }
         return {
             kind: ASTNodeKind.StateDefinition,
             metadata: this.getMetadata(ctx),
-            identifier: this._visitIdentifier(varDef.identifier()),
+            name: this._visitIdentifier(varDef.identifier()),
             type: varDef.type()?.accept(this.typeVisitor),
-            default: varDef.expression()?.accept(this.exprVisitor),
+            default: expr,
         };
     }
 

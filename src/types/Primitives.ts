@@ -1,5 +1,6 @@
-import { TypeInfo } from './Type';
-import { KnownType, SimpleType, TypeKind } from './KnownType';
+import { TypeInfo } from './TypeInfo';
+import { SimpleType, TypeKind } from './KnownType';
+import { TypeAttributeKind } from './Attribute';
 
 function typeRefOf(type: TypeInfo): SimpleType {
     return {
