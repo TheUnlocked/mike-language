@@ -25,7 +25,8 @@ export enum DiagnosticCodes {
     BadArithmeticOpArgumentType,
     BadInequalityOpArgumentType,
     BadLogicalOpArgumentType,
-    DereferenceLiteral,
+    EqualityArgumentTypeMismatch,
+    EqualityArgumentIsNewObject,
     InvalidMember,
     UnknownIdentifier,
     NoCommonType,
@@ -37,8 +38,6 @@ export enum DiagnosticCodes {
     PresumedTypeIsNotMapLike,
     CannotInferSequenceLiteralType,
     CannotInferMapLiteralType,
-    EqualityArgumentIsNewObject,
-    EqualityArgumentTypeMismatch,
     AssignmentTypeMismatch,
 }
 
@@ -61,7 +60,6 @@ export const defaultDiagnosticDetails = suggestType<{ readonly [name in Diagnost
     [DiagnosticCodes.BadArithmeticOpArgumentType]: { severity: Severity.Error, description: 'Arithmetic operators can only take int or float, instead found {0}.' },
     [DiagnosticCodes.BadInequalityOpArgumentType]: { severity: Severity.Error, description: 'Inequality operators can only take int or float, instead found {0}.' },
     [DiagnosticCodes.BadLogicalOpArgumentType]: { severity: Severity.Error, description: 'Logical operators can only take booleans, instead found {0}.' },
-    [DiagnosticCodes.DereferenceLiteral]: { severity: Severity.Error, description: 'Sequence and map literals cannot be dereferenced.' },
     [DiagnosticCodes.InvalidMember]: { severity: Severity.Error, description: 'Type {0} does not have a member {1}.' },
     [DiagnosticCodes.UnknownIdentifier]: { severity: Severity.Error, description: 'Unknown identifier {0}.' },
     [DiagnosticCodes.NoCommonType]: { severity: Severity.Error, description: 'Type {0} did not match previous best common type {1}.' },

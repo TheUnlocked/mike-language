@@ -1,0 +1,23 @@
+// import { DiagnosticCodes } from '../../src/diagnostics/DiagnosticCodes'
+
+type Foo(x: int);
+
+on _() {
+    //    v expect diagnostics ~ has ~ id == DiagnosticCodes.InvalidMember
+    "abc".foo;
+    //       v expect diagnostics ~ has ~ id == DiagnosticCodes.InvalidMember
+    Queue[1].push;
+    some(Foo(1))
+        .getOrDefault(Foo(0))
+    //   v expect diagnostics ~ has ~ id == DiagnosticCodes.InvalidMember
+        .y;
+    
+    let f = Foo(0);
+    //v expect diagnostics ~ has ~ id == DiagnosticCodes.InvalidMember
+    f.y = 1;
+    
+    f.x;
+    f.x = 1;
+}
+
+// assert diagnostics.length == 4

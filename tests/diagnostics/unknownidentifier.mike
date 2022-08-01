@@ -1,0 +1,15 @@
+// import { DiagnosticCodes } from '../../src/diagnostics/DiagnosticCodes'
+
+type Foo(x: int);
+
+on _() {
+    //v expect diagnostics ~ has ~ id == DiagnosticCodes.UnknownIdentifier
+    foo;
+    //v expect diagnostics ~ has ~ id == DiagnosticCodes.UnknownIdentifier
+      x;
+
+    Foo;
+    none;
+}
+
+// assert diagnostics.length == 2

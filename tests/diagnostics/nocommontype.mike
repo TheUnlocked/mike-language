@@ -1,0 +1,17 @@
+// import { DiagnosticCodes } from '../../src/diagnostics/DiagnosticCodes'
+
+on _() {
+    //       v expect diagnostics ~ has ~ id == DiagnosticCodes.NoCommonType
+    Queue[1, 1.0, 1];
+    //          v expect diagnostics ~ has ~ id == DiagnosticCodes.NoCommonType
+    //                  v expect diagnostics ~ has ~ id == DiagnosticCodes.NoCommonType
+    Queue[true, "true", 1];
+    //             v expect diagnostics ~ has ~ id == DiagnosticCodes.NoCommonType
+    Queue[some(1), some(1.0)];
+
+    Queue[1, 1];
+    Queue[some(1), some(1)];
+    Queue[none, some(1.0)];
+}
+
+// assert diagnostics.length == 4

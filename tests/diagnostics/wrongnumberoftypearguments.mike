@@ -1,0 +1,12 @@
+// import { DiagnosticCodes } from '../../src/diagnostics/DiagnosticCodes'
+
+on _() {
+    //     v expect diagnostics ~ has ~ id == DiagnosticCodes.WrongNumberOfTypeArguments
+    let x: Queue<>;
+    //     v expect diagnostics ~ has ~ id == DiagnosticCodes.WrongNumberOfTypeArguments
+    let y: Queue<int, float>;
+    //     v expect diagnostics ~ has ~ id == DiagnosticCodes.WrongNumberOfTypeArguments
+    let z: Map<int>;
+}
+
+// assert diagnostics.length == 3

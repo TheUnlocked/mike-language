@@ -3,6 +3,7 @@ import { ASTNodeKind, BinaryOp, Expression, InfixOperator, Pair, PrefixOperator 
 import { WithDiagnostics } from '../diagnostics/Mixin';
 import { DiagnosticCodes } from '../diagnostics/DiagnosticCodes';
 import { AbstractMiKeVisitor } from './BaseVisitor';
+import { boundMethod } from 'autobind-decorator';
 
 export class ExprAstGenVisitor extends WithDiagnostics(AbstractMiKeVisitor<Expression>) {
 
@@ -76,11 +77,11 @@ export class ExprAstGenVisitor extends WithDiagnostics(AbstractMiKeVisitor<Expre
             return {
                 kind: ASTNodeKind.Invoke,
                 metadata: this.getMetadata(ctx),
-                fn: ctx.derefPrec().accept(this),
+                fn: ctx.derefInvokePrec().accept(this),
                 args: args.map(x => x.accept(this)),
             };
         }
-        return ctx.derefPrec().accept(this);
+        return ctx.derefInvokePrec().accept(this);
     }
 
     override visitIntLiteral(ctx: IntLiteralContext): Expression {
@@ -119,7 +120,7 @@ export class ExprAstGenVisitor extends WithDiagnostics(AbstractMiKeVisitor<Expre
         return {
             kind: ASTNodeKind.Dereference,
             metadata: this.getMetadata(ctx),
-            obj: ctx.derefPrec().accept(this),
+            obj: ctx.derefInvokePrec().accept(this),
             member: this._visitIdentifier(ctx.identifier()),
         };
     }
@@ -152,6 +153,7 @@ export class ExprAstGenVisitor extends WithDiagnostics(AbstractMiKeVisitor<Expre
         };
     }
 
+    @boundMethod
     private _visitPairFragment(ctx: MapLiteralPairContext): Pair {
         return {
             kind: ASTNodeKind.Pair,

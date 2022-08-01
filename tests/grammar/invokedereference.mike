@@ -1,0 +1,10 @@
+// import { ASTNodeKind } from '../../src/ast/Ast'
+
+on _() {
+    //   v expect $.kind == ASTNodeKind.Dereference, $.obj.kind == ASTNodeKind.Invoke
+    foo().a;
+    //   v expect $.kind == ASTNodeKind.Invoke, $.fn.kind == ASTNodeKind.Dereference
+    a.foo();
+}
+
+// assert diagnostics ~ none

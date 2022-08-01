@@ -1,0 +1,20 @@
+// import { DiagnosticCodes } from '../../src/diagnostics/DiagnosticCodes'
+
+type Foo(x: float);
+
+state st: string = "abc";
+
+on _() {
+    let x: int;
+    //  v expect diagnostics ~ has ~ id == DiagnosticCodes.AssignmentTypeMismatch
+    x = 1.0;
+    
+    let f = Foo(1.0);
+    //    v expect diagnostics ~ has ~ id == DiagnosticCodes.AssignmentTypeMismatch
+    f.x = 1;
+
+    //   v expect diagnostics ~ has ~ id == DiagnosticCodes.AssignmentTypeMismatch
+    st = true;
+}
+
+// assert diagnostics.length == 3

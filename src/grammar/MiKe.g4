@@ -80,13 +80,12 @@ muldivPrec
 
 unaryPrec
     : (MINUS | BANG) unaryPrec #unary
-    | invoke #unaryFallthrough
+    | derefInvokePrec #unaryFallthrough
     ;
 
-invoke: derefPrec argumentList?;
-
-derefPrec
-    : derefPrec DOT identifier #deref
+derefInvokePrec
+    : derefInvokePrec DOT identifier #deref
+    | derefInvokePrec argumentList #invoke
     | atom #derefFallthrough
     ;
 

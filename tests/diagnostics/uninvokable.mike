@@ -1,0 +1,16 @@
+// import { DiagnosticCodes } from '../../src/diagnostics/DiagnosticCodes'
+
+on _() {
+    // v expect diagnostics ~ has ~ id == DiagnosticCodes.Uninvokable
+    none();
+    // v expect diagnostics ~ has ~ id == DiagnosticCodes.Uninvokable
+    true();
+    // v expect diagnostics ~ has ~ id == DiagnosticCodes.Uninvokable
+    1000();
+    // v expect diagnostics ~ has ~ id == DiagnosticCodes.Uninvokable
+    "abc"();
+    // v expect diagnostics ~ has ~ id == DiagnosticCodes.Uninvokable
+    Queue[1, 2, 3]();
+}
+
+// assert diagnostics.length == 5

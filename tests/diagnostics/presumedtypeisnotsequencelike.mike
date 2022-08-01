@@ -1,0 +1,10 @@
+// import { DiagnosticCodes } from '../../src/diagnostics/DiagnosticCodes'
+
+on _() {
+    //                   v expect diagnostics ~ has ~ id == DiagnosticCodes.PresumedTypeIsNotSequenceLike
+    let x: option<int> = [1];
+    //                   v expect diagnostics ~ has ~ id == DiagnosticCodes.PresumedTypeIsNotSequenceLike
+    let y: option<int> = option[];
+}
+
+// assert diagnostics.length == 2

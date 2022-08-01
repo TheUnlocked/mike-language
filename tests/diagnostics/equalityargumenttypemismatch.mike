@@ -1,0 +1,18 @@
+// import { DiagnosticCodes } from '../../src/diagnostics/DiagnosticCodes'
+
+on _() {
+    // v expect diagnostics ~ has ~ id == DiagnosticCodes.EqualityArgumentTypeMismatch
+    true != 1;
+    // v expect diagnostics ~ has ~ id == DiagnosticCodes.EqualityArgumentTypeMismatch
+    "abc" == none;
+
+    let q1 = Queue[1];
+    let q2 = Queue[1.0];
+    // v expect diagnostics ~ has ~ id == DiagnosticCodes.EqualityArgumentTypeMismatch
+    q1 != q2;
+
+    1 == 2;
+    some(1) == none;
+}
+
+// assert diagnostics.length == 3

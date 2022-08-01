@@ -1,0 +1,13 @@
+// import { DiagnosticCodes } from '../../src/diagnostics/DiagnosticCodes'
+
+on _() {
+    // v expect diagnostics ~ has ~ id == DiagnosticCodes.EqualityArgumentIsNewObject
+    //          v expect diagnostics ~ has ~ id == DiagnosticCodes.EqualityArgumentIsNewObject
+    Queue[1] == Queue[1];
+    
+    let m = Map{ "a": 1 };
+    //   v expect diagnostics ~ has ~ id == DiagnosticCodes.EqualityArgumentIsNewObject
+    m == Map{ "a": 1 };
+}
+
+// assert diagnostics.length == 3

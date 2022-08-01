@@ -1,0 +1,10 @@
+// import { DiagnosticCodes } from '../../src/diagnostics/DiagnosticCodes'
+
+on _() {
+    let q: Stack<int> = [];
+    //     v expect diagnostics ~ has ~ id == DiagnosticCodes.ArgumentParameterTypeMismatch
+    q.push("abc");
+    q.push(1);
+}
+
+// assert diagnostics.length == 1

@@ -1,0 +1,11 @@
+// import { DiagnosticCodes } from '../../src/diagnostics/DiagnosticCodes'
+
+//         v expect diagnostics ~ has ~ id == DiagnosticCodes.TypeDoesNotExist
+param foo: Foo;
+
+on _() {
+    //     v expect diagnostics ~ has ~ id == DiagnosticCodes.TypeDoesNotExist
+    let x: Foo;
+}
+
+// assert diagnostics.length == 2

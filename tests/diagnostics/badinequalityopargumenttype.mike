@@ -1,0 +1,15 @@
+// import { DiagnosticCodes } from '../../src/diagnostics/DiagnosticCodes'
+
+on _() {
+    //  v expect diagnostics ~ has ~ id == DiagnosticCodes.BadInequalityOpArgumentType
+    1 < "abc";
+    //  v expect diagnostics ~ has ~ id == DiagnosticCodes.BadInequalityOpArgumentType
+    1 > none;
+    // v expect diagnostics ~ has ~ id == DiagnosticCodes.BadInequalityOpArgumentType
+    true >= 1.0;
+    // v expect diagnostics ~ has ~ id == DiagnosticCodes.BadInequalityOpArgumentType
+    //      v expect diagnostics ~ has ~ id == DiagnosticCodes.BadInequalityOpArgumentType
+    true <= false;
+}
+
+// assert diagnostics.length == 5

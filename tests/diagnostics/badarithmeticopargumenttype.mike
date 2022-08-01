@@ -1,0 +1,14 @@
+// import { DiagnosticCodes } from '../../src/diagnostics/DiagnosticCodes'
+
+on _() {
+    //  v expect diagnostics ~ has ~ id == DiagnosticCodes.BadArithmeticOpArgumentType
+    1 + "abc";
+    //  v expect diagnostics ~ has ~ id == DiagnosticCodes.BadArithmeticOpArgumentType
+    1 + none;
+    // v expect diagnostics ~ has ~ id == DiagnosticCodes.BadArithmeticOpArgumentType
+    true + 1.0;
+    // v expect diagnostics ~ has ~ id == DiagnosticCodes.BadArithmeticOpArgumentType
+    -(true);
+}
+
+// assert diagnostics.length == 4

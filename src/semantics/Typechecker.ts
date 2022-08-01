@@ -87,18 +87,24 @@ export class Typechecker extends WithDiagnostics(class {}) {
         this.clearCache();
     }
 
-    fetchTypeInfoFromSimpleType(type: SimpleType, emitDiagnostics = false) {
+    fetchTypeInfoFromSimpleType(type: SimpleType) {
+        const info = this.types.get(type.name);
+        if (!info || type.typeArguments.length !== info.numParameters) {
+            return;
+        }
+        return this.types.get(type.name)?.quantify(type.typeArguments);
+    }
+
+    fetchTypeInfoFromSimpleTypeWithDiagnostics(type: SimpleType, source: Type) {
         const info = this.types.get(type.name);
         if (!info) {
-            if (emitDiagnostics) {
-                this.error(DiagnosticCodes.TypeDoesNotExist, type.name);
-            }
+            this.focus(source);
+            this.error(DiagnosticCodes.TypeDoesNotExist, type.name);
             return;
         }
         if (type.typeArguments.length !== info.numParameters) {
-            if (emitDiagnostics) {
-                this.error(DiagnosticCodes.WrongNumberOfTypeArguments, info.numParameters, type.typeArguments.length);
-            }
+            this.focus(source);
+            this.error(DiagnosticCodes.WrongNumberOfTypeArguments, info.numParameters, type.typeArguments.length);
             return;
         }
         return this.types.get(type.name)?.quantify(type.typeArguments);
@@ -107,7 +113,6 @@ export class Typechecker extends WithDiagnostics(class {}) {
     @boundMethod
     fetchType(ast: Expression): KnownType {
         return withCache(ast, this.typeCache, () => {
-            this.focus(ast);
             switch (ast.kind) {
                 case ASTNodeKind.Invoke:
                     return this.fetchInvokeType(ast);
@@ -264,7 +269,9 @@ export class Typechecker extends WithDiagnostics(class {}) {
         if (exprs.length === 1) {
             return this.fetchType(exprs[0]);
         }
-        return exprs.slice(1).reduce((acc, next) => {
+
+        let retToxic = false;
+        const result = exprs.slice(1).reduce((acc, next) => {
             const nextType = this.fetchType(next)
             if (this.fitsInType(acc, nextType)) {
                 if (nextType.kind === TypeKind.Toxic) {
@@ -277,8 +284,11 @@ export class Typechecker extends WithDiagnostics(class {}) {
             }
             this.focus(next);
             this.error(DiagnosticCodes.NoCommonType, nextType, acc);
-            return TOXIC;
+            retToxic = true;
+            return acc;
         }, this.fetchType(exprs[0]));
+
+        return retToxic ? TOXIC : result;
     }
 
     private fetchInvokeType(ast: Invoke): KnownType {
@@ -286,26 +296,30 @@ export class Typechecker extends WithDiagnostics(class {}) {
         
         if (fnType.kind === TypeKind.Function) {
             if (fnType.parameters.length !== ast.args.length) {
+                this.focus(ast);
                 this.error(DiagnosticCodes.WrongNumberOfArguments, fnType.parameters.length, ast.args.length);
             }
-            const argTypes = ast.args.map(this.fetchType);
             if (fnType.typeParameters.length > 0) {
+                const argTypes = ast.args.map(this.fetchType);
                 const typeParamMappings = this.solveTypeVariables(fnType, argTypes);
                 if (typeParamMappings) {
                     fnType = replaceTypeVariables(fnType, typeParamMappings);
                 }
             }
-            for (const [t, argType] of zip(fnType.parameters, argTypes)) {
-                if (!t || !argType) {
+            for (const [t, arg] of zip(fnType.parameters, ast.args)) {
+                if (!t || !arg) {
                     break;
                 }
+                const argType = this.fetchType(arg);
                 if (!this.fitsInType(argType, t)) {
+                    this.focus(arg);
                     this.error(DiagnosticCodes.ArgumentParameterTypeMismatch, argType, t);
                 }
             }
             return fnType.returnType;
         }
         else {
+            this.focus(ast.fn);
             this.error(DiagnosticCodes.Uninvokable, fnType);
             return TOXIC;
         }
@@ -361,7 +375,8 @@ export class Typechecker extends WithDiagnostics(class {}) {
         const lhs = this.fetchType(ast.lhs);
         const rhs = this.fetchType(ast.rhs);
 
-        if (!isEqual(lhs, rhs)) {
+        if (!this.fitsInType(lhs, rhs) && !this.fitsInType(rhs, lhs)) {
+            this.focus(ast);
             this.error(DiagnosticCodes.EqualityArgumentTypeMismatch, lhs, rhs);
         }
         if ([ASTNodeKind.SequenceLiteral, ASTNodeKind.MapLiteral].includes(ast.lhs.kind)) {
@@ -380,9 +395,11 @@ export class Typechecker extends WithDiagnostics(class {}) {
         const rhs = this.fetchType(ast.rhs);
 
         if (!isEqual(lhs, booleanType)) {
+            this.focus(ast.lhs);
             this.error(DiagnosticCodes.BadLogicalOpArgumentType, lhs);
         }
         if (!isEqual(rhs, booleanType)) {
+            this.focus(ast.rhs);
             this.error(DiagnosticCodes.BadLogicalOpArgumentType, rhs);
         }
         return booleanType;
@@ -411,6 +428,7 @@ export class Typechecker extends WithDiagnostics(class {}) {
 
     private fetchUnaryOpType(ast: UnaryOp): KnownType {
         const exprType = this.fetchType(ast.expr);
+        this.focus(ast.expr);
         switch (ast.op) {
             case PrefixOperator.Minus:
                 if (!isEqual(exprType, intType) && !isEqual(exprType, floatType)) {
@@ -425,34 +443,40 @@ export class Typechecker extends WithDiagnostics(class {}) {
         }
     }
 
-    private fetchDereferenceType(ast: Dereference): KnownType {
-        const objType = this.fetchType(ast.obj);
+    private fetchMemberType(obj: Expression, member: Identifier): KnownType {
+        const objType = this.fetchType(obj);
         switch (objType.kind) {
             case TypeKind.Simple: {
-                const memberType = this.fetchTypeInfoFromSimpleType(objType)!.members[ast.member.name];
+                const memberType = this.fetchTypeInfoFromSimpleType(objType)!.members[member.name];
                 if (!memberType) {
-                    this.error(DiagnosticCodes.InvalidMember, objType, ast.member.name);
+                    this.focus(member);
+                    this.error(DiagnosticCodes.InvalidMember, objType, member.name);
                     return TOXIC;
                 }
                 return memberType;
             }
             case TypeKind.Function:
             case TypeKind.TypeVariable:
-                this.error(DiagnosticCodes.InvalidMember, objType, ast.member.name);
+                this.focus(member);
+                this.error(DiagnosticCodes.InvalidMember, objType, member.name);
                 return TOXIC;
             case TypeKind.Toxic:
                 return TOXIC;
         }
     }
 
+    private fetchDereferenceType(ast: Dereference): KnownType {
+        return this.fetchMemberType(ast.obj, ast.member);
+    }
+
     @boundMethod
     fetchTypeOfTypeNode(ast: Type): KnownType {
-        return withCache(ast, this.typeNodeCache, () => this.withFocus(ast, (): KnownType => {
+        return withCache(ast, this.typeNodeCache, (): KnownType => {
             let result: KnownType;
             switch (ast.kind) {
                 case ASTNodeKind.TypeIdentifier:
                     result = { kind: TypeKind.Simple, name: ast.name, typeArguments: [] } as SimpleType;
-                    if (!this.fetchTypeInfoFromSimpleType(result, true)) {
+                    if (!this.fetchTypeInfoFromSimpleTypeWithDiagnostics(result, ast)) {
                         result = TOXIC;
                     }
                     break;
@@ -462,7 +486,7 @@ export class Typechecker extends WithDiagnostics(class {}) {
                         name: ast.name.name,
                         typeArguments: ast.typeArguments.map(this.fetchTypeOfTypeNode)
                     } as SimpleType;
-                    if (!this.fetchTypeInfoFromSimpleType(result, true)) {
+                    if (!this.fetchTypeInfoFromSimpleTypeWithDiagnostics(result, ast)) {
                         result = TOXIC;
                     }
                     break;
@@ -477,10 +501,10 @@ export class Typechecker extends WithDiagnostics(class {}) {
                     break;
             }
             return result;
-        }));
+        });
     }
 
-    private fetchVariableDefinitionType(ast: VariableDefinition): KnownType {
+    fetchVariableDefinitionType(ast: VariableDefinition): KnownType {
         switch (ast.kind) {
             case ASTNodeKind.ParameterDefinition:
             case ASTNodeKind.Parameter:
@@ -521,6 +545,13 @@ export class Typechecker extends WithDiagnostics(class {}) {
 
     fetchSymbolType(ast: Identifier): KnownType {
         return withCache(ast, this.typeCache, () => {
+            const parent = this.binder.getParent(ast);
+            if (parent.kind === ASTNodeKind.Dereference) {
+                return this.fetchType(parent);
+            }
+            if (parent.kind === ASTNodeKind.AssignField) {
+                return this.fetchMemberType(parent.obj, parent.member);
+            }
             const varDef = this.binder.getScope(ast).get(ast.name);
             if (varDef) {
                 return this.fetchVariableDefinitionType(varDef);
@@ -532,27 +563,32 @@ export class Typechecker extends WithDiagnostics(class {}) {
     }
  
     private fetchVariableType(ast: Variable): KnownType {
-        const varDef = this.binder.getScope(ast).get(ast.identifier.name);
-        if (varDef) {
-            if (varDef.kind === ASTNodeKind.LetStatement) {
-                // This is a local, so we need to make sure it has been assigned.
-                const block = this.binder.getParent(varDef);
-                const defPos = this.binder.getPositionInParent(varDef, block);
-                const varPos = this.binder.getPositionInBlock(ast, block);
-                if (varPos === undefined || varPos <= defPos) {
-                    this.error(DiagnosticCodes.NotYetDefined, ast.identifier.name);
-                }
-                else {
-                    const assignmentPos = this.binder.getFirstAssignmentPositionInBlock(ast.identifier.name, block);
-                    if (assignmentPos === undefined || varPos <= assignmentPos) {
-                        this.error(DiagnosticCodes.NotYetInitialized, ast.identifier.name);
+        // We also want to cache this as the type of the identifier itself
+        // Caching of the variable node is automatically handled by fetchType.
+        return withCache(ast.identifier, this.typeCache, () => {
+            this.focus(ast);
+            const varDef = this.binder.getScope(ast).get(ast.identifier.name);
+            if (varDef) {
+                if (varDef.kind === ASTNodeKind.LetStatement) {
+                    // This is a local, so we need to make sure it has been assigned.
+                    const block = this.binder.getParent(varDef);
+                    const defPos = this.binder.getPositionInParent(varDef, block);
+                    const varPos = this.binder.getPositionInBlock(ast, block);
+                    if (varPos === undefined || varPos <= defPos) {
+                        this.error(DiagnosticCodes.NotYetDefined, ast.identifier.name);
+                    }
+                    else {
+                        const assignmentPos = this.binder.getFirstAssignmentPositionInBlock(ast.identifier.name, block);
+                        if (assignmentPos === undefined || varPos <= assignmentPos) {
+                            this.error(DiagnosticCodes.NotYetInitialized, ast.identifier.name);
+                        }
                     }
                 }
+                return this.fetchVariableDefinitionType(varDef);
             }
-            return this.fetchVariableDefinitionType(varDef);
-        }
-        this.error(DiagnosticCodes.UnknownIdentifier, ast.identifier.name);
-        return TOXIC;
+            this.error(DiagnosticCodes.UnknownIdentifier, ast.identifier.name);
+            return TOXIC;
+        });
     }
 
     private fetchSequenceLiteralType(ast: SequenceLiteral): KnownType {
@@ -561,6 +597,7 @@ export class Typechecker extends WithDiagnostics(class {}) {
         if (ast.type) {
             const eltTypeInfo = this.types.get(ast.type.name);
             if (!eltTypeInfo) {
+                this.focus(ast.type);
                 this.error(DiagnosticCodes.TypeDoesNotExist, ast.type.name);
                 return TOXIC;
             }
@@ -568,10 +605,12 @@ export class Typechecker extends WithDiagnostics(class {}) {
             const eltType = this.getCommonSupertype(ast.elements);
             if (eltType) {
                 if (!eltTypeInfo) {
+                    this.focus(ast.type);
                     this.error(DiagnosticCodes.TypeDoesNotExist, ast.type.name);
                     return TOXIC;
                 }
                 if (eltTypeInfo.numParameters !== 1 || !eltTypeInfo.quantify([eltType]).attributes.some(x => x.kind === TypeAttributeKind.IsSequenceLike)) {
+                    this.focus(ast.type);
                     this.error(DiagnosticCodes.TypeIsNotSequenceLike, ast.type.name);
                 }
                 return { kind: TypeKind.Simple, name: ast.type.name, typeArguments: [eltType] };
@@ -590,6 +629,7 @@ export class Typechecker extends WithDiagnostics(class {}) {
         }
 
         if (!targetType) {
+            this.focus(ast);
             this.error(DiagnosticCodes.CannotInferSequenceLiteralType);
             return TOXIC;
         }
@@ -602,6 +642,7 @@ export class Typechecker extends WithDiagnostics(class {}) {
         if (ast.type) {
             const eltTypeInfo = this.types.get(ast.type.name);
             if (!eltTypeInfo) {
+                this.focus(ast.type);
                 this.error(DiagnosticCodes.TypeDoesNotExist, ast.type.name);
                 return TOXIC;
             }
@@ -611,10 +652,12 @@ export class Typechecker extends WithDiagnostics(class {}) {
                 const valType = this.getCommonSupertype(ast.pairs.map(x => x.value));
                 if (valType) {
                     if (!eltTypeInfo) {
+                        this.focus(ast.type);
                         this.error(DiagnosticCodes.TypeDoesNotExist, ast.type.name);
                         return TOXIC;
                     }
                     if (eltTypeInfo.numParameters !== 2 || !eltTypeInfo.quantify([keyType, valType]).attributes.some(x => x.kind === TypeAttributeKind.IsMapLike)) {
+                        this.focus(ast.type);
                         this.error(DiagnosticCodes.TypeIsNotMapLike, ast.type.name);
                     }
                     return { kind: TypeKind.Simple, name: ast.type.name, typeArguments: [keyType, valType] };
@@ -645,6 +688,7 @@ export class Typechecker extends WithDiagnostics(class {}) {
         }
 
         if (!targetType) {
+            this.focus(ast);
             this.error(DiagnosticCodes.CannotInferMapLiteralType);
             return TOXIC;
         }
@@ -700,6 +744,7 @@ export class Typechecker extends WithDiagnostics(class {}) {
             if (typeInfo!.quantify(targetType.typeArguments).attributes.some(x => x.kind === TypeAttributeKind.IsSequenceLike)) {
                 return targetType;
             }
+            this.focus(ast);
             this.error(DiagnosticCodes.PresumedTypeIsNotSequenceLike, targetType, targetType.name);
             return TOXIC;
         }
@@ -715,6 +760,7 @@ export class Typechecker extends WithDiagnostics(class {}) {
             if (typeInfo!.quantify(targetType.typeArguments).attributes.some(x => x.kind === TypeAttributeKind.IsMapLike)) {
                 return targetType;
             }
+            this.focus(ast);
             this.error(DiagnosticCodes.PresumedTypeIsNotMapLike, targetType, targetType.name);
             return TOXIC;
         }

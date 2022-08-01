@@ -1,0 +1,11 @@
+// import { DiagnosticCodes } from '../../src/diagnostics/DiagnosticCodes'
+
+on _() {
+    let q: Stack<int> = [];
+    // v expect diagnostics ~ has ~ id == DiagnosticCodes.WrongNumberOfArguments
+    q.push();
+    // v expect diagnostics ~ has ~ id == DiagnosticCodes.WrongNumberOfArguments
+    q.push(1, 2);
+}
+
+// assert diagnostics.length == 2

@@ -1,0 +1,3 @@
+// import { DiagnosticCodes } from '../../src/diagnostics/DiagnosticCodes'
+
+// TBD - Currently no type which has two type parameters and isn't map-like.

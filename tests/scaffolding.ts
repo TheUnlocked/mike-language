@@ -38,6 +38,18 @@ export default function scaffoldTests(
                         it('there are no tests in this file');
                         return;
                     }
+                    else if (assertions.length === 0) {
+                        for (const diagnostic of diagnosticsManager.getDiagnostics()) {
+                            let locationStr = '';
+                            if (diagnostic.range) {
+                                const { line, col } = diagnostic.range.start;
+                                locationStr = `${filename.replace(/\..*$/, '')}:${line}:${col + 1} -- `;
+                            }
+                            it(`${locationStr}${diagnostic.id}: ${diagnostic.getDescription().replace(/\.$/, '')}`, () => {
+                                expect.fail(diagnostic.getDescription());
+                            });
+                        }
+                    }
                     else {
                         let context: AssertionContext;
                         before(async () => {
@@ -46,7 +58,7 @@ export default function scaffoldTests(
                                 parent: (node: AnyNode) => mike.binder.getParent(node),
                             }
                         });
-            
+
                         for (const { position, condition, isTargeted } of assertions) {
                             it(`${filenameWithoutExt}:${position.line}:${position.col + 1} -- ${condition.trim()}`, () => {
                                 if (isTargeted) {
@@ -74,6 +86,7 @@ export default function scaffoldTests(
                     const err = e as Error;
                     it(`${err.name}: ${err.message}`, () => {
                         getCreateAdditionalContext(getTestData(filename, contents));
+                        expect.fail(err.toString());
                     });
                 }
             });

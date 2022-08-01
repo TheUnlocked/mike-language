@@ -1,5 +1,5 @@
 import { boundMethod } from 'autobind-decorator';
-import { AnyNode, AssignField, AssignVar, ASTNodeKind, Block, IfElseChain, LetStatement, ListenerDefinition, Parameter, ParameterDefinition, Program, StateDefinition, Statement, StatementOrBlock, Type, TypeDefinition } from '../ast/Ast';
+import { AnyNode, AssignField, AssignVar, ASTNodeKind, Block, Expression, IfElseChain, LetStatement, ListenerDefinition, Parameter, ParameterDefinition, Program, StateDefinition, Statement, StatementOrBlock, Type, TypeDefinition } from '../ast/Ast';
 import { DUMMY_IDENTIFIER, getVariableDefinitionIdentifier } from '../ast/AstUtils';
 import { DiagnosticCodes } from '../diagnostics/DiagnosticCodes';
 import { WithDiagnostics } from '../diagnostics/Mixin';
@@ -58,28 +58,27 @@ export default class Validator extends WithDiagnostics(class {}) {
         if (this.testSetValidated(ast)) {
             return;
         }
-        const defaultType = ast.default ? this.typechecker.fetchType(ast.default) : undefined;
 
-        this.focus(ast.type);
         const type = ast.type ? this.typechecker.fetchTypeOfTypeNode(ast.type) : undefined;
         
-        this.focus(ast.default);
-        this.validateTypesMatch(type, defaultType);
+        if (ast.default) {
+            this.validateTypesMatch(type, ast.default);
+        }
 
-        const stateType = type ?? defaultType!;
+        const stateType = this.typechecker.fetchVariableDefinitionType(ast);
         if (!this.checkSerializable(stateType)) {
             this.focus(ast.type ?? ast.default ?? ast);
             this.error(DiagnosticCodes.StateNotSerializable, stateType);
         }
     }
 
-    private validateTypesMatch(targetType: KnownType | undefined, valueType: KnownType | undefined) {
-        if (!valueType && !targetType) {
-            // Diagnostic already issued by parser
-            return;
-        }
-        if (valueType && targetType && !this.typechecker.fitsInType(valueType, targetType)) {
-            this.error(DiagnosticCodes.AssignmentTypeMismatch, valueType, targetType);
+    private validateTypesMatch(targetType: KnownType | undefined, valueAst: Expression) {
+        const valueType = this.typechecker.fetchType(valueAst);
+        if (targetType) {
+            if (!this.typechecker.fitsInType(valueType, targetType)) {
+                this.focus(valueAst);
+                this.error(DiagnosticCodes.AssignmentTypeMismatch, valueType, targetType);
+            }
         }
     }
 
@@ -157,13 +156,11 @@ export default class Validator extends WithDiagnostics(class {}) {
     }
 
     private validateLetStatement(ast: LetStatement) {
-        const defaultType = ast.value ? this.typechecker.fetchType(ast.value) : undefined;
-
-        this.focus(ast.type);
         const type = ast.type ? this.typechecker.fetchTypeOfTypeNode(ast.type) : undefined;
         
-        this.focus(ast.value);
-        this.validateTypesMatch(type, defaultType);
+        if (ast.value) {
+            this.validateTypesMatch(type, ast.value);
+        }
     }
 
     private validateIfElseChain(ast: IfElseChain) {
@@ -181,40 +178,17 @@ export default class Validator extends WithDiagnostics(class {}) {
 
     private validateAssignVar(ast: AssignVar) {
         const varType = this.typechecker.fetchSymbolType(ast.variable);
-        const valueType = this.typechecker.fetchType(ast.value);
-        this.focus(ast.value);
-        this.validateTypesMatch(varType, valueType);
+        this.validateTypesMatch(varType, ast.value);
     }
 
     private validateAssignField(ast: AssignField) {
-        const objType = this.typechecker.fetchType(ast.obj);
         if (ast.member === DUMMY_IDENTIFIER) {
             // Already raised AssignToExpression diagnostics
             return;
         }
 
-        this.focus(ast.member);
-        switch (objType.kind) {
-            case TypeKind.TypeVariable:
-            case TypeKind.Function:
-                this.error(DiagnosticCodes.InvalidMember, objType, ast.member.name);
-                return;
-            case TypeKind.Toxic:
-                return;
-        }
-        const typeInfo = this.typechecker.fetchTypeInfoFromSimpleType(objType)!;
-        if (!typeInfo.attributes.some(x => x.kind === TypeAttributeKind.IsUserDefined)) {
-            this.error(DiagnosticCodes.InvalidMember, objType, ast.member.name);
-            return;
-        }
-        const memberType = typeInfo.members[ast.member.name];
-        if (!memberType) {
-            this.error(DiagnosticCodes.InvalidMember, objType, ast.member.name);
-            return;
-        }
-        const valueType = this.typechecker.fetchType(ast.value);
-        this.focus(ast.value);
-        this.validateTypesMatch(memberType, valueType);
+        const memberType = this.typechecker.fetchSymbolType(ast.member);
+        this.validateTypesMatch(memberType, ast.value);
     }
 
     @boundMethod

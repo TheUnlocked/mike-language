@@ -25,7 +25,7 @@ export class Binder {
     getParent(node: Parameter): ListenerDefinition;
     getParent(node: Comment): Program;
     getParent(node: Type): GenericType | FunctionType | Parameter | LetStatement | ParameterDefinition | StateDefinition;
-    getParent(node: Identifier): Variable | LetStatement | AssignVar | AssignField | ParameterDefinition | StateDefinition | IfCase;
+    getParent(node: Identifier): Variable | Dereference | LetStatement | AssignVar | AssignField | ParameterDefinition | StateDefinition | IfCase;
     // Combo overloads (can be removed if https://github.com/microsoft/TypeScript/issues/14107 gets resolved)
     getParent(node: Expression | Pair): Expression | Statement | Pair | IfCase | StateDefinition;
     getParent(node: Expression | Statement | Pair | IfCase): Expression | Statement | Pair | IfCase | StateDefinition | Block;
