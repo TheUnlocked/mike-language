@@ -3,7 +3,7 @@ import { BlockContext, DebugStatementContext, ExpressionStatementContext, FieldA
 import { ASTNodeKind, Expression, Statement, Block, StatementOrBlock, LetStatement, AssignField, IfCase, Type } from '../ast/Ast';
 import { DiagnosticCodes } from '../diagnostics/DiagnosticCodes';
 import { boundMethod } from 'autobind-decorator';
-import { WithDiagnostics } from '../diagnostics/Mixin';
+import { WithDiagnostics } from '../diagnostics/DiagnosticsMixin';
 import { AbstractMiKeVisitor } from './BaseVisitor';
 import { DUMMY_IDENTIFIER } from '../ast/AstUtils';
 
@@ -38,7 +38,7 @@ export class StatementAstGenVisitor extends WithDiagnostics(AbstractMiKeVisitor<
         } as LetStatement;
 
         if (!expr && !type) {
-            this.diagnostics.focus(node);
+            this.focus(node);
             this.error(DiagnosticCodes.LetIsEmpty);
         }
         return node;
@@ -64,7 +64,7 @@ export class StatementAstGenVisitor extends WithDiagnostics(AbstractMiKeVisitor<
                 obj: lhs,
                 value,
             } as AssignField;
-            this.diagnostics.focus(node);
+            this.focus(node);
             this.error(DiagnosticCodes.AssignToExpression);
             return node;
         }

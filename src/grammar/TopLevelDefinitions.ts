@@ -1,7 +1,7 @@
 import { MiKeVisitor } from './generated/MiKeVisitor';
 import { EventDeclContext, ParamDeclContext, ParamDefContext, StateDeclContext, TypeDefContext } from './generated/MiKeParser';
 import { Expression, ListenerDefinition, ASTNodeKind, ParameterDefinition, StateDefinition, TypeDefinition, Block, Parameter, StatementOrBlock, TopLevelDefinition, Type } from '../ast/Ast';
-import { WithDiagnostics } from '../diagnostics/Mixin';
+import { WithDiagnostics } from '../diagnostics/DiagnosticsMixin';
 import { AbstractMiKeVisitor } from './BaseVisitor';
 import { boundMethod } from 'autobind-decorator';
 import { DiagnosticCodes } from '../diagnostics/DiagnosticCodes';

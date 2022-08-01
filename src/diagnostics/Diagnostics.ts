@@ -44,7 +44,6 @@ export class Diagnostic {
 export interface DiagnosticsReporter {
     report(id: number, ...args: string[]): void;
     focus(node: AnyNode | Range | undefined): void;
-    withFocus<R>(node: AnyNode | Range | undefined, callback: () => R): R;
 }
 
 export class DiagnosticsManager {
@@ -108,13 +107,6 @@ export class DiagnosticsManager {
                 this.report(namespace, id, args);
             },
             focus,
-            withFocus: (nodeOrRange, callback) => {
-                const oldRange = this.currentRange;
-                focus(nodeOrRange);
-                const result = callback();
-                this.currentRange = oldRange;
-                return result;
-            }
         };
     }
 

@@ -1,6 +1,6 @@
 import { AddsubContext, ComparisonContext, DerefContext, FalseLiteralContext, FloatLiteralContext, IntLiteralContext, InvokeContext, LogicalContext, MapLiteralContext, MapLiteralPairContext, MuldivContext, SeqLiteralContext, StringLiteralContext, TrueLiteralContext, UnaryContext, VariableRefContext } from './generated/MiKeParser';
 import { ASTNodeKind, BinaryOp, Expression, InfixOperator, Pair, PrefixOperator } from '../ast/Ast';
-import { WithDiagnostics } from '../diagnostics/Mixin';
+import { WithDiagnostics } from '../diagnostics/DiagnosticsMixin';
 import { DiagnosticCodes } from '../diagnostics/DiagnosticCodes';
 import { AbstractMiKeVisitor } from './BaseVisitor';
 import { boundMethod } from 'autobind-decorator';

@@ -1,8 +1,8 @@
 import { boundMethod } from 'autobind-decorator';
-import { groupBy, isEqual, pickBy, spread, zip } from 'lodash';
+import { groupBy, isEqual, spread, zip } from 'lodash';
 import { ASTNodeKind, BinaryOp, Dereference, Expression, Identifier, InfixOperator, Invoke, MapLiteral, PrefixOperator, SequenceLiteral, Type, TypeDefinition, UnaryOp, Variable as Variable, VariableDefinition } from '../ast/Ast';
 import { DiagnosticCodes } from '../diagnostics/DiagnosticCodes';
-import { WithDiagnostics } from '../diagnostics/Mixin';
+import { DiagnosticsMixin } from '../diagnostics/DiagnosticsMixin';
 import { CanIfDestructAttribute, TypeAttributeKind } from '../types/Attribute';
 import { booleanType, floatType, intType, primitiveTypes, stringType } from '../types/Primitives';
 import { TypeInfo } from '../types/TypeInfo';
@@ -10,7 +10,7 @@ import { KnownType, FunctionType, IncompleteType, MapLike, SequenceLike, SimpleT
 import { Binder } from './Binder';
 import { withCache } from '../utils/cache';
 
-export class Typechecker extends WithDiagnostics(class {}) {
+export class Typechecker extends DiagnosticsMixin {
     private typeCache = new Map<Expression | Identifier, KnownType>();
     private typeNodeCache = new Map<Type, KnownType>();
 

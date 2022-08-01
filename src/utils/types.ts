@@ -1,3 +1,5 @@
+export type Constructor<T = {}> = abstract new (...args: any[]) => T;
+
 export function suggestType<T>() {
     return <U extends T>(arg: U): U => arg;
 }

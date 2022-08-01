@@ -1,7 +1,22 @@
 {
+  "name": "mike-language",
+  "version": "0.0.1",
+  "author": {
+    "name": "Trevor Paley",
+    "url": "https://github.com/TheUnlocked"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/TheUnlocked/mike-language.git"
+  },
+  "license": "MIT",
+  "files": [
+    "dist/**/*"
+  ],
   "scripts": {
-    "clean": "rimraf src/grammar/generated",
+    "clean": "rimraf src/grammar/generated dist",
     "antlr4ts": "npm run clean && antlr4ts -visitor src/grammar/MiKe.g4 -o src/grammar/generated",
+    "prepublishOnly": "npm run clean && npm run antlr4ts && tsc",
     "typecheck": "tsc --noEmit",
     "test": "mocha",
     "test:watch": "mocha --watch",
@@ -18,7 +33,7 @@
     "@types/lodash": "^4.14.182",
     "@types/mocha": "^9.1.1",
     "@types/omit-deep-lodash": "^1.1.1",
-    "antlr4ts-cli": "^0.5.0-alpha.4",
+    "antlr4ts-cli": "https://gitpkg.now.sh/TheUnlocked/antlr4ts/tool?generate-optional-method&scripts.postinstall=%26%26%20npm%20run%20prepare",
     "c8": "^7.11.3",
     "chai": "^4.3.6",
     "mocha": "^10.0.0",

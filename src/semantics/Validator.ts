@@ -2,7 +2,7 @@ import { boundMethod } from 'autobind-decorator';
 import { AnyNode, AssignField, AssignVar, ASTNodeKind, Block, Expression, IfElseChain, LetStatement, ListenerDefinition, Parameter, ParameterDefinition, Program, StateDefinition, Statement, StatementOrBlock, Type, TypeDefinition } from '../ast/Ast';
 import { DUMMY_IDENTIFIER, getVariableDefinitionIdentifier } from '../ast/AstUtils';
 import { DiagnosticCodes } from '../diagnostics/DiagnosticCodes';
-import { WithDiagnostics } from '../diagnostics/Mixin';
+import { DiagnosticsMixin } from '../diagnostics/DiagnosticsMixin';
 import { TypeAttributeKind } from '../types/Attribute';
 import { KnownType, TypeKind } from '../types/KnownType';
 import { Binder } from './Binder';
@@ -12,7 +12,7 @@ export interface ValidatorOptions {
     isLegalParameterType(type: KnownType): boolean;
 }
 
-export default class Validator extends WithDiagnostics(class {}) {
+export default class Validator extends DiagnosticsMixin {
     private validatedSet = new WeakSet<AnyNode>();
 
     constructor(private binder: Binder, private typechecker: Typechecker, private options: ValidatorOptions) {

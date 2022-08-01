@@ -3,5 +3,4 @@ node_modules
 coverage
 
 src/grammar/generated
-*.gen.tsx
-*.bs.js
+dist
