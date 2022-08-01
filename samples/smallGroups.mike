@@ -10,6 +10,12 @@ type GroupInfo (
     numMembers: int,
 );
 
+on validate(fail: (string) => unit) {
+    if groupSize <= 1 {
+        fail("The minimum group size is 2.");
+    }
+}
+
 on join(user: User) {
     if groupByUser.get(user) |group| {
         // User rejoining prior group

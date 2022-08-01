@@ -20,12 +20,17 @@ export interface MutableDiagnosticInfo {
 
 export class Diagnostic {
     constructor(
-        public readonly id: string,
+        public readonly namespace: string,
+        public readonly id: number,
         public readonly severity: Severity,
         public readonly range: Range | undefined,
         private readonly description: string,
         private readonly args: string[],
     ) {}
+
+    get qualifiedId() {
+        return this.namespace + this.id;
+    }
 
     getDescription() {
         return this.description.replace(/{([0-9]+)}/, (match, key) => this.args[+key] ?? match);
@@ -75,18 +80,17 @@ export class DiagnosticsManager {
     }
 
     private report(namespace: string, id: number, args: string[]) {
-        const qualifiedId = this.getQualifiedId(namespace, id);
-        const diagnostic = this.diagnosticTypes.get(qualifiedId);
+        const diagnostic = this.diagnosticTypes.get(this.getQualifiedId(namespace, id));
 
         if (!diagnostic) {
             this.diagnostics.push(
-                new Diagnostic(qualifiedId, Severity.Error, this.currentRange, 'Unknown Diagnostic', args)
+                new Diagnostic(namespace, id, Severity.Error, this.currentRange, 'Unknown Diagnostic', args)
             );
             return;
         }
 
         this.diagnostics.push(
-            new Diagnostic(qualifiedId, diagnostic.severity, this.currentRange, diagnostic.description, args)
+            new Diagnostic(namespace, id, diagnostic.severity, this.currentRange, diagnostic.description, args)
         );
     }
 

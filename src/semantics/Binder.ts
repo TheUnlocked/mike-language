@@ -15,7 +15,7 @@ export class Binder {
 
     }
 
-    getParent(node: Expression): Exclude<Expression, MapLiteral> | Pair | Statement;
+    getParent(node: Expression): Exclude<Expression, MapLiteral> | Pair | Statement | IfCase | StateDefinition;
     getParent(node: Statement): Block;
     getParent(node: StatementOrBlock): Block | IfCase | ListenerDefinition;
     getParent(node: TopLevelDefinition): Program;
@@ -27,9 +27,9 @@ export class Binder {
     getParent(node: Type): GenericType | FunctionType | Parameter | LetStatement | ParameterDefinition | StateDefinition;
     getParent(node: Identifier): Variable | LetStatement | AssignVar | AssignField | ParameterDefinition | StateDefinition | IfCase;
     // Combo overloads (can be removed if https://github.com/microsoft/TypeScript/issues/14107 gets resolved)
-    getParent(node: Expression | Pair): Expression | Statement | Pair;
-    getParent(node: Expression | Statement | Pair): Expression | Statement | Pair | Block;
-    getParent(node: Expression | Statement | Pair | Identifier): Expression | Statement | Pair | Block | Variable | LetStatement | AssignVar | AssignField | ParameterDefinition | StateDefinition | IfCase;
+    getParent(node: Expression | Pair): Expression | Statement | Pair | IfCase | StateDefinition;
+    getParent(node: Expression | Statement | Pair | IfCase): Expression | Statement | Pair | IfCase | StateDefinition | Block;
+    getParent(node: Expression | Statement | Pair | Identifier): Expression | Statement | IfCase | StateDefinition | Pair | Block | Variable | LetStatement | AssignVar | AssignField | ParameterDefinition | IfCase;
     // Fallback
     getParent(node: AnyNode): AnyNode;
     getParent(node: AnyNode) {
@@ -75,21 +75,24 @@ export class Binder {
         if (node.kind === ASTNodeKind.Variable || node.kind === ASTNodeKind.Identifier) {
             let parent = this.getParent(node);
             if (parent.kind === ASTNodeKind.ParameterDefinition || parent.kind === ASTNodeKind.StateDefinition) {
-                return this.symbolTable.get(this.getParent(parent)) ?? this.topLevelScope;
+                return this.symbolTable.get(this.getParent(parent))!;
             }
             if (parent.kind === ASTNodeKind.IfCase) {
                 parent = parent.body;
             }
-            while (isExpression(parent) || isStatement(parent) || parent.kind === ASTNodeKind.Pair) {
+            while (isExpression(parent) || isStatement(parent) || parent.kind === ASTNodeKind.Pair || parent.kind === ASTNodeKind.IfCase) {
                 parent = this.getParent(parent);
+            }
+            if (parent.kind === ASTNodeKind.StateDefinition) {
+                return this.symbolTable.get(this.getParent(parent))!;
             }
             node = parent;
         }
-        return this.symbolTable.get(node) ?? this.topLevelScope;
+        return this.symbolTable.get(node)!;
     }
 
     private getOrCreateScope(node: Block | Program) {
-        let scope = this.getScope(node);
+        let scope = this.symbolTable.get(node);
         if (!scope) {
             scope = new Scope(() => {
                 if (node.kind === ASTNodeKind.Block) {
@@ -145,7 +148,7 @@ export class Binder {
     }
 
     getParentStatement(expr: Expression) {
-        let parent: Expression | Statement | Pair = this.getParent(expr);
+        let parent: Expression | Statement | IfCase | StateDefinition | Pair = this.getParent(expr);
         while (isExpression(parent) || parent.kind === ASTNodeKind.Pair) {
             parent = this.getParent(parent);
         }

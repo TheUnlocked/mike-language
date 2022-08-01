@@ -98,6 +98,16 @@ export function inRange({ start, end }: Range, position: Position) {
     return false;
 }
 
+export function isAfter(position: Position, comparedTo: Position) {
+    if (position.line > comparedTo.line) {
+        return true;
+    }
+    if (position.line === comparedTo.line && position.col > comparedTo.col) {
+        return true;
+    }
+    return false;
+}
+
 export function getLastPosition(str: string): Position {
     let line = 1;
     let lastLineSourcePosition = 0;

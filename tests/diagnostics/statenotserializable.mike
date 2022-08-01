@@ -1,0 +1,19 @@
+// import { DiagnosticCodes } from '../../src/diagnostics/DiagnosticCodes'
+
+//       v expect diagnostics ~ has ~ id == DiagnosticCodes.StateNotSerializable
+state x: (int) => unit = Stack[0].push;
+//        v expect diagnostics ~ has ~ id == DiagnosticCodes.StateNotSerializable
+state y = Foo(Stack[0].push);
+//       v expect diagnostics ~ has ~ id == DiagnosticCodes.StateNotSerializable
+state z: Bar = Bar(some(Stack[0].push));
+//        v expect diagnostics ~ has ~ id == DiagnosticCodes.StateNotSerializable
+state r = A(none);
+
+type Foo(fn: (int) => unit);
+type Bar(fn: option<(int) => unit>);
+
+type A(b: option<B>);
+
+type B(a: A, fn: (int) => unit);
+
+// assert diagnostics.length == 4

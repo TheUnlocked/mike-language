@@ -17,8 +17,8 @@ export class ExprAstGenVisitor extends WithDiagnostics(AbstractMiKeVisitor<Expre
             rhs: ctx._right.accept(this),
         } as BinaryOp;
 
-        if (ctx._right instanceof LogicalContext &&
-            (ctx._right.AND_AND() ? op !== InfixOperator.And : op !== InfixOperator.Or)
+        if (ctx._left instanceof LogicalContext &&
+            (ctx._left.AND_AND() ? op !== InfixOperator.And : op !== InfixOperator.Or)
         ) {
             this.focus(node)
             this.error(DiagnosticCodes.MixedAndOr);

@@ -1,0 +1,15 @@
+// import { DiagnosticCodes } from '../../src/diagnostics/DiagnosticCodes'
+
+type Foo(x: int);
+
+on _() {
+    // v expect diagnostics ~ has ~ id == DiagnosticCodes.AssignToExpression
+    1 = 2;
+    // v expect diagnostics ~ has ~ id == DiagnosticCodes.AssignToExpression
+    some(1) = 9;
+
+    let f = Foo(4);
+    f.x = 3;
+}
+
+// assert diagnostics.length == 2

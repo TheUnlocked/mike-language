@@ -1,0 +1,8 @@
+// import { DiagnosticCodes } from '../../src/diagnostics/DiagnosticCodes'
+
+on _() {
+    // v expect diagnostics ~ has ~ id == DiagnosticCodes.LetIsEmpty
+    let x;
+}
+
+// assert diagnostics.length == 1

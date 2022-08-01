@@ -40,6 +40,7 @@ export class TopLevelDefinitionAstGenVisitor extends WithDiagnostics(AbstractMiK
         const varDef = ctx.varDef();
         const expr = varDef.expression()?.accept(this.exprVisitor);
         if (!expr) {
+            this.focus(this.getMetadata(ctx).extent);
             this.error(DiagnosticCodes.NoStateInitialValue);
         }
         return {

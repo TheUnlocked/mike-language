@@ -5,15 +5,14 @@ export enum DiagnosticCodes {
     // 2000: Parsing
     GenericLexError = 2000,
     GenericParseError,
-    UnexpectedTrailingInput,
     AssignToExpression,
     LetIsEmpty,
     MixedAndOr,
+    NoStateInitialValue,
     
     // 3000: Definitions & Flow
     TypeDefinedMultipleTimes = 3000,
     VariableDefinedMultipleTimes,
-    NoStateInitialValue,
     StateNotSerializable,
     InvalidParameterType,
     NotYetDefined,
@@ -46,13 +45,12 @@ export enum DiagnosticCodes {
 export const defaultDiagnosticDetails = suggestType<{ readonly [name in DiagnosticCodes]: DiagnosticInfo }>()({
     [DiagnosticCodes.GenericLexError]: { severity: Severity.Error, description: 'Generic Lexer error: {0}.' },
     [DiagnosticCodes.GenericParseError]: { severity: Severity.Error, description: 'Generic Parser error: {0}.' },
-    [DiagnosticCodes.UnexpectedTrailingInput]: { severity: Severity.Error, description: 'Unexpected input.' },
     [DiagnosticCodes.AssignToExpression]: { severity: Severity.Error, description: 'Cannot understand assignment, did you intend the left side to be a field dereference?' },
     [DiagnosticCodes.LetIsEmpty]: { severity: Severity.Error, description: 'A let statement must have a type, or a value from which its type can be inferred.' },
     [DiagnosticCodes.MixedAndOr]: { severity: Severity.Error, description: '&& and || have the same precedence, so order of operations must be explicitly declared using parentheses.' },
+    [DiagnosticCodes.NoStateInitialValue]: { severity: Severity.Error, description: 'State declarations must have initial values.' },
     [DiagnosticCodes.TypeDefinedMultipleTimes]: { severity: Severity.Error, description: 'Type {0} was already defined.' },
     [DiagnosticCodes.VariableDefinedMultipleTimes]: { severity: Severity.Error, description: 'Variable {0} was already defined in this scope.' },
-    [DiagnosticCodes.NoStateInitialValue]: { severity: Severity.Error, description: 'State declarations must have initial values.' },
     [DiagnosticCodes.StateNotSerializable]: { severity: Severity.Error, description: 'State variables must be serializable, but type {0} is not serializable.' },
     [DiagnosticCodes.InvalidParameterType]: { severity: Severity.Error, description: 'Type {0} is not a valid parameter type.' },
     [DiagnosticCodes.NotYetDefined]: { severity: Severity.Error, description: 'Variable {0} is used before it is defined.' },

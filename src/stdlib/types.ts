@@ -1,17 +1,9 @@
 import { TypeAttributeKind } from '../types/Attribute';
+import { functionOf, optionOf } from '../types/KnownType';
 import { booleanType, intType, unitType } from '../types/Primitives';
 import { TypeInfo } from '../types/TypeInfo';
-import { KnownType, TypeKind } from '../types/KnownType';
 
-function optionOf(t: KnownType): KnownType {
-    return {
-        kind: TypeKind.Simple,
-        name: 'option',
-        typeArguments: [t]
-    };
-}
-
-export const stdlibTypes = [
+export const stdlibTypes: readonly TypeInfo[] = [
     {
         name: 'Array',
         numParameters: 1,
@@ -20,8 +12,8 @@ export const stdlibTypes = [
                 { kind: TypeAttributeKind.IsSequenceLike, addMethod: 'push', reversed: false },
             ],
             members: {
-                get: { kind: TypeKind.Function, parameters: [intType], returnType: optionOf(t) },
-                set: { kind: TypeKind.Function, parameters: [intType, t], returnType: unitType },
+                get: functionOf([intType], optionOf(t)),
+                set: functionOf([intType, t], unitType),
                 length: intType,
             }
         })
@@ -34,10 +26,10 @@ export const stdlibTypes = [
                 { kind: TypeAttributeKind.IsSequenceLike, addMethod: 'enqueue', reversed: true },
             ],
             members: {
-                enqueue: { kind: TypeKind.Function, parameters: [t], returnType: unitType },
-                pop: { kind: TypeKind.Function, parameters: [], returnType: optionOf(t) },
-                peek: { kind: TypeKind.Function, parameters: [], returnType: optionOf(t) },
-                peekDeep: { kind: TypeKind.Function, parameters: [intType], returnType: optionOf(t) },
+                enqueue: functionOf([t], unitType),
+                pop: functionOf([], optionOf(t)),
+                peek: functionOf([], optionOf(t)),
+                peekDeep: functionOf([intType], optionOf(t)),
                 length: intType,
             }
         })
@@ -50,10 +42,10 @@ export const stdlibTypes = [
                 { kind: TypeAttributeKind.IsSequenceLike, addMethod: 'push', reversed: false },
             ],
             members: {
-                push: { kind: TypeKind.Function, parameters: [t], returnType: unitType },
-                pop: { kind: TypeKind.Function, parameters: [], returnType: optionOf(t) },
-                peek: { kind: TypeKind.Function, parameters: [], returnType: optionOf(t) },
-                peekDeep: { kind: TypeKind.Function, parameters: [intType], returnType: optionOf(t) },
+                push: functionOf([t], unitType),
+                pop: functionOf([], optionOf(t)),
+                peek: functionOf([], optionOf(t)),
+                peekDeep: functionOf([intType], optionOf(t)),
                 length: intType,
             }
         })
@@ -66,9 +58,9 @@ export const stdlibTypes = [
                 { kind: TypeAttributeKind.IsSequenceLike, addMethod: 'add', reversed: false },
             ],
             members: {
-                add: { kind: TypeKind.Function, parameters: [t], returnType: unitType },
-                remove: { kind: TypeKind.Function, parameters: [t], returnType: booleanType },
-                has: { kind: TypeKind.Function, parameters: [t], returnType: booleanType },
+                add: functionOf([t], unitType),
+                remove: functionOf([t], booleanType),
+                has: functionOf([t], booleanType),
                 length: intType,
             }
         })
@@ -81,16 +73,15 @@ export const stdlibTypes = [
                 { kind: TypeAttributeKind.IsSequenceLike, addMethod: 'push', reversed: false },
             ],
             members: {
-                enqueue: { kind: TypeKind.Function, parameters: [t], returnType: unitType },
-                popFront: { kind: TypeKind.Function, parameters: [], returnType: optionOf(t) },
-                peekFront: { kind: TypeKind.Function, parameters: [], returnType: optionOf(t) },
-                peekDeepFront: { kind: TypeKind.Function, parameters: [intType], returnType: optionOf(t) },
-                push: { kind: TypeKind.Function, parameters: [t], returnType: unitType },
-                pop: { kind: TypeKind.Function, parameters: [], returnType: optionOf(t) },
-                peek: { kind: TypeKind.Function, parameters: [], returnType: optionOf(t) },
-                peekDeep: { kind: TypeKind.Function, parameters: [intType], returnType: optionOf(t) },
-                remove: { kind: TypeKind.Function, parameters: [t], returnType: booleanType },
-                has: { kind: TypeKind.Function, parameters: [t], returnType: booleanType },
+                enqueue: functionOf([t], unitType),
+                popFront: functionOf([], optionOf(t)),
+                peekFront: functionOf([], optionOf(t)),
+                peekDeepFront: functionOf([intType], optionOf(t)),
+                pop: functionOf([], optionOf(t)),
+                peek: functionOf([], optionOf(t)),
+                peekDeep: functionOf([intType], optionOf(t)),
+                remove: functionOf([t], booleanType),
+                has: functionOf([t], booleanType),
                 length: intType,
             }
         })
@@ -103,10 +94,10 @@ export const stdlibTypes = [
                 { kind: TypeAttributeKind.IsMapLike, setMethod: 'put' },
             ],
             members: {
-                put: { kind: TypeKind.Function, parameters: [k, v], returnType: unitType },
-                remove: { kind: TypeKind.Function, parameters: [k], returnType: booleanType },
-                get: { kind: TypeKind.Function, parameters: [k], returnType: optionOf(v) },
-                has: { kind: TypeKind.Function, parameters: [k], returnType: booleanType },
+                put: functionOf([k, v], unitType),
+                remove: functionOf([k], booleanType),
+                get: functionOf([k], optionOf(v)),
+                has: functionOf([k], booleanType),
                 length: intType,
             }
         })
@@ -119,9 +110,9 @@ export const stdlibTypes = [
                 { kind: TypeAttributeKind.CanIfDestruct, into: t },
             ],
             members: {
-                getOrDefault: { kind: TypeKind.Function, parameters: [t], returnType: t },
+                getOrDefault: functionOf([t], t),
                 hasValue: booleanType,
             }
         })
     },
-] as readonly TypeInfo[];
+];

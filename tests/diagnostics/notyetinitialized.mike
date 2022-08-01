@@ -1,0 +1,31 @@
+// import { DiagnosticCodes } from '../../src/diagnostics/DiagnosticCodes'
+
+on _() {
+    let x: string;
+
+    if (true) {
+        x = "a";
+    }
+    else {
+        x = "b";
+    }
+
+    x; // ok
+
+    let y: float;
+    if (true) {
+        y = 4.0;
+    }
+    // v expect $t == type('float'), diagnostics ~ has ~ id == DiagnosticCodes.NotYetInitialized
+       y;
+    
+    let z: int;
+    if (true) {}
+    else {
+        z = 4;
+    }
+    // v expect $t == type('int'), diagnostics ~ has ~ id == DiagnosticCodes.NotYetInitialized
+       z;
+}
+
+// assert diagnostics.length == 2

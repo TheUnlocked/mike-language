@@ -9,6 +9,7 @@ import Scope from '../semantics/Scope';
 import { Typechecker } from '../semantics/Typechecker';
 import Validator from '../semantics/Validator';
 import { stdlibTypes } from '../stdlib/types';
+import { stdlibValues } from '../stdlib/values';
 import { KnownType } from '../types/KnownType';
 import { TypeInfo } from '../types/TypeInfo';
 
@@ -67,6 +68,7 @@ export default class MiKe {
         const topLevelScope = new Scope(
             () => undefined,
             Object.entries(this.builtinVariables)
+                .concat(Object.entries(stdlibValues))
                 .map(([name, type]) => [name, { kind: ASTNodeKind.OutOfTree, type } as ExternalVariableDefinition])
         );
         this.binder = new Binder(topLevelScope);

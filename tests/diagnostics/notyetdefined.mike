@@ -1,0 +1,9 @@
+// import { DiagnosticCodes } from '../../src/diagnostics/DiagnosticCodes'
+
+on _() {
+    // v expect $t == type('int'), diagnostics ~ has ~ id == DiagnosticCodes.NotYetDefined
+       x;
+    let x = 0;
+}
+
+// assert diagnostics.length == 1

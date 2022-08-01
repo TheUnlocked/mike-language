@@ -1,6 +1,6 @@
 import { boundMethod } from 'autobind-decorator';
 import { AnyNode, AssignField, AssignVar, ASTNodeKind, Block, IfElseChain, LetStatement, ListenerDefinition, Parameter, ParameterDefinition, Program, StateDefinition, Statement, StatementOrBlock, Type, TypeDefinition } from '../ast/Ast';
-import { getVariableDefinitionIdentifier } from '../ast/AstUtils';
+import { DUMMY_IDENTIFIER, getVariableDefinitionIdentifier } from '../ast/AstUtils';
 import { DiagnosticCodes } from '../diagnostics/DiagnosticCodes';
 import { WithDiagnostics } from '../diagnostics/Mixin';
 import { TypeAttributeKind } from '../types/Attribute';
@@ -26,13 +26,17 @@ export default class Validator extends WithDiagnostics(class {}) {
         for (const child of ast.definitions) {
             switch (child.kind) {
                 case ASTNodeKind.ParameterDefinition:
-                    return this.validateParameterDefinition(child);
+                    this.validateParameterDefinition(child);
+                    break;
                 case ASTNodeKind.StateDefinition:
-                    return this.validateStateDefinition(child);
+                    this.validateStateDefinition(child);
+                    break;
                 case ASTNodeKind.TypeDefinition:
-                    return this.validateTypeDefinition(child);
+                    this.validateTypeDefinition(child);
+                    break;
                 case ASTNodeKind.ListenerDefinition:
-                    return this.validateListenerDefinition(child);
+                    this.validateListenerDefinition(child);
+                    break;
             }
         }
     }
@@ -84,6 +88,7 @@ export default class Validator extends WithDiagnostics(class {}) {
         const rec = (type: KnownType): boolean => {
             switch (type.kind) {
                 case TypeKind.Function:
+                case TypeKind.TypeVariable:
                     return false;
                 case TypeKind.Toxic:
                     return true;
@@ -183,8 +188,14 @@ export default class Validator extends WithDiagnostics(class {}) {
 
     private validateAssignField(ast: AssignField) {
         const objType = this.typechecker.fetchType(ast.obj);
+        if (ast.member === DUMMY_IDENTIFIER) {
+            // Already raised AssignToExpression diagnostics
+            return;
+        }
+
         this.focus(ast.member);
         switch (objType.kind) {
+            case TypeKind.TypeVariable:
             case TypeKind.Function:
                 this.error(DiagnosticCodes.InvalidMember, objType, ast.member.name);
                 return;

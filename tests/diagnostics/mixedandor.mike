@@ -1,0 +1,10 @@
+// import { DiagnosticCodes } from '../../src/diagnostics/DiagnosticCodes'
+
+on _() {
+    // v expect diagnostics ~ has ~ id == DiagnosticCodes.MixedAndOr
+    true && true || false;
+    true || true || false;
+    true && true && false;
+}
+
+// assert diagnostics.length == 1

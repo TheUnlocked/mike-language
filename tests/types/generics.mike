@@ -1,0 +1,12 @@
+on _() {
+    //    v expect fetchType($.name) == fetchType($.value)
+    let x = some;
+    //  v expect $t == type('option<int>')
+    let i = x(5);
+    //  v expect $t == type('option<float>')
+    let f = x(5.0);
+    if x(some) |s| {
+    //       v expect fetchType($.lhs) == fetchType($.rhs)
+        some == s;
+    }
+}

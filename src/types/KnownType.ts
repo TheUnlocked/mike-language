@@ -1,10 +1,11 @@
-import { isEqual } from 'lodash';
+import { isEqual, zip } from 'lodash';
 import { ReadonlyTupleOf } from '../utils/types';
 
 export enum TypeKind {
     Toxic,
     Simple,
     Function,
+    TypeVariable,
     SequenceLike,
     MapLike,
 }
@@ -25,8 +26,41 @@ export interface SimpleType<NArgs extends number = any> extends TypeReference {
 
 export interface FunctionType extends TypeReference {
     readonly kind: TypeKind.Function;
+    readonly typeParameters: readonly TypeVariable[];
     readonly parameters: readonly KnownType[];
     readonly returnType: KnownType;
+}
+
+export function replaceTypeVariables<T extends Exclude<KnownType, TypeVariable>>(type: T, vars: Map<symbol, KnownType>): T {
+    function rec(type: KnownType): KnownType {
+        switch (type.kind) {
+            case TypeKind.Toxic:
+                return TOXIC;
+            case TypeKind.TypeVariable:
+                return vars.get(type.symbol) ?? type;
+            case TypeKind.Simple:
+                return {
+                    kind: TypeKind.Simple,
+                    name: type.name,
+                    typeArguments: type.typeArguments.map(rec),
+                };
+            case TypeKind.Function: {
+                return {
+                    kind: TypeKind.Function,
+                    typeParameters: type.typeParameters,
+                    parameters: type.parameters.map(rec),
+                    returnType: rec(type.returnType),
+                };
+            }
+        }
+    }
+
+    return rec(type) as T;
+}
+
+export interface TypeVariable extends TypeReference {
+    readonly kind: TypeKind.TypeVariable;
+    readonly symbol: symbol;
 }
 
 export interface SequenceLike extends TypeReference {
@@ -48,6 +82,12 @@ export function matchesSequenceLike(other: KnownType, type: SequenceLike): other
     return true;
 }
 
+export interface MapLike extends TypeReference {
+    readonly kind: TypeKind.MapLike;
+    readonly name?: string;
+    readonly typeArguments?: readonly [key: KnownType, value: KnownType];
+}
+
 export function matchesMapLike(other: KnownType, type: MapLike): other is SimpleType<2> {
     if (other.kind !== TypeKind.Simple || other.typeArguments.length !== 2) {
         return false;
@@ -61,15 +101,10 @@ export function matchesMapLike(other: KnownType, type: MapLike): other is Simple
     return true;
 }
 
-export interface MapLike extends TypeReference {
-    readonly kind: TypeKind.MapLike;
-    readonly name?: string;
-    readonly typeArguments?: readonly [key: KnownType, value: KnownType];
-}
-
 export type KnownType
     = SimpleType
     | FunctionType
+    | TypeVariable
     | ToxicType
     ;
 
@@ -101,7 +136,12 @@ export function stringifyType(type: AnyType): string {
             }
             return `${type.name}<${type.typeArguments.map(stringifyType).join(', ')}>`;
         case TypeKind.Function:
-            return `(${type.parameters.map(stringifyType).join(', ')}) => ${stringifyType(type.returnType)}`;
+            if (type.typeParameters.length === 0) {
+                return `(${type.parameters.map(stringifyType).join(', ')}) => ${stringifyType(type.returnType)}`;
+            }
+            return `<${type.typeParameters.join(', ')}>(${type.parameters.map(stringifyType).join(', ')}) => ${stringifyType(type.returnType)}`;
+        case TypeKind.TypeVariable:
+            return type.symbol.description ?? '?';
         case TypeKind.SequenceLike:
             if (type.element) {
                 return `[${stringifyType(type.element)}]`;
@@ -113,8 +153,35 @@ export function stringifyType(type: AnyType): string {
             }
             return '{?: ?}';
         case TypeKind.Toxic:
-            return 'Error!';
+            return '?';
     }
 }
 
 export const TOXIC = { kind: TypeKind.Toxic } as ToxicType;
+export const ANY_TYPE = TOXIC;
+
+export function optionOf(t: KnownType): KnownType {
+    return {
+        kind: TypeKind.Simple,
+        name: 'option',
+        typeArguments: [t]
+    };
+}
+
+export function functionOf(parameters: readonly KnownType[], returnType: KnownType): FunctionType {
+    return { kind: TypeKind.Function, typeParameters: [], parameters, returnType };
+}
+
+export function genericFunctionOf(
+    typeParameterNames: string[],
+    parametersCallback: (...args: TypeVariable[]) => readonly KnownType[],
+    returnTypeCallback: (...args: TypeVariable[]) => KnownType,
+) {
+    const typeParameters = typeParameterNames.map(x => ({ kind: TypeKind.TypeVariable, symbol: Symbol(x) } as TypeVariable));
+    return {
+        kind: TypeKind.Function,
+        typeParameters,
+        parameters: parametersCallback(...typeParameters),
+        returnType: returnTypeCallback(...typeParameters)
+    };
+}

@@ -1,4 +1,4 @@
-// import { InfixOperator, PrefixOperator } from '../../src/ast/Ast.ts'
+// import { InfixOperator, PrefixOperator } from '../../src/ast/Ast'
 
 on _() {
     //v expect $.op == InfixOperator.Add
