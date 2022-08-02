@@ -1,0 +1,9 @@
+// import { DiagnosticCodes } from '../../src/diagnostics/DiagnosticCodes'
+
+on _() {
+    let q = Stack[1];
+    // v expect diagnostics ~ has ~ id == DiagnosticCodes.CannotAssignToReadonlyField
+    q.push = q.push;
+}
+
+// assert diagnostics.length == 1

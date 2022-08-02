@@ -10,7 +10,8 @@ import { Typechecker } from '../semantics/Typechecker';
 import Validator from '../semantics/Validator';
 import { stdlibTypes } from '../stdlib/types';
 import { stdlibValues } from '../stdlib/values';
-import { KnownType } from '../types/KnownType';
+import { TypeAttributeKind } from '../types/Attribute';
+import { KnownType, TypeKind } from '../types/KnownType';
 import { TypeInfo } from '../types/TypeInfo';
 
 export default class MiKe {
@@ -79,7 +80,11 @@ export default class MiKe {
         this.typechecker = new Typechecker(this.builtinTypes, this.binder);
         this.typechecker.setDiagnostics(this.diagnostics);
         this.validator = new Validator(this.binder, this.typechecker, {
-            isLegalParameterType: () => true,
+            isLegalParameterType: t => Boolean(
+                t.kind === TypeKind.Simple &&
+                this.typechecker.fetchTypeInfoFromSimpleType(t)?.attributes
+                    .some(x => x.kind === TypeAttributeKind.IsLegalParameter)
+            ),
         });
         this.validator.setDiagnostics(this.diagnostics);
     }

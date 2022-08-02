@@ -1,4 +1,5 @@
 import stringifyNode, { AnyNode, ASTNodeKind, Block, Expression, Invoke, ListenerDefinition, Program, Statement, TopLevelDefinition, BinaryOp, UnaryOp, Dereference, StringLiteral, BoolLiteral, IntLiteral, FloatLiteral, Variable, SequenceLiteral, MapLiteral, ExpressionStatement, LetStatement, AssignVar, AssignField, IfElseChain, DebugStatement, ParameterDefinition, StateDefinition, TypeDefinition, isExpression, isStatement, StatementOrBlock, Parameter, IfCase, Pair, Comment, GenericType, TypeIdentifier, FunctionType, Type, Identifier, VariableDefinition, isVariableDefinition } from '../ast/Ast';
+import { expectNever } from '../utils/assertions';
 import Scope from './Scope';
 
 type AssignmentMap = Map<string, number>;
@@ -17,7 +18,7 @@ export class Binder {
 
     getParent(node: Expression): Exclude<Expression, MapLiteral> | Pair | Statement | IfCase | StateDefinition;
     getParent(node: Statement): Block;
-    getParent(node: StatementOrBlock): Block | IfCase | ListenerDefinition;
+    getParent(node: StatementOrBlock): Block | IfCase | IfElseChain | ListenerDefinition;
     getParent(node: TopLevelDefinition): Program;
     getParent(node: Program): undefined;
     getParent(node: Pair): MapLiteral;
@@ -27,9 +28,10 @@ export class Binder {
     getParent(node: Type): GenericType | FunctionType | Parameter | LetStatement | ParameterDefinition | StateDefinition;
     getParent(node: Identifier): Variable | Dereference | LetStatement | AssignVar | AssignField | ParameterDefinition | StateDefinition | IfCase;
     // Combo overloads (can be removed if https://github.com/microsoft/TypeScript/issues/14107 gets resolved)
-    getParent(node: Expression | Pair): Expression | Statement | Pair | IfCase | StateDefinition;
+    getParent(node: Expression | Pair | IfCase): Expression | Statement | Pair | IfCase | StateDefinition;
     getParent(node: Expression | Statement | Pair | IfCase): Expression | Statement | Pair | IfCase | StateDefinition | Block;
     getParent(node: Expression | Statement | Pair | Identifier): Expression | Statement | IfCase | StateDefinition | Pair | Block | Variable | LetStatement | AssignVar | AssignField | ParameterDefinition | IfCase;
+    getParent(node: Statement | ListenerDefinition): Block | Program;
     // Fallback
     getParent(node: AnyNode): AnyNode;
     getParent(node: AnyNode) {
@@ -126,20 +128,30 @@ export class Binder {
         return assignmentMap;
     }
 
-    getPositionInBlock(expr: Expression, targetBlock: Block) {
-        let child = this.getParentStatement(expr) as StatementOrBlock;
+    getExpressionPositionInBlock(expr: Expression, targetBlock: Block) {
+        let child = this.getParentStatement(expr);
+        if (child) {
+            return this.getStatementPositionInBlock(child, targetBlock);
+        }
+    }
+
+    getStatementPositionInBlock(ast: Statement, targetBlock: Block) {
+        let child = ast as StatementOrBlock;
         while (true) {
             const parent = this.getParent(child);
             switch (parent.kind) {
-                default: // exhaustiveness check
+                default: expectNever(parent); // exhaustiveness check
                 case ASTNodeKind.Block:
                     if (parent === targetBlock) {
                         return this.getPositionInParent(child, parent);
                     }
                     child = parent;
                     break;
+                case ASTNodeKind.IfElseChain:
+                    child = parent;
+                    break;
                 case ASTNodeKind.IfCase:
-                    child = this.getParent(this.getParent(parent));
+                    child = this.getParent(parent);
                     break;
                 case ASTNodeKind.ListenerDefinition:
                     return;
@@ -147,10 +159,13 @@ export class Binder {
         }
     }
 
-    getParentStatement(expr: Expression) {
+    getParentStatement(expr: Expression): Statement | undefined {
         let parent: Expression | Statement | IfCase | StateDefinition | Pair = this.getParent(expr);
-        while (isExpression(parent) || parent.kind === ASTNodeKind.Pair) {
+        while (isExpression(parent) || parent.kind === ASTNodeKind.Pair || parent.kind === ASTNodeKind.IfCase) {
             parent = this.getParent(parent);
+        }
+        if (parent.kind === ASTNodeKind.StateDefinition) {
+            return;
         }
         return parent;
     }

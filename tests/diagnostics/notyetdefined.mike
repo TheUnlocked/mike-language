@@ -3,7 +3,9 @@
 on _() {
     // v expect $t == type('int'), diagnostics ~ has ~ id == DiagnosticCodes.NotYetDefined
        x;
+    // v expect $t == type('int'), diagnostics ~ has ~ id == DiagnosticCodes.NotYetDefined
+       x = 1;
     let x = 0;
 }
 
-// assert diagnostics.length == 1
+// assert diagnostics.length == 2

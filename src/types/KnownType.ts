@@ -139,7 +139,7 @@ export function stringifyType(type: AnyType): string {
             if (type.typeParameters.length === 0) {
                 return `(${type.parameters.map(stringifyType).join(', ')}) => ${stringifyType(type.returnType)}`;
             }
-            return `<${type.typeParameters.join(', ')}>(${type.parameters.map(stringifyType).join(', ')}) => ${stringifyType(type.returnType)}`;
+            return `<${type.typeParameters.map(stringifyType).join(', ')}>(${type.parameters.map(stringifyType).join(', ')}) => ${stringifyType(type.returnType)}`;
         case TypeKind.TypeVariable:
             return type.symbol.description ?? '?';
         case TypeKind.SequenceLike:

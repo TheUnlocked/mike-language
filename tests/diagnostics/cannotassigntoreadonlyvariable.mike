@@ -1,0 +1,12 @@
+// import { DiagnosticCodes } from '../../src/diagnostics/DiagnosticCodes'
+
+param value: int;
+
+on _() {
+    // v expect diagnostics ~ has ~ id == DiagnosticCodes.CannotAssignToReadonlyVariable
+    value = 10;
+    // v expect diagnostics ~ has ~ id == DiagnosticCodes.CannotAssignToReadonlyVariable
+    none = none;
+}
+
+// assert diagnostics.length == 2

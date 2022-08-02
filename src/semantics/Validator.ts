@@ -177,7 +177,27 @@ export default class Validator extends DiagnosticsMixin {
     }
 
     private validateAssignVar(ast: AssignVar) {
-        const varType = this.typechecker.fetchSymbolType(ast.variable);
+        const varDef = this.binder.getScope(ast.variable).get(ast.variable.name);
+        if (!varDef) {
+            this.focus(ast.variable);
+            this.error(DiagnosticCodes.UnknownIdentifier, ast.variable.name);
+            return;
+        }
+
+        if (varDef.kind === ASTNodeKind.ParameterDefinition || varDef.kind === ASTNodeKind.OutOfTree) {
+            this.focus(ast.variable);
+            this.error(DiagnosticCodes.CannotAssignToReadonlyVariable, ast.variable.name);
+        }
+        else if (varDef.kind === ASTNodeKind.LetStatement) {
+            const block = this.binder.getParent(varDef);
+            const defPos = this.binder.getPositionInParent(varDef, block);
+            const varPos = this.binder.getStatementPositionInBlock(ast, block);
+            if (varPos === undefined || varPos <= defPos) {
+                this.focus(ast.variable);
+                this.error(DiagnosticCodes.NotYetDefined, ast.variable.name);
+            }
+        }
+        const varType = this.typechecker.fetchVariableDefinitionType(varDef);
         this.validateTypesMatch(varType, ast.value);
     }
 
@@ -187,6 +207,14 @@ export default class Validator extends DiagnosticsMixin {
             return;
         }
 
+        const objType = this.typechecker.fetchType(ast.obj);
+        if (objType && objType.kind === TypeKind.Simple) {
+            const objTypeInfo = this.typechecker.fetchTypeInfoFromSimpleType(objType);
+            if (objTypeInfo?.attributes.some(x => x.kind === TypeAttributeKind.IsUserDefined) === false) {
+                this.focus(ast.member);
+                this.error(DiagnosticCodes.CannotAssignToReadonlyField, ast.member.name, objType);
+            }
+        }
         const memberType = this.typechecker.fetchSymbolType(ast.member);
         this.validateTypesMatch(memberType, ast.value);
     }

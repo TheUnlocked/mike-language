@@ -15,7 +15,9 @@ function primitive(name: string): TypeInfo {
         name,
         numParameters: 0,
         quantify: () => ({
-            attributes: [],
+            attributes: [
+                { kind: TypeAttributeKind.IsLegalParameter },
+            ],
             members: {},
         })
     };

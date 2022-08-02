@@ -39,6 +39,8 @@ export enum DiagnosticCodes {
     CannotInferSequenceLiteralType,
     CannotInferMapLiteralType,
     AssignmentTypeMismatch,
+    CannotAssignToReadonlyVariable,
+    CannotAssignToReadonlyField,
 }
 
 export const defaultDiagnosticDetails = suggestType<{ readonly [name in DiagnosticCodes]: DiagnosticInfo }>()({
@@ -51,7 +53,7 @@ export const defaultDiagnosticDetails = suggestType<{ readonly [name in Diagnost
     [DiagnosticCodes.TypeDefinedMultipleTimes]: { severity: Severity.Error, description: 'Type {0} was already defined.' },
     [DiagnosticCodes.VariableDefinedMultipleTimes]: { severity: Severity.Error, description: 'Variable {0} was already defined in this scope.' },
     [DiagnosticCodes.StateNotSerializable]: { severity: Severity.Error, description: 'State variables must be serializable, but type {0} is not serializable.' },
-    [DiagnosticCodes.InvalidParameterType]: { severity: Severity.Error, description: 'Type {0} is not a valid parameter type.' },
+    [DiagnosticCodes.InvalidParameterType]: { severity: Severity.Error, description: 'Type {0} is not a valid parameter type. Only readonly types and primitives can be used in parameters.' },
     [DiagnosticCodes.NotYetDefined]: { severity: Severity.Error, description: 'Variable {0} is used before it is defined.' },
     [DiagnosticCodes.NotYetInitialized]: { severity: Severity.Error, description: 'Variable {0} is not definitely assigned here.' },
     [DiagnosticCodes.Uninvokable]: { severity: Severity.Error, description: 'Expected a function type, found {0}.' },
@@ -80,7 +82,9 @@ export const defaultDiagnosticDetails = suggestType<{ readonly [name in Diagnost
             message: 'Because equality checks between ints and floats are often associated with programming errors, they are disallowed. Use an explicit conversion if you know what you are doing.',
         }]
     },
-    [DiagnosticCodes.AssignmentTypeMismatch]: { severity: Severity.Warning, description: 'Cannot assign a value of type {0} to a variable of type {1}.' },
+    [DiagnosticCodes.AssignmentTypeMismatch]: { severity: Severity.Error, description: 'Cannot assign a value of type {0} to a variable of type {1}.' },
+    [DiagnosticCodes.CannotAssignToReadonlyVariable]: { severity: Severity.Error, description: 'Cannot assign to readonly variable {0}.' },
+    [DiagnosticCodes.CannotAssignToReadonlyField]: { severity: Severity.Error, description: 'Cannot assign to readonly field {0} on type {1}.' },
 } as const);
 
 export function createMiKeDiagnosticsManager() {

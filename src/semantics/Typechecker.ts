@@ -573,7 +573,7 @@ export class Typechecker extends DiagnosticsMixin {
                     // This is a local, so we need to make sure it has been assigned.
                     const block = this.binder.getParent(varDef);
                     const defPos = this.binder.getPositionInParent(varDef, block);
-                    const varPos = this.binder.getPositionInBlock(ast, block);
+                    const varPos = this.binder.getExpressionPositionInBlock(ast, block);
                     if (varPos === undefined || varPos <= defPos) {
                         this.error(DiagnosticCodes.NotYetDefined, ast.identifier.name);
                     }

@@ -1,3 +1,10 @@
 // import { DiagnosticCodes } from '../../src/diagnostics/DiagnosticCodes'
 
-// TBD
+type Foo(x: int);
+
+// v expect diagnostics ~ has ~ id == DiagnosticCodes.InvalidParameterType
+param x: Foo;
+// v expect diagnostics ~ has ~ id == DiagnosticCodes.InvalidParameterType
+param y: Stack<int>;
+
+// assert diagnostics.length == 2
