@@ -176,7 +176,7 @@ export function genericFunctionOf(
     typeParameterNames: string[],
     parametersCallback: (...args: TypeVariable[]) => readonly KnownType[],
     returnTypeCallback: (...args: TypeVariable[]) => KnownType,
-) {
+): FunctionType {
     const typeParameters = typeParameterNames.map(x => ({ kind: TypeKind.TypeVariable, symbol: Symbol(x) } as TypeVariable));
     return {
         kind: TypeKind.Function,

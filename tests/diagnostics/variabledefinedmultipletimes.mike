@@ -1,5 +1,11 @@
 // import { DiagnosticCodes } from '../../src/diagnostics/DiagnosticCodes'
 
+state x = 1;
+//    v expect diagnostics ~ has ~ id == DiagnosticCodes.VariableDefinedMultipleTimes
+state x = 1.0;
+//    v expect diagnostics ~ has ~ id == DiagnosticCodes.VariableDefinedMultipleTimes
+param x: int;
+
 on _() {
     let x = 1;
     //  v expect diagnostics ~ has ~ id == DiagnosticCodes.VariableDefinedMultipleTimes
@@ -10,4 +16,4 @@ on _() {
     }
 }
 
-// assert diagnostics.length == 1
+// assert diagnostics.length == 3

@@ -1,0 +1,7 @@
+// import { DiagnosticCodes } from '../../src/diagnostics/DiagnosticCodes'
+
+state Foo = 1;
+//   v expect diagnostics ~ has ~ id == DiagnosticCodes.TypeNameAlreadyDefinedAsVariable
+type Foo();
+
+// assert diagnostics.length == 1

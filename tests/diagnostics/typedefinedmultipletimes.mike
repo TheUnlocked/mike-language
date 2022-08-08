@@ -1,13 +1,13 @@
 // import { DiagnosticCodes } from '../../src/diagnostics/DiagnosticCodes'
 
-// v expect diagnostics ~ has ~ id == DiagnosticCodes.TypeDefinedMultipleTimes
+//   v expect diagnostics ~ has ~ id == DiagnosticCodes.TypeDefinedMultipleTimes
 type Foo();
-// v expect diagnostics ~ has ~ id == DiagnosticCodes.TypeDefinedMultipleTimes
+//   v expect diagnostics ~ has ~ id == DiagnosticCodes.TypeDefinedMultipleTimes
 type Foo();
 
 type Bar();
 
-// v expect diagnostics ~ has ~ id == DiagnosticCodes.TypeDefinedMultipleTimes
+//   v expect diagnostics ~ has ~ id == DiagnosticCodes.TypeDefinedMultipleTimes
 type option();
 
 // assert diagnostics.length == 3

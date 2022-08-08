@@ -38,18 +38,15 @@ export class Typechecker extends DiagnosticsMixin {
             const type = types[0];
             const name = type.name.name;
             if (this.types.has(name)) {
-                for (const type of types) {
-                    this.focus(type);
-                    this.error(DiagnosticCodes.TypeDefinedMultipleTimes, name);
-                }
+                this.focus(type.name);
+                this.error(DiagnosticCodes.TypeDefinedMultipleTimes, name);
                 return [];
             }
             if (types.length > 1) {
-                for (const type of types) {
-                    this.focus(type);
-                    this.error(DiagnosticCodes.TypeDefinedMultipleTimes, name);
-                }
+                this.focus(type.name);
+                this.error(DiagnosticCodes.TypeDefinedMultipleTimes, name);
             }
+            // The errors for the other type declarations will be handled by the validator.
             return type;
         });
 
@@ -336,23 +333,24 @@ export class Typechecker extends DiagnosticsMixin {
                 }
                 return intType;
             }
-            else if (isEqual(rhs, floatType)) {
-                return floatType;
-            }
             this.focus(ast.rhs);
             this.error(DiagnosticCodes.BadArithmeticOpArgumentType, rhs);
-            return TOXIC;
         }
         else if (isEqual(lhs, floatType)) {
-            if (isEqual(rhs, intType) || isEqual(rhs, floatType)) {
+            if (isEqual(rhs, floatType)) {
                 return floatType;
             }
             this.focus(ast.rhs);
             this.error(DiagnosticCodes.BadArithmeticOpArgumentType, rhs);
-            return TOXIC;
         }
-        this.focus(ast.lhs);
-        this.error(DiagnosticCodes.BadArithmeticOpArgumentType, lhs);
+        else {
+            this.focus(ast.lhs);
+            this.error(DiagnosticCodes.BadArithmeticOpArgumentType, lhs);
+            if (!isEqual(rhs, intType) && !isEqual(rhs, floatType)) {
+                this.focus(ast.rhs);
+                this.error(DiagnosticCodes.BadArithmeticOpArgumentType, rhs);
+            }
+        }
         return TOXIC;
     }
 

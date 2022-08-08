@@ -337,6 +337,7 @@ export interface Program extends ASTNode {
 
 export interface ExternalVariableDefinition {
     readonly kind: ASTNodeKind.OutOfTree;
+    readonly name: string;
     readonly type: KnownType;
 }
 

@@ -3,9 +3,10 @@ import MiKe from '../src/api/MiKe';
 import { Position } from '../src/ast/Ast';
 import { createMiKeDiagnosticsManager } from '../src/diagnostics/DiagnosticCodes';
 import { DiagnosticsManager } from '../src/diagnostics/Diagnostics';
+import { MiKeProgram } from '../src/codegen/js/types';
+import JavascriptTarget from '../src/codegen/js/JavascriptTarget';
+import { loadModule } from '@brillout/load-module';
 import path from 'path';
-import { stdlibTypes } from '../src/stdlib/types';
-import { stdlibValues } from '../src/stdlib/values';
 
 export function createTestFunction(assertion: string, variables: { [name: string]: any }) {
     const testContext = { ...variables, expect } as { [name: string]: any };
@@ -165,4 +166,27 @@ export async function createContextFromImports(imports: TestImport[], relativeTo
         }
         return [[members, contents]];
     }))).flat(1));
+}
+
+export function compileJs(...args: Parameters<typeof String.raw>): {
+    thenIt: (name: string, callback: (program: MiKeProgram) => void) => void
+} {
+    return {
+        thenIt(name, callback) {
+            it(name, async () => {
+                const diagnostics = createMiKeDiagnosticsManager();
+                const mike = new MiKe();
+                mike.setDiagnosticsManager(diagnostics);
+                mike.init();
+                mike.loadScript('.', String.raw(...args));
+                mike.setTarget(JavascriptTarget);
+                const code = mike.tryValidateAndEmit('.');
+                if (!code) {
+                    expect.fail(diagnostics.getDiagnostics(), [], `Failed to compile.`);
+                }
+                const module = await loadModule(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`);
+                callback(module.default);
+            });
+        }
+    };
 }

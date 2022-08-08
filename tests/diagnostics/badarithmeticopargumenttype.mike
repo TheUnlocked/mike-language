@@ -9,6 +9,13 @@ on _() {
     true + 1.0;
     // v expect diagnostics ~ has ~ id == DiagnosticCodes.BadArithmeticOpArgumentType
     -(true);
+    //  v expect diagnostics ~ has ~ id == DiagnosticCodes.BadArithmeticOpArgumentType
+    1 + 1.0;
+    //    v expect diagnostics ~ has ~ id == DiagnosticCodes.BadArithmeticOpArgumentType
+    1.0 + 1;
+    // v expect diagnostics ~ has ~ id == DiagnosticCodes.BadArithmeticOpArgumentType
+    //     v expect diagnostics ~ has ~ id == DiagnosticCodes.BadArithmeticOpArgumentType
+    true + true;
 }
 
-// assert diagnostics.length == 4
+// assert diagnostics.length == 8

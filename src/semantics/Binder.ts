@@ -1,5 +1,5 @@
 import stringifyNode, { AnyNode, ASTNodeKind, Block, Expression, Invoke, ListenerDefinition, Program, Statement, TopLevelDefinition, BinaryOp, UnaryOp, Dereference, StringLiteral, BoolLiteral, IntLiteral, FloatLiteral, Variable, SequenceLiteral, MapLiteral, ExpressionStatement, LetStatement, AssignVar, AssignField, IfElseChain, DebugStatement, ParameterDefinition, StateDefinition, TypeDefinition, isExpression, isStatement, StatementOrBlock, Parameter, IfCase, Pair, Comment, GenericType, TypeIdentifier, FunctionType, Type, Identifier, VariableDefinition, isVariableDefinition } from '../ast/Ast';
-import { expectNever } from '../utils/assertions';
+import { expectNever } from '../utils/types';
 import Scope from './Scope';
 
 type AssignmentMap = Map<string, number>;
@@ -140,7 +140,7 @@ export class Binder {
         while (true) {
             const parent = this.getParent(child);
             switch (parent.kind) {
-                default: expectNever(parent); // exhaustiveness check
+                default: expectNever(parent);
                 case ASTNodeKind.Block:
                     if (parent === targetBlock) {
                         return this.getPositionInParent(child, parent);
@@ -177,7 +177,7 @@ export class Binder {
         }
         this.visited.add(node);
         switch (node.kind) {
-            default: // Causes exhaustiveness check
+            default: expectNever(node);
             case ASTNodeKind.Invoke:
                 return this.bindInvoke(node);
             case ASTNodeKind.BinaryOp:

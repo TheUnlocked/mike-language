@@ -1,5 +1,5 @@
-state f = Foo(none);
-state b = Bar(none);
+state x = Foo(none);
+state y = Bar(none);
 state a = A(B(C(none, none), none), none);
 state b = B(C(none, none), none);
 state c = C(none, none);

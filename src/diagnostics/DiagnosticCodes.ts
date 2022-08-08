@@ -13,6 +13,7 @@ export enum DiagnosticCodes {
     // 3000: Definitions & Flow
     TypeDefinedMultipleTimes = 3000,
     VariableDefinedMultipleTimes,
+    TypeNameAlreadyDefinedAsVariable,
     StateNotSerializable,
     InvalidParameterType,
     NotYetDefined,
@@ -52,6 +53,7 @@ export const defaultDiagnosticDetails = suggestType<{ readonly [name in Diagnost
     [DiagnosticCodes.NoStateInitialValue]: { severity: Severity.Error, description: 'State declarations must have initial values.' },
     [DiagnosticCodes.TypeDefinedMultipleTimes]: { severity: Severity.Error, description: 'Type {0} was already defined.' },
     [DiagnosticCodes.VariableDefinedMultipleTimes]: { severity: Severity.Error, description: 'Variable {0} was already defined in this scope.' },
+    [DiagnosticCodes.TypeNameAlreadyDefinedAsVariable]: { severity: Severity.Error, description: 'Type {0} cannot be defined because a variable with that name already exists.' },
     [DiagnosticCodes.StateNotSerializable]: { severity: Severity.Error, description: 'State variables must be serializable, but type {0} is not serializable.' },
     [DiagnosticCodes.InvalidParameterType]: { severity: Severity.Error, description: 'Type {0} is not a valid parameter type. Only readonly types and primitives can be used in parameters.' },
     [DiagnosticCodes.NotYetDefined]: { severity: Severity.Error, description: 'Variable {0} is used before it is defined.' },

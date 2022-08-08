@@ -5,6 +5,7 @@ import { DiagnosticCodes } from '../diagnostics/DiagnosticCodes';
 import { DiagnosticsMixin } from '../diagnostics/DiagnosticsMixin';
 import { TypeAttributeKind } from '../types/Attribute';
 import { KnownType, TypeKind } from '../types/KnownType';
+import { expectNever } from '../utils/types';
 import { Binder } from './Binder';
 import { Typechecker } from './Typechecker';
 
@@ -22,6 +23,22 @@ export default class Validator extends DiagnosticsMixin {
     validate(ast: Program) {
         if (this.testSetValidated(ast)) {
             return;
+        }
+        const scope = this.binder.getScope(ast);
+        for (const duplicate of scope.duplicateBindings) {
+            const ident = getVariableDefinitionIdentifier(duplicate);
+            this.focus(ident);
+            if (duplicate.kind === ASTNodeKind.TypeDefinition) {
+                if (scope.get(ident.name)!.kind === ASTNodeKind.TypeDefinition) {
+                    this.error(DiagnosticCodes.TypeDefinedMultipleTimes, ident.name);
+                }
+                else {
+                    this.error(DiagnosticCodes.TypeNameAlreadyDefinedAsVariable, ident.name);
+                }
+            }
+            else {
+                this.error(DiagnosticCodes.VariableDefinedMultipleTimes, ident.name);
+            }
         }
         for (const child of ast.definitions) {
             switch (child.kind) {
@@ -137,7 +154,7 @@ export default class Validator extends DiagnosticsMixin {
             return;
         }
         switch (ast.kind) {
-            default:
+            default: expectNever(ast);
             case ASTNodeKind.Block:
                 return this.validateBlock(ast);
             case ASTNodeKind.LetStatement:

@@ -4,6 +4,14 @@ export function suggestType<T>() {
     return <U extends T>(arg: U): U => arg;
 }
 
+export function expectNever(x: never): never {
+    throw new Error('Unreachable');
+}
+
+export function staticContract<T>() {
+    return (_: T) => {};
+}
+
 export type InterpolatedStringArgumentList<T, S extends string> 
     = string extends S
         ? T[]

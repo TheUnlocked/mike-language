@@ -1,3 +1,4 @@
+import { expectNever } from '../utils/types';
 import { AnyNode, ASTNodeKind, Range, Position, Identifier, VariableDefinition, TypeIdentifier } from './Ast';
 
 export function getNodeAt(ast: AnyNode, position: Position): AnyNode | undefined {
@@ -18,7 +19,7 @@ export function getNodeAt(ast: AnyNode, position: Position): AnyNode | undefined
 
 export function getChildren(ast: AnyNode): readonly AnyNode[] {
     switch (ast.kind) {
-        default: // exhaustiveness
+        default: expectNever(ast);
         case ASTNodeKind.Invoke:
             return [ast.fn, ...ast.args];
         case ASTNodeKind.BinaryOp:
