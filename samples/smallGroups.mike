@@ -2,8 +2,7 @@ param subpolicy: Policy;
 param groupSize: int;
 
 state groupByUser: Map<User, GroupInfo> = {};
-// Only need a QueueSet, but that type doesn't currently exist
-state needsMembers: DequeSet<GroupInfo> = [];
+state needsMembers: QueueSet<GroupInfo> = [];
 
 type GroupInfo (
     group: Group,
@@ -61,7 +60,9 @@ on forget(user: User) {
         if groupInfo.numMembers == 0 {
             needsMembers.remove(groupInfo);
         }
-        else if !needsMembers.has(groupInfo) {
+        else {
+            // No need to check if the group is already in the
+            // queue because QueueSet#enqueue will do that for us.
             needsMembers.enqueue(groupInfo);
         }
         groupByUser.remove(user);

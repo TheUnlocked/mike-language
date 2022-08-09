@@ -1,0 +1,18 @@
+// import { DiagnosticCodes } from '../../src/diagnostics/DiagnosticCodes'
+
+on _() {
+    //  v expect diagnostics ~ has ~ id == DiagnosticCodes.TypeCannotBeUsedAsACondition
+    if (1) {
+
+    }
+    //       v expect diagnostics ~ has ~ id == DiagnosticCodes.TypeCannotBeUsedAsACondition
+    else if ("abc") {
+
+    }
+
+    if (true) {
+
+    }
+}
+
+// assert diagnostics.length == 2

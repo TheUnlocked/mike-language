@@ -12,7 +12,7 @@ export class Binder {
     private assignmentMap = new WeakMap<Block, AssignmentMap>();
     private symbolTable = new WeakMap<Block | Program, Scope>();
 
-    constructor(private topLevelScope: Scope) {
+    constructor(private readonly topLevelScope: Scope) {
 
     }
 
@@ -91,6 +91,10 @@ export class Binder {
             node = parent;
         }
         return this.symbolTable.get(node)!;
+    }
+
+    getVariableDefinition(ident: Identifier) {
+        return this.getScope(ident).get(ident.name)!;
     }
 
     private getOrCreateScope(node: Block | Program) {

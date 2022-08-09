@@ -16,7 +16,7 @@ export class Typechecker extends DiagnosticsMixin {
 
     private types!: Map<string, TypeInfo>;
 
-    constructor(private stdlibTypes: readonly TypeInfo[], private binder: Binder) {
+    constructor(private readonly stdlibTypes: readonly TypeInfo[], public readonly binder: Binder) {
         super();
         this.notifyChange();
     }
@@ -523,11 +523,13 @@ export class Typechecker extends DiagnosticsMixin {
                 const conditionType = this.fetchType(ast.condition);
                 if (conditionType.kind === TypeKind.Simple) {
                     const deconstructAttr = this.fetchTypeInfoFromSimpleType(conditionType)!.attributes
-                        .find((x): x is CanIfDestructAttribute => x.kind === TypeAttributeKind.CanIfDestruct);
+                        .find((x): x is CanIfDestructAttribute => x.kind === TypeAttributeKind.IsLegalCondition);
                     
-                    if (deconstructAttr) {
-                        return deconstructAttr.into;
+                    if (deconstructAttr?.destructInto) {
+                        return deconstructAttr.destructInto;
                     }
+                    this.focus(ast.deconstruct);
+                    this.error(DiagnosticCodes.TypeCannotBeDestructured, conditionType);
                 }
                 return TOXIC;
             }
@@ -550,7 +552,7 @@ export class Typechecker extends DiagnosticsMixin {
             if (parent.kind === ASTNodeKind.AssignField) {
                 return this.fetchMemberType(parent.obj, parent.member);
             }
-            const varDef = this.binder.getScope(ast).get(ast.name);
+            const varDef = this.binder.getVariableDefinition(ast);
             if (varDef) {
                 return this.fetchVariableDefinitionType(varDef);
             }
@@ -565,7 +567,7 @@ export class Typechecker extends DiagnosticsMixin {
         // Caching of the variable node is automatically handled by fetchType.
         return withCache(ast.identifier, this.typeCache, () => {
             this.focus(ast);
-            const varDef = this.binder.getScope(ast).get(ast.identifier.name);
+            const varDef = this.binder.getVariableDefinition(ast.identifier);
             if (varDef) {
                 if (varDef.kind === ASTNodeKind.LetStatement) {
                     // This is a local, so we need to make sure it has been assigned.

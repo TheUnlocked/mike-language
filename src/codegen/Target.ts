@@ -7,6 +7,6 @@ export interface Target {
 }
 
 export interface TargetFactory {
-    readonly defaultImplementations?: readonly LibraryImplementation[];
+    readonly defaultImplementations?: readonly Partial<LibraryImplementation>[];
     create(typechecker: Typechecker, impl: LibraryImplementation): Target;
 } 

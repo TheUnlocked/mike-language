@@ -6,5 +6,7 @@ type Foo(x: int);
 param x: Foo;
 // v expect diagnostics ~ has ~ id == DiagnosticCodes.InvalidParameterType
 param y: Stack<int>;
+// v expect diagnostics ~ has ~ id == DiagnosticCodes.InvalidParameterType
+param z: unit;
 
-// assert diagnostics.length == 2
+// assert diagnostics.length == 3

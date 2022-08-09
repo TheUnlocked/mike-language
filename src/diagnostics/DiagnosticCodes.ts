@@ -42,6 +42,8 @@ export enum DiagnosticCodes {
     AssignmentTypeMismatch,
     CannotAssignToReadonlyVariable,
     CannotAssignToReadonlyField,
+    TypeCannotBeUsedAsACondition,
+    TypeCannotBeDestructured,
 }
 
 export const defaultDiagnosticDetails = suggestType<{ readonly [name in DiagnosticCodes]: DiagnosticInfo }>()({
@@ -76,17 +78,12 @@ export const defaultDiagnosticDetails = suggestType<{ readonly [name in Diagnost
     [DiagnosticCodes.CannotInferSequenceLiteralType]: { severity: Severity.Error, description: 'Not enough information to determine the type of this sequence literal.' },
     [DiagnosticCodes.CannotInferMapLiteralType]: { severity: Severity.Error, description: 'Not enough information to determine the type of this map literal.' },
     [DiagnosticCodes.EqualityArgumentIsNewObject]: { severity: Severity.Warning, description: 'Equality with a new object will always produce false, since equality is by reference.' },
-    [DiagnosticCodes.EqualityArgumentTypeMismatch]: {
-        severity: Severity.Warning,
-        description: 'A value of type {0} can never equal a value of type {1}.',
-        specializedMessages: [{
-            when: (t1, t2) => ['int', 'float'].includes(t1) && ['int', 'float'].includes(t2),
-            message: 'Because equality checks between ints and floats are often associated with programming errors, they are disallowed. Use an explicit conversion if you know what you are doing.',
-        }]
-    },
+    [DiagnosticCodes.EqualityArgumentTypeMismatch]: { severity: Severity.Warning, description: 'A value of type {0} can never equal a value of type {1}.' },
     [DiagnosticCodes.AssignmentTypeMismatch]: { severity: Severity.Error, description: 'Cannot assign a value of type {0} to a variable of type {1}.' },
     [DiagnosticCodes.CannotAssignToReadonlyVariable]: { severity: Severity.Error, description: 'Cannot assign to readonly variable {0}.' },
     [DiagnosticCodes.CannotAssignToReadonlyField]: { severity: Severity.Error, description: 'Cannot assign to readonly field {0} on type {1}.' },
+    [DiagnosticCodes.TypeCannotBeUsedAsACondition]: { severity: Severity.Error, description: 'Cannot use type {0} as a condition in an if statement.' },
+    [DiagnosticCodes.TypeCannotBeDestructured]: { severity: Severity.Error, description: 'Cannot destructure type {0} in an if statement.' },
 } as const);
 
 export function createMiKeDiagnosticsManager() {

@@ -4,7 +4,7 @@ export default class Scope {
     private bindings: Map<string, VariableDefinition>;
     private _duplicateBindings = [] as VariableDefinition[];
     
-    constructor(private getParent: () => Scope | undefined, bindings?: Iterable<readonly [string, VariableDefinition]>) {
+    constructor(private readonly getParent: () => Scope | undefined, bindings?: Iterable<readonly [string, VariableDefinition]>) {
         this.bindings = new Map(bindings);
     }
 

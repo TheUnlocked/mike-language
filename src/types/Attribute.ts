@@ -3,7 +3,7 @@ import { KnownType } from './KnownType';
 export enum TypeAttributeKind {
     IsSequenceLike,
     IsMapLike,
-    CanIfDestruct,
+    IsLegalCondition,
     IsUserDefined,
     IsLegalParameter,
 }
@@ -13,7 +13,6 @@ interface BaseAttribute {
 
 export interface IsSequenceLikeAttribute extends BaseAttribute {
     readonly kind: TypeAttributeKind.IsSequenceLike;
-    readonly reversed: boolean;
 }
 
 export interface IsMapLikeAttribute extends BaseAttribute {
@@ -21,8 +20,8 @@ export interface IsMapLikeAttribute extends BaseAttribute {
 }
 
 export interface CanIfDestructAttribute extends BaseAttribute {
-    readonly kind: TypeAttributeKind.CanIfDestruct;
-    readonly into: KnownType;
+    readonly kind: TypeAttributeKind.IsLegalCondition;
+    readonly destructInto?: KnownType;
 }
 
 export interface IsUserDefinedAttribute extends BaseAttribute {

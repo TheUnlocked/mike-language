@@ -11,7 +11,7 @@ const stdlib = suggestType<LibraryInterface>()({
             numParameters: 1,
             quantify: ([t]) => ({
                 attributes: [
-                    { kind: TypeAttributeKind.IsSequenceLike, reversed: false },
+                    { kind: TypeAttributeKind.IsSequenceLike },
                 ],
                 members: {
                     get: functionOf([intType], optionOf(t)),
@@ -25,13 +25,12 @@ const stdlib = suggestType<LibraryInterface>()({
             numParameters: 1,
             quantify: ([t]) => ({
                 attributes: [
-                    { kind: TypeAttributeKind.IsSequenceLike, reversed: true },
+                    { kind: TypeAttributeKind.IsSequenceLike },
                 ],
                 members: {
                     enqueue: functionOf([t], unitType),
                     pop: functionOf([], optionOf(t)),
                     peek: functionOf([], optionOf(t)),
-                    peekDeep: functionOf([intType], optionOf(t)),
                     length: intType,
                 }
             })
@@ -41,13 +40,12 @@ const stdlib = suggestType<LibraryInterface>()({
             numParameters: 1,
             quantify: ([t]) => ({
                 attributes: [
-                    { kind: TypeAttributeKind.IsSequenceLike, reversed: false },
+                    { kind: TypeAttributeKind.IsSequenceLike },
                 ],
                 members: {
                     push: functionOf([t], unitType),
                     pop: functionOf([], optionOf(t)),
                     peek: functionOf([], optionOf(t)),
-                    peekDeep: functionOf([intType], optionOf(t)),
                     length: intType,
                 }
             })
@@ -57,7 +55,7 @@ const stdlib = suggestType<LibraryInterface>()({
             numParameters: 1,
             quantify: ([t]) => ({
                 attributes: [
-                    { kind: TypeAttributeKind.IsSequenceLike, reversed: false },
+                    { kind: TypeAttributeKind.IsSequenceLike },
                 ],
                 members: {
                     add: functionOf([t], unitType),
@@ -68,20 +66,16 @@ const stdlib = suggestType<LibraryInterface>()({
             })
         },
         {
-            name: 'DequeSet',
+            name: 'QueueSet',
             numParameters: 1,
             quantify: ([t]) => ({
                 attributes: [
-                    { kind: TypeAttributeKind.IsSequenceLike, reversed: false },
+                    { kind: TypeAttributeKind.IsSequenceLike },
                 ],
                 members: {
                     enqueue: functionOf([t], unitType),
-                    popFront: functionOf([], optionOf(t)),
-                    peekFront: functionOf([], optionOf(t)),
-                    peekDeepFront: functionOf([intType], optionOf(t)),
                     pop: functionOf([], optionOf(t)),
                     peek: functionOf([], optionOf(t)),
-                    peekDeep: functionOf([intType], optionOf(t)),
                     remove: functionOf([t], booleanType),
                     has: functionOf([t], booleanType),
                     length: intType,
@@ -109,7 +103,7 @@ const stdlib = suggestType<LibraryInterface>()({
             numParameters: 1,
             quantify: ([t]) => ({
                 attributes: [
-                    { kind: TypeAttributeKind.CanIfDestruct, into: t },
+                    { kind: TypeAttributeKind.IsLegalCondition, destructInto: t },
                     { kind: TypeAttributeKind.IsLegalParameter },
                 ],
                 members: {

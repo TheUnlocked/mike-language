@@ -1,6 +1,6 @@
 import { TypeInfo } from './TypeInfo';
 import { SimpleType, TypeKind } from './KnownType';
-import { TypeAttributeKind } from './Attribute';
+import { TypeAttribute, TypeAttributeKind } from './Attribute';
 
 function typeRefOf(type: TypeInfo): SimpleType {
     return {
@@ -10,24 +10,25 @@ function typeRefOf(type: TypeInfo): SimpleType {
     };
 }
 
-function primitive(name: string): TypeInfo {
+function primitive(name: string, attributes: TypeAttribute[] = []): TypeInfo {
     return {
         name,
         numParameters: 0,
         quantify: () => ({
-            attributes: [
-                { kind: TypeAttributeKind.IsLegalParameter },
-            ],
+            attributes,
             members: {},
         })
     };
 }
 
 export const unitTypeInfo = primitive('unit');
-export const booleanTypeInfo = primitive('boolean');
-export const intTypeInfo = primitive('int');
-export const floatTypeInfo = primitive('float');
-export const stringTypeInfo = primitive('string');
+export const booleanTypeInfo = primitive('boolean', [
+    { kind: TypeAttributeKind.IsLegalParameter },
+    { kind: TypeAttributeKind.IsLegalCondition }
+]);
+export const intTypeInfo = primitive('int', [{ kind: TypeAttributeKind.IsLegalParameter }]);
+export const floatTypeInfo = primitive('float', [{ kind: TypeAttributeKind.IsLegalParameter }]);
+export const stringTypeInfo = primitive('string', [{ kind: TypeAttributeKind.IsLegalParameter }]);
 
 export const unitType = typeRefOf(unitTypeInfo);
 export const booleanType = typeRefOf(booleanTypeInfo);

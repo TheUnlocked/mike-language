@@ -1,14 +1,15 @@
 import { boundMethod } from 'autobind-decorator';
-import { groupBy, isEqual } from 'lodash';
+import { groupBy, identity, isEqual } from 'lodash';
 import { check as isReserved } from 'reserved-words';
 import { AnyNode, ASTNodeKind, BinaryOp, Block, Expression, Identifier, IfElseChain, InfixOperator, ListenerDefinition, MapLiteral, ParameterDefinition, PrefixOperator, Program, SequenceLiteral, StateDefinition, Statement, StatementOrBlock, TypeDefinition, TypeIdentifier, UnaryOp } from '../../ast/Ast';
 import { ParameterType } from './types';
 import { Typechecker } from '../../semantics/Typechecker';
-import { IsSequenceLikeAttribute, TypeAttributeKind } from '../../types/Attribute';
 import { KnownType, stringifyType, TypeKind } from '../../types/KnownType';
 import { intType } from '../../types/Primitives';
 import { expectNever, staticContract } from '../../utils/types';
 import { Target, TargetFactory } from '../Target';
+import { LibraryImplementation } from '../../library/Library';
+import jsStdlibImpl from './stdlib';
 
 @staticContract<TargetFactory>()
 export default class JavascriptTarget implements Target {
@@ -18,12 +19,15 @@ export default class JavascriptTarget implements Target {
     private identifierMappings = new Map<string, string>();
     private usedNames = new Set<string>();
 
-
-    static create(typechecker: Typechecker) {
-        return new JavascriptTarget(typechecker);
+    static get defaultImplementations() {
+        return [jsStdlibImpl];
     }
 
-    constructor(private typechecker: Typechecker) {
+    static create(typechecker: Typechecker, impl: LibraryImplementation) {
+        return new JavascriptTarget(typechecker, impl);
+    }
+
+    constructor(private readonly typechecker: Typechecker, private readonly impl: LibraryImplementation) {
 
     }
 
@@ -104,7 +108,7 @@ export default class JavascriptTarget implements Target {
 
     @boundMethod
     private visitTypeDefinition(ast: TypeDefinition) {
-        return `const ${this.visitIdentifier(ast.name)}=(${
+        return `const ${this.visitTypeIdentifier(ast.name)}=(${
             joinBy(',', ast.parameters, x => this.visitIdentifier(x.name))
         })=>({${
             joinBy(',', ast.parameters, x => this.getPublicPrivateObjectBinding(x.name))
@@ -172,10 +176,29 @@ export default class JavascriptTarget implements Target {
     private visitIfElseChain(ast: IfElseChain) {
         return joinBy(',', ast.cases, ($case, idx) => {
             const keyword = idx === 0 ? 'if' : 'else if';
-            const condition = this.visitExpression($case.condition);
-            const destructureDef = $case.deconstruct
-                ? `let ${this.visitIdentifier($case.deconstruct)}=${condition};`
-                : '';
+            const conditionType = this.typechecker.fetchType($case.condition);
+            if (conditionType.kind !== TypeKind.Simple) {
+                throw new Error(`Invalid condition type: ${stringifyType(conditionType)}`);
+            }
+
+            const conditionMethods = conditionType.name === 'boolean'
+                ? { condition: identity, destructure: identity }
+                : this.impl.types[conditionType.name]?.conditionMethods;
+            if (!conditionMethods) {
+                throw new Error(`Condition not implemented for ${stringifyType(conditionType)}`);
+            }
+            const { condition: processCondition, destructure } = conditionMethods;
+
+            const rawCondition = this.visitExpression($case.condition);
+            const condition = processCondition(rawCondition);
+
+            let destructureDef = '';
+            if ($case.deconstruct) {
+                if (!destructure) {
+                    throw new Error(`If destructuring not properly implemented for ${stringifyType(conditionType)}`);
+                }
+                destructureDef = `let ${this.visitIdentifier($case.deconstruct)}=${destructure(condition)};`;
+            }
             
             return `${keyword}(${condition}){${destructureDef}${this.visitBlock($case.body, false)}}`;
         });
@@ -214,15 +237,8 @@ export default class JavascriptTarget implements Target {
         if (type.kind !== TypeKind.Simple) {
             throw new Error(`Codegen found illegal sequence literal type: ${stringifyType(type)}`);
         }
-        const reversed =
-            this.typechecker.fetchTypeInfoFromSimpleType(type)
-            ?.attributes
-            .find((x): x is IsSequenceLikeAttribute => x.kind === TypeAttributeKind.IsSequenceLike)
-            ?.reversed ?? false;
 
-        const elements = reversed ? [...ast.elements].reverse() : ast.elements;
-
-        return `${type.name}([${joinBy(',', elements, this.visitExpression)}])`;
+        return `${type.name}([${joinBy(',', ast.elements, this.visitExpression)}])`;
     }
 
     @boundMethod
@@ -281,7 +297,18 @@ export default class JavascriptTarget implements Target {
     }
 
     @boundMethod
-    private visitIdentifier(ast: Identifier | TypeIdentifier) {
+    private visitTypeIdentifier(ast: TypeIdentifier) {
+        return this.getSafeName(ast.name);
+    }
+
+    @boundMethod
+    private visitIdentifier(ast: Identifier) {
+        if (this.typechecker.binder.getVariableDefinition(ast).kind === ASTNodeKind.OutOfTree) {
+            const valueImpl = this.impl.values[ast.name];
+            if (valueImpl) {
+                this.defineBuiltin(ast.name, () => valueImpl.emit);
+            }
+        }
         return this.getSafeName(ast.name);
     }
 

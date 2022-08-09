@@ -12,6 +12,10 @@ export interface LibraryImplementation<Interface extends LibraryInterface = any,
         readonly scaffolding?: () => EmitTypeScaffold;
         readonly makeSequence?: (content: EmitValue) => EmitValue;
         readonly makeMap?: (content: EmitValue) => EmitValue;
+        readonly conditionMethods?: {
+            readonly condition: (content: EmitValue) => EmitValue;
+            readonly destructure?: (content: EmitValue) => EmitValue;
+        };
     } };
     readonly values: { readonly [valueName in Interface['values'][number]['name']]: {
         readonly emit: EmitValue;

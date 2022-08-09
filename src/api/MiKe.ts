@@ -19,7 +19,7 @@ export default class MiKe {
     private diagnostics!: DiagnosticsReporter;
     private initialized = false;
     private libraries: LibraryInterface[] = [stdlib];
-    private libraryImplementations!: LibraryImplementation[];
+    private libraryImplementations!: Partial<LibraryImplementation>[];
     private files = new Map<string, Program>();
 
     private _binder!: Binder;
@@ -84,7 +84,7 @@ export default class MiKe {
     private initTypechecker() {
         this.typechecker = new Typechecker(this.libraries.flatMap(lib => lib.types), this.binder);
         this.typechecker.setDiagnostics(this.diagnostics);
-        this.validator = new Validator(this.binder, this.typechecker, {
+        this.validator = new Validator(this.typechecker, {
             isLegalParameterType: t => Boolean(
                 t.kind === TypeKind.Simple &&
                 this.typechecker.fetchTypeInfoFromSimpleType(t)?.attributes
@@ -146,8 +146,12 @@ export default class MiKe {
         const valueNeedsImpl = new Set(this.libraries.flatMap(lib => lib.values).map(x => x.name));
 
         const megaImpl = {
-            types: Object.fromEntries(this.libraryImplementations.flatMap(impl => Object.entries(impl.types))),
-            values: Object.fromEntries(this.libraryImplementations.flatMap(impl => Object.entries(impl.values))),
+            types: Object.fromEntries(
+                this.libraryImplementations.flatMap(impl => impl.types ? Object.entries(impl.types) : [])
+            ),
+            values: Object.fromEntries(
+                this.libraryImplementations.flatMap(impl => impl.values ? Object.entries(impl.values) : [])
+            ),
         } as LibraryImplementation;
 
         for (const type of Object.keys(megaImpl.types)) {

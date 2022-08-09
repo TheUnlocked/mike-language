@@ -16,7 +16,7 @@ export interface ValidatorOptions {
 export default class Validator extends DiagnosticsMixin {
     private validatedSet = new WeakSet<AnyNode>();
 
-    constructor(private binder: Binder, private typechecker: Typechecker, private options: ValidatorOptions) {
+    constructor(private readonly typechecker: Typechecker, private readonly options: ValidatorOptions) {
         super();
     }
 
@@ -24,7 +24,7 @@ export default class Validator extends DiagnosticsMixin {
         if (this.testSetValidated(ast)) {
             return;
         }
-        const scope = this.binder.getScope(ast);
+        const scope = this.typechecker.binder.getScope(ast);
         for (const duplicate of scope.duplicateBindings) {
             const ident = getVariableDefinitionIdentifier(duplicate);
             this.focus(ident);
@@ -140,7 +140,7 @@ export default class Validator extends DiagnosticsMixin {
         if (this.testSetValidated(ast)) {
             return;
         }
-        for (const duplicate of this.binder.getScope(ast).duplicateBindings) {
+        for (const duplicate of this.typechecker.binder.getScope(ast).duplicateBindings) {
             const ident = getVariableDefinitionIdentifier(duplicate);
             this.focus(ident);
             this.error(DiagnosticCodes.VariableDefinedMultipleTimes, ident.name);
@@ -182,7 +182,18 @@ export default class Validator extends DiagnosticsMixin {
 
     private validateIfElseChain(ast: IfElseChain) {
         ast.cases.forEach(x => {
-            this.typechecker.fetchType(x.condition);
+            const conditionType = this.typechecker.fetchType(x.condition);
+
+            if (conditionType.kind !== TypeKind.Simple ||
+                !this.typechecker
+                    .fetchTypeInfoFromSimpleType(conditionType)
+                    ?.attributes
+                    .some(x => x.kind === TypeAttributeKind.IsLegalCondition)
+            ) {
+                this.focus(x.condition);
+                this.error(DiagnosticCodes.TypeCannotBeUsedAsACondition, conditionType);
+            }
+
             if (x.deconstruct) {
                 this.typechecker.fetchSymbolType(x.deconstruct);
             }
@@ -194,7 +205,7 @@ export default class Validator extends DiagnosticsMixin {
     }
 
     private validateAssignVar(ast: AssignVar) {
-        const varDef = this.binder.getScope(ast.variable).get(ast.variable.name);
+        const varDef = this.typechecker.binder.getVariableDefinition(ast.variable);
         if (!varDef) {
             this.focus(ast.variable);
             this.error(DiagnosticCodes.UnknownIdentifier, ast.variable.name);
@@ -206,9 +217,9 @@ export default class Validator extends DiagnosticsMixin {
             this.error(DiagnosticCodes.CannotAssignToReadonlyVariable, ast.variable.name);
         }
         else if (varDef.kind === ASTNodeKind.LetStatement) {
-            const block = this.binder.getParent(varDef);
-            const defPos = this.binder.getPositionInParent(varDef, block);
-            const varPos = this.binder.getStatementPositionInBlock(ast, block);
+            const block = this.typechecker.binder.getParent(varDef);
+            const defPos = this.typechecker.binder.getPositionInParent(varDef, block);
+            const varPos = this.typechecker.binder.getStatementPositionInBlock(ast, block);
             if (varPos === undefined || varPos <= defPos) {
                 this.focus(ast.variable);
                 this.error(DiagnosticCodes.NotYetDefined, ast.variable.name);
