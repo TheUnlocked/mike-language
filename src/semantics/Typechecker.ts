@@ -1,6 +1,6 @@
 import { boundMethod } from 'autobind-decorator';
 import { groupBy, isEqual, spread, zip } from 'lodash';
-import { ASTNodeKind, BinaryOp, Dereference, Expression, Identifier, InfixOperator, Invoke, MapLiteral, PrefixOperator, SequenceLiteral, Type, TypeDefinition, UnaryOp, Variable as Variable, VariableDefinition } from '../ast/Ast';
+import { ASTNodeKind, BinaryOp, Dereference, Expression, Identifier, InfixOperator, Invoke, isVariableDefinition, MapLiteral, PrefixOperator, SequenceLiteral, Type, TypeDefinition, UnaryOp, Variable as Variable, VariableDefinition } from '../ast/Ast';
 import { DiagnosticCodes } from '../diagnostics/DiagnosticCodes';
 import { DiagnosticsMixin } from '../diagnostics/DiagnosticsMixin';
 import { CanIfDestructAttribute, TypeAttributeKind } from '../types/Attribute';
@@ -9,6 +9,7 @@ import { TypeInfo } from '../types/TypeInfo';
 import { KnownType, FunctionType, IncompleteType, MapLike, SequenceLike, SimpleType, TypeKind, TOXIC, ToxicType, matchesSequenceLike, matchesMapLike, TypeVariable, replaceTypeVariables, optionOf } from '../types/KnownType';
 import { Binder } from './Binder';
 import { withCache } from '../utils/cache';
+import { expectNever } from '../utils/types';
 
 export class Typechecker extends DiagnosticsMixin {
     private typeCache = new Map<Expression | Identifier, KnownType>();
@@ -315,11 +316,11 @@ export class Typechecker extends DiagnosticsMixin {
             }
             return fnType.returnType;
         }
-        else {
+        else if (fnType.kind !== TypeKind.Toxic) {
             this.focus(ast.fn);
             this.error(DiagnosticCodes.Uninvokable, fnType);
-            return TOXIC;
         }
+        return TOXIC;
     }
 
     private resolveArithmeticBinaryOpType(ast: BinaryOp): KnownType {
@@ -543,7 +544,7 @@ export class Typechecker extends DiagnosticsMixin {
         }
     }
 
-    fetchSymbolType(ast: Identifier): KnownType {
+    fetchTypeFromIdentifier(ast: Identifier): KnownType {
         return withCache(ast, this.typeCache, () => {
             const parent = this.binder.getParent(ast);
             if (parent.kind === ASTNodeKind.Dereference) {
@@ -697,9 +698,15 @@ export class Typechecker extends DiagnosticsMixin {
 
     private fetchTargetType(ast: Expression): KnownType | undefined {
         const parent = this.binder.getParent(ast);
+        
         switch (parent.kind) {
             case ASTNodeKind.LetStatement:
-                return parent.type ? this.fetchTypeOfTypeNode(parent.type) : undefined;
+            case ASTNodeKind.StateDefinition:
+                return parent.type ? this.fetchVariableDefinitionType(parent) : undefined;
+            case ASTNodeKind.AssignVar:
+                return this.fetchTypeFromIdentifier(parent.variable);
+            case ASTNodeKind.AssignField:
+                return this.fetchTypeFromIdentifier(parent.member);
             case ASTNodeKind.Invoke: {
                 const position = this.binder.getPositionInParent(ast, parent);
                 if (position === -1) {
@@ -731,8 +738,6 @@ export class Typechecker extends DiagnosticsMixin {
                     return TOXIC;
                 }
             }
-            default:
-                return;
         }
     }
 

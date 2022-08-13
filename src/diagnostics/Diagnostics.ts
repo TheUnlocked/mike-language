@@ -1,4 +1,5 @@
 import { AnyNode, Range } from '../ast/Ast';
+import { stringifyRange } from '../ast/AstUtils';
 
 export enum Severity {
     Info,
@@ -33,11 +34,16 @@ export class Diagnostic {
     }
 
     getDescription() {
-        return this.description.replace(/{([0-9]+)}/, (match, key) => this.args[+key] ?? match);
+        return this.description.replace(/{([0-9]+)}/g, (match, key) => this.args[+key] ?? match);
     }
 
     toString() {
-        return `${this.severity} ${this.id}: ${this.getDescription()}`
+        const severityString = {
+            [Severity.Info]: 'INFO',
+            [Severity.Warning]: 'WARNING',
+            [Severity.Error]: 'ERROR',
+        }[this.severity];
+        return `${severityString} ${this.range ? stringifyRange(this.range) : '?'} ${this.getDescription()} (${this.qualifiedId})`
     }
 }
 

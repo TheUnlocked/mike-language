@@ -15,7 +15,10 @@ function primitive(name: string, attributes: TypeAttribute[] = []): TypeInfo {
         name,
         numParameters: 0,
         quantify: () => ({
-            attributes,
+            attributes: [
+                { kind: TypeAttributeKind.IsPrimitive },
+                ...attributes,
+            ],
             members: {},
         })
     };

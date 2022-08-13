@@ -1,17 +1,17 @@
-import { AnyNode, ASTNodeKind, Comment, ExternalVariableDefinition, Position, Program, TypeDefinition } from '../ast/Ast';
-import { getNodeAt } from '../ast/AstUtils';
-import { TargetFactory } from '../codegen/Target';
-import { createMiKeDiagnosticsManager } from '../diagnostics/DiagnosticCodes';
-import { DiagnosticsManager, DiagnosticsReporter } from '../diagnostics/Diagnostics';
-import { parseMiKe } from '../grammar/Parser';
-import { LibraryImplementation, LibraryInterface } from '../library/Library';
-import stdlib from '../library/stdlib';
-import { Binder } from '../semantics/Binder';
-import Scope from '../semantics/Scope';
-import { Typechecker } from '../semantics/Typechecker';
-import Validator from '../semantics/Validator';
-import { TypeAttributeKind } from '../types/Attribute';
-import { TypeKind } from '../types/KnownType';
+import { AnyNode, ASTNodeKind, Comment, ExternalVariableDefinition, Position, Program, TypeDefinition } from './ast/Ast';
+import { getNodeAt } from './ast/AstUtils';
+import { TargetFactory } from './codegen/Target';
+import { createMiKeDiagnosticsManager } from './diagnostics/DiagnosticCodes';
+import { DiagnosticsManager, DiagnosticsReporter } from './diagnostics/Diagnostics';
+import { parseMiKe } from './grammar/Parser';
+import { LibraryImplementation, LibraryInterface } from './library/Library';
+import stdlib from './library/stdlib';
+import { Binder } from './semantics/Binder';
+import Scope from './semantics/Scope';
+import { Typechecker } from './semantics/Typechecker';
+import Validator from './semantics/Validator';
+import { TypeAttributeKind } from './types/Attribute';
+import { TypeKind } from './types/KnownType';
 
 export default class MiKe {
     private validator!: Validator;
@@ -85,7 +85,7 @@ export default class MiKe {
         this.typechecker = new Typechecker(this.libraries.flatMap(lib => lib.types), this.binder);
         this.typechecker.setDiagnostics(this.diagnostics);
         this.validator = new Validator(this.typechecker, {
-            isLegalParameterType: t => Boolean(
+            isLegalParameterType: t => t.kind === TypeKind.Toxic || Boolean(
                 t.kind === TypeKind.Simple &&
                 this.typechecker.fetchTypeInfoFromSimpleType(t)?.attributes
                     .some(x => x.kind === TypeAttributeKind.IsLegalParameter)

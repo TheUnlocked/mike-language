@@ -1,15 +1,24 @@
 import { boundMethod } from 'autobind-decorator';
-import { groupBy, identity, isEqual } from 'lodash';
+import { groupBy, isEqual } from 'lodash';
 import { check as isReserved } from 'reserved-words';
 import { AnyNode, ASTNodeKind, BinaryOp, Block, Expression, Identifier, IfElseChain, InfixOperator, ListenerDefinition, MapLiteral, ParameterDefinition, PrefixOperator, Program, SequenceLiteral, StateDefinition, Statement, StatementOrBlock, TypeDefinition, TypeIdentifier, UnaryOp } from '../../ast/Ast';
 import { ParameterType } from './types';
 import { Typechecker } from '../../semantics/Typechecker';
 import { KnownType, stringifyType, TypeKind } from '../../types/KnownType';
-import { intType } from '../../types/Primitives';
+import { intType, primitiveTypes } from '../../types/Primitives';
 import { expectNever, staticContract } from '../../utils/types';
 import { Target, TargetFactory } from '../Target';
 import { LibraryImplementation } from '../../library/Library';
 import jsStdlibImpl from './stdlib';
+import { JsLibraryImplementation, SerializableType } from './LibraryImpl';
+import { TypeAttributeKind } from '../../types/Attribute';
+
+interface StateTypeInfo {
+    readonly typeNamesInState: readonly string[];
+    readonly nameTypePairs: readonly (readonly [Identifier, SerializableType])[];
+}
+
+const MAGIC_VARIABLES = new Set(['globalThis']);
 
 @staticContract<TargetFactory>()
 export default class JavascriptTarget implements Target {
@@ -24,10 +33,10 @@ export default class JavascriptTarget implements Target {
     }
 
     static create(typechecker: Typechecker, impl: LibraryImplementation) {
-        return new JavascriptTarget(typechecker, impl);
+        return new JavascriptTarget(typechecker, impl as JsLibraryImplementation);
     }
 
-    constructor(private readonly typechecker: Typechecker, private readonly impl: LibraryImplementation) {
+    constructor(private readonly typechecker: Typechecker, private readonly impl: JsLibraryImplementation) {
 
     }
 
@@ -35,11 +44,12 @@ export default class JavascriptTarget implements Target {
         return new TextEncoder().encode(this.visitProgram(program));
     }
 
+    @boundMethod
     private getSafeName(name: string) {
         let safeName = this.identifierMappings.get(name);
         if (!safeName) {
             safeName = name;
-            while (this.usedNames.has(safeName) || isReserved(safeName, 'next', true)) {
+            while (this.usedNames.has(safeName) || isReserved(safeName, 'next', true) || safeName === 'globalThis') {
                 safeName = `_${safeName}`;
             }
             this.identifierMappings.set(name, safeName);
@@ -49,11 +59,18 @@ export default class JavascriptTarget implements Target {
     }
 
     private defineBuiltin(name: string, lazyCode: () => string): string {
-        name = this.getSafeName(`$${name}`);
+        if (MAGIC_VARIABLES.has(name)) {
+            return this.getSafeName(name);
+        }
+        name = this.getSafeName(name);
         if (!this.builtins.has(name)) {
             this.builtins.set(name, lazyCode());
         }
         return name;
+    }
+
+    private get builtin_externals() {
+        return this.getSafeName('externals');
     }
 
     private visitProgram(program: Program): string {
@@ -63,15 +80,23 @@ export default class JavascriptTarget implements Target {
         const typeDefs = defsByKind[ASTNodeKind.TypeDefinition] ?? [];
         const listeners = defsByKind[ASTNodeKind.ListenerDefinition] ?? [];
 
-        const userCode = `${
-            joinBy('', typeDefs, this.visitTypeDefinition)
-        }export default{${seq(',',
+        const stateTypeInfo = this.getStateTypeInfo(state);
+
+        // Reserve key names
+        this.getSafeName('globalThis');
+        const externalsName = this.builtin_externals;
+
+        const userCode = `${joinBy('', typeDefs, this.visitTypeDefinition)}return{${seq(',',
             `params:[${joinBy(',', params, this.visitParameterDefinition)}]`,
             `state:[${joinBy(',', state, this.visitStateDefinition)}]`,
             `listeners:[${joinBy(',', listeners, def => this.visitListenerDefinition(def, params, state))}]`,
-        )}};`;
+            `serialize:${this.generateSerializer(stateTypeInfo)}`,
+            `deserialize:${this.generateDeserializer(stateTypeInfo)}`,
+        )}}`;
 
-        return joinBy('', this.builtins, ([name, code]) => `const ${name}=${code};`) + userCode;
+        return `export default ${externalsName}=>{${
+            joinBy('', this.builtins, ([name, code]) => `const ${name}=${code};`)
+        }${userCode}}`;
     }
 
     @boundMethod
@@ -96,7 +121,7 @@ export default class JavascriptTarget implements Target {
             case 'float':
             case 'string':
             case 'boolean':
-                return type.name;
+                return { variant: type.name };
             case 'option':
                 return { variant: 'option', type: this.toParameterType(type.typeArguments[0]) };
         }
@@ -113,6 +138,136 @@ export default class JavascriptTarget implements Target {
         })=>({${
             joinBy(',', ast.parameters, x => this.getPublicPrivateObjectBinding(x.name))
         }});`;
+    }
+
+    @boundMethod
+    private toSerializableType(type: KnownType): SerializableType {
+        if (type.kind !== TypeKind.Simple) {
+            throw new Error(`Non-serializable type in state: ${stringifyType(type)}`);
+        }
+        return {
+            name: type.name,
+            typeArguments: type.typeArguments.map(this.toSerializableType),
+        };
+    };
+
+    private getStateTypeInfo(state: readonly StateDefinition[]): StateTypeInfo {
+        const typeNames = new Set<string>();
+        const toSerializableType = (type: KnownType): SerializableType => {
+            if (type.kind !== TypeKind.Simple) {
+                throw new Error(`Non-serializable type in state: ${stringifyType(type)}`);
+            }
+            typeNames.add(type.name);
+            const typeInfo = this.typechecker.fetchTypeInfoFromSimpleType(type);
+            if (typeInfo?.attributes.some(x => x.kind === TypeAttributeKind.IsUserDefined)) {
+                for (const memberType of Object.values(typeInfo.members)) {
+                    if (memberType.kind !== TypeKind.Simple) {
+                        throw new Error(`Non-serializable type ${stringifyType(memberType)} in user type ${stringifyType(type)} used in state`);
+                    }
+                    typeNames.add(memberType.name);
+                }
+            }
+            return {
+                name: type.name,
+                typeArguments: type.typeArguments.map(toSerializableType),
+            };
+        };
+
+        const nameTypePairs = state.map(st => [
+            st.name,
+            toSerializableType(this.typechecker.fetchVariableDefinitionType(st))
+        ] as const);
+
+        return {
+            typeNamesInState: [...typeNames],
+            nameTypePairs,
+        };
+    }
+    
+    private generateSerializer({ nameTypePairs, typeNamesInState }: StateTypeInfo) {
+        return `state=>{let id=0;const objs=[];const refMap=new Map();const $serialize=(obj,type)=>{if(refMap.has(obj))return refMap.get(obj);const myId=id++;refMap.set(obj,myId);objs[myId]={${
+            joinBy(',', typeNamesInState, name => {
+                let serializer: string;
+                if (primitiveTypes.some(x => x.name === name)) {
+                    if (name === 'int') {
+                        serializer = 'x=>globalThis.String(x)'
+                    }
+                    else {
+                        serializer = 'x=>x';
+                    }
+                }
+                else {
+                    const type = this.typechecker.fetchTypeInfoFromSimpleType({ kind: TypeKind.Simple, name, typeArguments: [] });
+                    if (type?.attributes.some(x => x.kind === TypeAttributeKind.IsUserDefined)) {
+                        const members = Object.entries(type.members);
+                        serializer = `({${
+                            joinBy(',', members, ([name]) => this.getPublicPrivateObjectBindingFromString(name))
+                        }})=>({${
+                            joinBy(',', members, ([name, type]) => {
+                                const serializableType = this.toSerializableType(type);
+                                return `${JSON.stringify(name)}:$serialize(${this.getSafeName(name)},${JSON.stringify(serializableType)})`;
+                            })
+                        }})`;
+                    }
+                    else {
+                        serializer = this.impl.types[name](this.getBuiltinVariableName).serialize;
+                    }
+                }
+                return `${JSON.stringify(name)}:${serializer}`;
+            })
+        }}[type.name](obj,type,$serialize);return myId};const refs={${
+            joinBy(',', nameTypePairs, ([id, type]) => {
+                const stateName = this.getPublicIdentifierString(id);
+                return `${stateName}:$serialize(state[${stateName}],${JSON.stringify(type)})`;
+            })
+        }};return globalThis.JSON.stringify({objs,refs})}`;
+    }
+
+    private generateDeserializer({ nameTypePairs, typeNamesInState }: StateTypeInfo) {
+        return `state=>{const{objs,refs}=globalThis.JSON.parse(state);const $deserialize=(ref,type)=>({${
+            joinBy(',', typeNamesInState, name => {
+                let deserializer: string;
+                if (primitiveTypes.some(x => x.name === name)) {
+                    if (name === 'int') {
+                        deserializer = 'x=>globalThis.BigInt(x)'
+                    }
+                    else {
+                        deserializer = 'x=>x';
+                    }
+                }
+                else {
+                    const type = this.typechecker.fetchTypeInfoFromSimpleType({ kind: TypeKind.Simple, name, typeArguments: [] });
+                    if (type?.attributes.some(x => x.kind === TypeAttributeKind.IsUserDefined)) {
+                        const members = Object.entries(type.members);
+                        deserializer = `({${
+                            joinBy(',', members, ([name]) => this.getPublicPrivateObjectBindingFromString(name))
+                        }})=>({${
+                            joinBy(',', members, ([name, type]) => {
+                                const serializableType = this.toSerializableType(type);
+                                return `${JSON.stringify(name)}:$deserialize(${this.getSafeName(name)},${JSON.stringify(serializableType)})`;
+                            })
+                        }})`;
+                    }
+                    else {
+                        const typeImpl = this.impl.types[name](this.getBuiltinVariableName);
+                        if (typeImpl.class) {
+                            deserializer = `(a,b,c)=>(${
+                                typeImpl.deserialize.toString()
+                            })(a,b,c,${this.defineBuiltin(name, () => typeImpl.class!.toString())})`;
+                        }
+                        else {
+                            deserializer = typeImpl.deserialize.toString();
+                        }
+                    }
+                }
+                return `${JSON.stringify(name)}:${deserializer}`;
+            })
+        }}[type.name](objs[ref],type,$deserialize));return{${
+            joinBy(',', nameTypePairs, ([id, type]) => {
+                const stateName = this.getPublicIdentifierString(id);
+                return `${stateName}:$deserialize(refs[${stateName}],${JSON.stringify(type)})`;
+            })
+        }}}`;
     }
 
     @boundMethod
@@ -133,14 +288,19 @@ export default class JavascriptTarget implements Target {
             `callback:({${seq(',',
                 `params:{${joinBy(',', paramNames, this.getPublicPrivateObjectBinding)}}`,
                 `state:${stateObject}`,
-                `args:[${join(',', argNames)}]`,
-            )}})=>{${this.visitBlock(ast.body, false)}return${stateObject};}`,
+                `args:[${joinBy(',', argNames, id => id.name)}]`,
+            )}})=>{${this.visitBlock(ast.body, false)}return{state:${stateObject}};}`,
         )}}`;
     }
 
     @boundMethod
     private getPublicPrivateObjectBinding(id: Identifier) {
         return `${this.getPublicIdentifierString(id)}:${this.visitIdentifier(id)}`;
+    }
+
+    @boundMethod
+    private getPublicPrivateObjectBindingFromString(name: string) {
+        return `${JSON.stringify(name)}:${this.getSafeName(name)}`;
     }
 
     @boundMethod
@@ -158,7 +318,7 @@ export default class JavascriptTarget implements Target {
             case ASTNodeKind.ExpressionStatement:
                 return `${this.visitExpression(ast.expr)};`;
             case ASTNodeKind.DebugStatement:
-                return `console.log(${joinBy(',', ast.arguments, this.visitExpression)});`;
+                return `${this.builtin_externals}.debug(${joinBy(',', ast.arguments, this.visitExpression)});`;
             case ASTNodeKind.LetStatement:
                 if (ast.value) {
                     return `let ${this.visitIdentifier(ast.name)}=${this.visitExpression(ast.value)};`;
@@ -174,6 +334,7 @@ export default class JavascriptTarget implements Target {
     }
 
     private visitIfElseChain(ast: IfElseChain) {
+        const $else = ast.else ? `else${this.visitBlock(ast.else)}` : '';
         return joinBy(',', ast.cases, ($case, idx) => {
             const keyword = idx === 0 ? 'if' : 'else if';
             const conditionType = this.typechecker.fetchType($case.condition);
@@ -182,26 +343,26 @@ export default class JavascriptTarget implements Target {
             }
 
             const conditionMethods = conditionType.name === 'boolean'
-                ? { condition: identity, destructure: identity }
-                : this.impl.types[conditionType.name]?.conditionMethods;
+                ? { condition: (x: string) => x, destructure: undefined }
+                : this.impl.types[conditionType.name]?.(this.getBuiltinVariableName).conditionMethods;
             if (!conditionMethods) {
                 throw new Error(`Condition not implemented for ${stringifyType(conditionType)}`);
             }
             const { condition: processCondition, destructure } = conditionMethods;
 
             const rawCondition = this.visitExpression($case.condition);
-            const condition = processCondition(rawCondition);
-
+            
             let destructureDef = '';
             if ($case.deconstruct) {
                 if (!destructure) {
                     throw new Error(`If destructuring not properly implemented for ${stringifyType(conditionType)}`);
                 }
-                destructureDef = `let ${this.visitIdentifier($case.deconstruct)}=${destructure(condition)};`;
+                destructureDef = `let ${this.visitIdentifier($case.deconstruct)}=${destructure(rawCondition)};`;
             }
             
+            const condition = processCondition(rawCondition);
             return `${keyword}(${condition}){${destructureDef}${this.visitBlock($case.body, false)}}`;
-        });
+        }) + $else;
     }
 
     @boundMethod
@@ -238,7 +399,16 @@ export default class JavascriptTarget implements Target {
             throw new Error(`Codegen found illegal sequence literal type: ${stringifyType(type)}`);
         }
 
-        return `${type.name}([${joinBy(',', ast.elements, this.visitExpression)}])`;
+        const typeImpl = this.impl.types[type.name](this.getBuiltinVariableName);
+        if (!typeImpl?.class) {
+            throw new Error(`Sequence-like types must be implemented with classes, but ${stringifyType(type)} was not.`);
+        }
+
+        return `new ${
+            this.defineBuiltin(type.name, () => typeImpl.class!.toString())
+        }([${
+            joinBy(',', ast.elements, this.visitExpression)
+        }])`;
     }
 
     @boundMethod
@@ -248,7 +418,12 @@ export default class JavascriptTarget implements Target {
             throw new Error(`Codegen found illegal map literal type: ${stringifyType(type)}`);
         }
 
-        return `${type.name}([${joinBy(
+        const typeImpl = this.impl.types[type.name](this.getBuiltinVariableName);
+        if (!typeImpl?.class) {
+            throw new Error(`Map-like types must be implemented with classes, but ${stringifyType(type)} was not.`);
+        }
+
+        return `new ${this.defineBuiltin(type.name, () => typeImpl.class!.toString())}([${joinBy(
             ',',
             ast.pairs,
             pair => `[${this.visitExpression(pair.key)},${this.visitExpression(pair.value)}]`
@@ -302,11 +477,16 @@ export default class JavascriptTarget implements Target {
     }
 
     @boundMethod
+    private getBuiltinVariableName(name: string) {
+        return this.defineBuiltin(name, () => this.impl.values[name](this.getBuiltinVariableName).emit);
+    }
+
+    @boundMethod
     private visitIdentifier(ast: Identifier) {
         if (this.typechecker.binder.getVariableDefinition(ast).kind === ASTNodeKind.OutOfTree) {
-            const valueImpl = this.impl.values[ast.name];
+            const valueImpl = this.impl.values[ast.name](this.getBuiltinVariableName);
             if (valueImpl) {
-                this.defineBuiltin(ast.name, () => valueImpl.emit);
+                return this.defineBuiltin(ast.name, () => valueImpl.emit);
             }
         }
         return this.getSafeName(ast.name);

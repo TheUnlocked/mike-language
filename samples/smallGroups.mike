@@ -16,9 +16,9 @@ on validate(fail: (string) => unit) {
 }
 
 on join(user: User) {
-    if groupByUser.get(user) |group| {
+    if groupByUser.get(user) |groupInfo| {
         // User rejoining prior group
-        group.join(user);
+        groupInfo.group.join(user);
         debug user, "returned to their group";
     }
     else {

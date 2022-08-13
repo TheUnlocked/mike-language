@@ -11,7 +11,7 @@ scaffoldTests('diagnostics', ({ mike, filename, diagnosticsManager }) => {
             return mike.typechecker.fetchType(node);
         }
         if (node.kind === ASTNodeKind.Identifier) {
-            return mike.typechecker.fetchSymbolType(node);
+            return mike.typechecker.fetchTypeFromIdentifier(node);
         }
     }
     

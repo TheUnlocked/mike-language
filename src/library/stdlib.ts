@@ -107,7 +107,6 @@ const stdlib = suggestType<LibraryInterface>()({
                     { kind: TypeAttributeKind.IsLegalParameter },
                 ],
                 members: {
-                    getOrDefault: functionOf([t], t),
                     hasValue: booleanType,
                 }
             })

@@ -7,10 +7,12 @@ on _() {
     "abc".foo;
     //       v expect diagnostics ~ has ~ id == DiagnosticCodes.InvalidMember
     Queue[1].push;
-    some(Foo(1))
-        .getOrDefault(Foo(0))
-    //   v expect diagnostics ~ has ~ id == DiagnosticCodes.InvalidMember
-        .y;
+    //                    v expect diagnostics ~ has ~ id == DiagnosticCodes.InvalidMember
+    some(Foo(1)).hasValue.y;
+
+    //      v expect diagnostics ~ has ~ id == DiagnosticCodes.InvalidMember
+    //        v expect diagnostics ~ none
+    some(1).x.y;
     
     let f = Foo(0);
     //v expect diagnostics ~ has ~ id == DiagnosticCodes.InvalidMember
@@ -20,4 +22,4 @@ on _() {
     f.x = 1;
 }
 
-// assert diagnostics.length == 4
+// assert diagnostics.length == 5

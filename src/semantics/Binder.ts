@@ -10,7 +10,7 @@ export class Binder {
     private visited = new WeakSet<AnyNode>();
     private positionMap = new WeakMap<AnyNode, number>();
     private assignmentMap = new WeakMap<Block, AssignmentMap>();
-    private symbolTable = new WeakMap<Block | Program, Scope>();
+    private symbolTable = new WeakMap<Block | Program | TypeDefinition, Scope>();
 
     constructor(private readonly topLevelScope: Scope) {
 
@@ -23,11 +23,12 @@ export class Binder {
     getParent(node: Program): undefined;
     getParent(node: Pair): MapLiteral;
     getParent(node: IfCase): IfElseChain;
-    getParent(node: Parameter): ListenerDefinition;
+    getParent(node: Parameter): ListenerDefinition | TypeDefinition;
     getParent(node: Comment): Program;
     getParent(node: Type): GenericType | FunctionType | Parameter | LetStatement | ParameterDefinition | StateDefinition;
-    getParent(node: Identifier): Variable | Dereference | LetStatement | AssignVar | AssignField | ParameterDefinition | StateDefinition | IfCase;
+    getParent(node: Identifier): Variable | Dereference | LetStatement | AssignVar | AssignField | ParameterDefinition | Parameter | StateDefinition | IfCase;
     // Combo overloads (can be removed if https://github.com/microsoft/TypeScript/issues/14107 gets resolved)
+    getParent(node: Expression | Identifier): Exclude<Expression, MapLiteral> | Pair | Statement | IfCase | StateDefinition | LetStatement | AssignVar | AssignField | ParameterDefinition | Parameter;
     getParent(node: Expression | Pair | IfCase): Expression | Statement | Pair | IfCase | StateDefinition;
     getParent(node: Expression | Statement | Pair | IfCase): Expression | Statement | Pair | IfCase | StateDefinition | Block;
     getParent(node: Expression | Statement | Pair | Identifier): Expression | Statement | IfCase | StateDefinition | Pair | Block | Variable | LetStatement | AssignVar | AssignField | ParameterDefinition | IfCase;
@@ -39,7 +40,7 @@ export class Binder {
     }
 
     getPositionInParent(child: Expression, parent: UnaryOp | Dereference | ExpressionStatement | LetStatement | AssignVar | StateDefinition): 0;
-    getPositionInParent(child: Identifier, parent: Dereference | LetStatement | AssignVar | StateDefinition): 0;
+    getPositionInParent(child: Identifier, parent: Variable | Dereference | LetStatement | AssignVar | AssignField | ParameterDefinition | Parameter | StateDefinition | IfCase): 0;
     getPositionInParent(child: Expression, parent: BinaryOp | AssignField | Pair): 0 | 1;
     /**
      * @returns `-1` if the child is the function, otherwise the argument's index
@@ -52,7 +53,7 @@ export class Binder {
     getPositionInParent(child: Expression | Block, parent: IfCase): 0;
     getPositionInParent(child: StatementOrBlock, parent: Block): number;
     getPositionInParent(child: Block, parent: ListenerDefinition): 0;
-    getPositionInParent(child: Parameter, parent: ListenerDefinition): number;
+    getPositionInParent(child: Parameter, parent: ListenerDefinition | TypeDefinition): number;
     getPositionInParent(child: TopLevelDefinition, parent: Program): number;
     getPositionInParent(child: Comment, parent: Program): number;
     getPositionInParent(child: Type, parent: Parameter | LetStatement | ParameterDefinition | StateDefinition): 0;
@@ -75,7 +76,14 @@ export class Binder {
 
     getScope(node: Program | Block | Variable | Identifier) {
         if (node.kind === ASTNodeKind.Variable || node.kind === ASTNodeKind.Identifier) {
-            let parent = this.getParent(node);
+            let parent = this.getParent(node) as Expression | Pair | Statement | IfCase | ParameterDefinition | StateDefinition | LetStatement | AssignVar | AssignField | Parameter | Block;
+            if (parent.kind === ASTNodeKind.Parameter) {
+                const listenerOrTypeDef = this.getParent(parent);
+                if (listenerOrTypeDef.kind === ASTNodeKind.ListenerDefinition) {
+                    return this.symbolTable.get(listenerOrTypeDef.body)!;
+                }
+                return this.symbolTable.get(listenerOrTypeDef)!;
+            }
             if (parent.kind === ASTNodeKind.ParameterDefinition || parent.kind === ASTNodeKind.StateDefinition) {
                 return this.symbolTable.get(this.getParent(parent))!;
             }
@@ -97,7 +105,7 @@ export class Binder {
         return this.getScope(ident).get(ident.name)!;
     }
 
-    private getOrCreateScope(node: Block | Program) {
+    private getOrCreateScope(node: Block | Program | TypeDefinition) {
         let scope = this.symbolTable.get(node);
         if (!scope) {
             scope = new Scope(() => {
@@ -378,6 +386,10 @@ export class Binder {
 
     private bindTypeDefinition(node: TypeDefinition) {
         this.bindChild(node, node.name, 0);
+        const scope = this.getOrCreateScope(node);
+        for (const param of node.parameters) {
+            this.setInScope(scope, param.name, param);
+        }
         this.bindChildren(node, node.parameters);
     }
 

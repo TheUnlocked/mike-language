@@ -124,6 +124,14 @@ export function getLastPosition(str: string): Position {
     };
 }
 
+export function stringifyPosition(pos: Position) {
+    return `${pos.line}:${pos.col}`;
+}
+
+export function stringifyRange(range: Range) {
+    return `${stringifyPosition(range.start)}-${stringifyPosition(range.end)}`
+}
+
 export function getVariableDefinitionIdentifier(def: VariableDefinition): Identifier | TypeIdentifier {
     switch (def.kind) {
         case ASTNodeKind.IfCase:

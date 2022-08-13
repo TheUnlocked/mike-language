@@ -1,6 +1,5 @@
 // import { DiagnosticCodes } from '../../src/diagnostics/DiagnosticCodes'
 
-// v expect diagnostics ~ has ~ id == DiagnosticCodes.InvalidParameterType
 //         v expect diagnostics ~ has ~ id == DiagnosticCodes.TypeDoesNotExist
 param foo: Foo;
 
@@ -9,4 +8,4 @@ on _() {
     let x: Foo;
 }
 
-// assert diagnostics.length == 3
+// assert diagnostics.length == 2

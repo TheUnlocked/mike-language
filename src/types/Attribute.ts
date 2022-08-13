@@ -1,6 +1,7 @@
 import { KnownType } from './KnownType';
 
 export enum TypeAttributeKind {
+    IsPrimitive,
     IsSequenceLike,
     IsMapLike,
     IsLegalCondition,
@@ -9,6 +10,10 @@ export enum TypeAttributeKind {
 }
 
 interface BaseAttribute {
+}
+
+export interface IsPrimitive extends BaseAttribute {
+    readonly kind: TypeAttributeKind.IsPrimitive;
 }
 
 export interface IsSequenceLikeAttribute extends BaseAttribute {
@@ -33,7 +38,8 @@ export interface IsLegalParameterAttribute extends BaseAttribute {
 }
 
 export type TypeAttribute
-    = IsSequenceLikeAttribute
+    = IsPrimitive
+    | IsSequenceLikeAttribute
     | IsMapLikeAttribute
     | CanIfDestructAttribute
     | IsUserDefinedAttribute

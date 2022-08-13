@@ -6,7 +6,6 @@ import { DiagnosticsMixin } from '../diagnostics/DiagnosticsMixin';
 import { TypeAttributeKind } from '../types/Attribute';
 import { KnownType, TypeKind } from '../types/KnownType';
 import { expectNever } from '../utils/types';
-import { Binder } from './Binder';
 import { Typechecker } from './Typechecker';
 
 export interface ValidatorOptions {
@@ -195,7 +194,7 @@ export default class Validator extends DiagnosticsMixin {
             }
 
             if (x.deconstruct) {
-                this.typechecker.fetchSymbolType(x.deconstruct);
+                this.typechecker.fetchTypeFromIdentifier(x.deconstruct);
             }
             this.validateBlock(x.body);
         });
@@ -243,7 +242,7 @@ export default class Validator extends DiagnosticsMixin {
                 this.error(DiagnosticCodes.CannotAssignToReadonlyField, ast.member.name, objType);
             }
         }
-        const memberType = this.typechecker.fetchSymbolType(ast.member);
+        const memberType = this.typechecker.fetchTypeFromIdentifier(ast.member);
         this.validateTypesMatch(memberType, ast.value);
     }
 

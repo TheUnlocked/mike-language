@@ -1,26 +1,39 @@
 import { expect } from 'chai';
-import { compileJs } from '../../util';
+import { compileMiKeToJavascript as compile } from '../../util';
 
 export default () => describe('parameters', () => {
 
-    compileJs`
-        param i: int;
-        param f: float;
-        param s: string;
-        param b: boolean;
-    `.thenIt('can handle primitive parameters', program => {
+    it('can handle primitive parameters', async () => {
+        const program = await compile(`
+            param i: int;
+            param f: float;
+            param s: string;
+            param b: boolean;
+        `);
         expect(program.params).deep.equals([
-            { name: 'i', type: 'int' },
-            { name: 'f', type: 'float' },
-            { name: 's', type: 'string' },
-            { name: 'b', type: 'boolean' },
+            { name: 'i', type: { variant: 'int' } },
+            { name: 'f', type: { variant: 'float' } },
+            { name: 's', type: { variant: 'string' } },
+            { name: 'b', type: { variant: 'boolean' } },
         ]);
     });
 
-    compileJs`
-        param case: string;
-    `.thenIt('can have a Javascript keyword as a parameter', program => {
-        expect(program.params).deep.equals([{ name: 'case', type: 'string' }]);
+    it('can have a Javascript keyword as a parameter', async () => {
+        const program = await compile(`
+            param case: string;
+        `);
+        expect(program.params).deep.equals([{ name: 'case', type: { variant: 'string' } }]);
+    });
+
+    it('can have certain special variables as parameter names', async () => {
+        const program = await compile(`
+            param externals: string;
+            param globalThis: string;
+        `);
+        expect(program.params).deep.equals([
+            { name: 'externals', type: { variant: 'string' } },
+            { name: 'globalThis', type: { variant: 'string' } },
+        ]);
     });
 
 });

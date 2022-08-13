@@ -1,108 +1,162 @@
-import { LibraryImplementation } from '../../library/Library';
 import { StdlibInterface } from '../../library/stdlib';
+import { jsTypeImpl, JsLibraryImplementation, jsValueImpl } from './LibraryImpl';
 
-const jsStdlibImpl: LibraryImplementation<StdlibInterface, string, string> = {
+declare function __SAFE_NAME<T = any>(name: string): T;
+
+const jsStdlibImpl: JsLibraryImplementation<StdlibInterface> = {
     types: {
-        Array: {
-            scaffolding: () => `
-            class Array {
-                constructor(arr = []) { this._arr = [...arr]; }
-                get: i => this._arr[i];
-                set: (i, v) => {
+        Array: jsTypeImpl(
+            class Array<T> {
+                _arr: T[];
+                constructor(arr: T[]) { this._arr = [...arr]; }
+                get = (i: number) => i < 0 || i >= this._arr.length
+                    ? __SAFE_NAME('none')
+                    : __SAFE_NAME('some')(this._arr[i]);
+                set = (i: number, v: T) => {
                     if (i >= 0 && i < this._arr.length) {
                         this._arr[i] = v;
+                        return true;
                     }
+                    return false;
                 };
                 get length() { return globalThis.BigInt(this._arr.length); }
+            },
+            {
+                serialize: (obj, { typeArguments: [t] }, serialize) =>
+                    obj._arr.map(elt => serialize(elt, t)),
+                deserialize: (obj, { typeArguments: [t] }, deserialize, Array) =>
+                    new Array(obj.map(x => deserialize(x, t))),
             }
-            `,
-            makeSequence: arr => `new Queue(${arr})`,
-        },
-        Queue: {
-            scaffolding: () => `
-            class Queue {
-                constructor(arr = []) { this._arr = [...arr]; }
-                enqueue = v => { this._arr.unshift(v); };
-                pop = v => this._arr.pop();
-                peek = () => this._arr.at(-1);
+        ),
+        Queue: jsTypeImpl(
+            class Queue<T> {
+                _arr: T[];
+                constructor(arr: T[]) { this._arr = [...arr]; }
+                enqueue = (v: T) => { this._arr.unshift(v); };
+                pop = () => {
+                    const result = this._arr.pop();
+                    return result === undefined ? __SAFE_NAME('none') : __SAFE_NAME('some')(result);
+                };
+                peek = () => {
+                    const result = this._arr.at(-1);
+                    return result === undefined ? __SAFE_NAME('none') : __SAFE_NAME('some')(result);
+                };
                 get length() { return globalThis.BigInt(this._arr.length); }
+            },
+            {
+                serialize: (obj, { typeArguments: [t] }, serialize) =>
+                    obj._arr.map(elt => serialize(elt, t)),
+                deserialize: (obj, { typeArguments: [t] }, deserialize, Queue) =>
+                    new Queue(obj.map(x => deserialize(x, t))),
             }
-            `,
-            makeSequence: arr => `new Queue(${arr})`,
-        },
-        Stack: {
-            scaffolding: () => `
-            class Stack {
-                constructor(arr = []) { this._arr = [...arr]; }
-                push = v => { this._arr.push(v); };
-                pop = v => this._arr.pop();
-                peek = () => this._arr.at(-1);
+        ),
+        Stack: jsTypeImpl(
+            class Stack<T> {
+                _arr: T[];
+                constructor(arr: T[]) { this._arr = [...arr]; }
+                push = (v: T) => { this._arr.push(v); };
+                pop = () => {
+                    const result = this._arr.pop();
+                    return result === undefined ? __SAFE_NAME('none') : __SAFE_NAME('some')(result);
+                };
+                peek = () => {
+                    const result = this._arr.at(-1);
+                    return result === undefined ? __SAFE_NAME('none') : __SAFE_NAME('some')(result);
+                };
                 get length() { return globalThis.BigInt(this._arr.length); }
+            },
+            {
+                serialize: (obj, { typeArguments: [t] }, serialize) =>
+                    obj._arr.map(elt => serialize(elt, t)),
+                deserialize: (obj, { typeArguments: [t] }, deserialize, Stack) =>
+                    new Stack(obj.map(x => deserialize(x, t))),
             }
-            `,
-            makeSequence: arr => `new Stack(${arr})`,
-        },
-        Set: {
-            scaffolding: () => `
-            class Set {
-                constructor(arr = []) { this._set = new globalthis.Set(arr); }
-                add = v => { this._set.add(v); };
-                remove = v => this._set.delete(v);
-                has = v => this._set.has(v);
+        ),
+        Set: jsTypeImpl(
+            class Set<T> {
+                _set: globalThis.Set<T>;
+                constructor(arr: T[]) { this._set = new globalThis.Set(arr); }
+                add = (v: T) => { this._set.add(v); };
+                remove = (v: T) => this._set.delete(v);
+                has = (v: T) => this._set.has(v);
                 get length() { return globalThis.BigInt(this._set.size); }
+            },
+            {
+                serialize: (obj, { typeArguments: [t] }, serialize) =>
+                    [...obj._set].map(elt => serialize(elt, t)),
+                deserialize: (obj, { typeArguments: [t] }, deserialize, Set) =>
+                    new Set(obj.map(x => deserialize(x, t))),
             }
-            `,
-            makeSequence: arr => `new Set(${arr})`,
-        },
-        QueueSet: {
-            scaffolding: () => `
-            class QueueSet {
-                constructor(arr = []) { this._set = new globalthis.Set([...arr].reverse()); }
-                enqueue = v => { this._set.add(v); };
+        ),
+        // TODO: Improve this implementation (with a doubly linked list and a map it can have O(1) for every operation)
+        QueueSet: jsTypeImpl(
+            class QueueSet<T> {
+                _set: Set<T>;
+                constructor(arr: T[]) { this._set = new globalThis.Set([...arr].reverse()); }
+                enqueue = (v: T) => { this._set.add(v); };
                 pop = () => {
                     const value = this._set[globalThis.Symbol.iterator]().next().value;
                     if (value === undefined) {
                         this._set.delete(value);
-                        return some(value);
+                        return __SAFE_NAME('some')(value);
                     }
-                    return none;
+                    return __SAFE_NAME('none');
                 };
                 peek = () => {
                     const value = this._set[globalThis.Symbol.iterator]().next().value;
-                    return value === undefined ? none : some(value);
+                    return value === undefined ? __SAFE_NAME('none') : __SAFE_NAME('some')(value);
                 };
-                remove = v => this._set.delete(v);
-                has = v => this._set.has(v);
+                remove = (v: T) => this._set.delete(v);
+                has = (v: T) => this._set.has(v);
                 get length() { return globalThis.BigInt(this._set.size); }
-            }
-            `,
-            makeSequence: arr => `new QueueSet(${arr})`,
-        },
-        Map: {
-            scaffolding: () => `
-            class Map {
-                constructor(pairs = []) { this._map = new globalthis.Map(pairs); }
-                set = (k, v) => { this._map.set(k, v); };
-                remove = k => this._map.delete(k);
-                get = k => this._map.get(k);
-                has = k => this._map.has(k);
-                get length() { return globalThis.BigInt(this._map.size); }
-            }
-            `,
-            makeSequence: pairs => `new Map(${pairs})`,
-        },
-        option: {
-            conditionMethods: {
-                condition: v => `${v}.hasValue`,
-                destructure: v => `${v}.value`,
             },
-        },
+            {
+                serialize: (obj, { typeArguments: [t] }, serialize) =>
+                    [...obj._set].reverse().map(elt => serialize(elt, t)),
+                deserialize: (obj, { typeArguments: [t] }, deserialize, QueueSet) =>
+                    new QueueSet(obj.map(x => deserialize(x, t))),
+            }
+        ),
+        Map: jsTypeImpl(
+            class Map<K, V> {
+                _map: globalThis.Map<K, V>;
+                constructor(pairs: [K, V][]) { this._map = new globalThis.Map(pairs); }
+                set = (k: K, v: V) => { this._map.set(k, v); };
+                remove = (k: K) => this._map.delete(k);
+                get = (k: K) => {
+                    const result = this._map.get(k);
+                    return result === undefined ? __SAFE_NAME('none') : __SAFE_NAME('some')(result);
+                };
+                has = (k: K) => this._map.has(k);
+                get length() { return globalThis.BigInt(this._map.size); }
+            },
+            {
+                serialize: (obj, { typeArguments: [k, v] }, serialize) =>
+                    [...obj._map].map(([key, val]) => [serialize(key, k), serialize(val, v)]),
+                deserialize: (obj, { typeArguments: [k, v] }, deserialize, Map) =>
+                    new Map(obj.map(([key, val]) => [deserialize(key, k), deserialize(val, v)])),
+            }
+        ),
+        option: jsTypeImpl(undefined, {
+            conditionMethods: {
+                condition: v => v.hasValue,
+                destructure: v => v.value,
+            },
+            serialize: (obj, { typeArguments: [t] }, serialize) => obj.hasValue
+                ? { hasValue: true, value: serialize(obj.value, t) }
+                : { hasValue: false },
+            deserialize: (obj, { typeArguments: [t] }, deserialize) => obj.hasValue
+                ? { hasValue: true, value: deserialize(obj.value, t) }
+                : { hasValue: false },
+        }),
     },
     values: {
-        none: { emit: '{hasValue:false}' },
-        some: { emit: 'value=>({hasValue:true,value})' },
-        toInt: { emit: 'f=>f%1===0?some(globalThis.BigInt(f)):none' },
-        toFloat: { emit: 'i=>globalThis.Number(i)' },
+        none: jsValueImpl({ emit: () => ({ hasValue: false }) }),
+        some: jsValueImpl({ emit: () => (value: any) => ({ hasValue: true, value }) }),
+        toInt: jsValueImpl({
+            emit: () => (f: number) => f % 1 === 0 ? __SAFE_NAME('some')(globalThis.BigInt(f)) : __SAFE_NAME('none')
+        }),
+        toFloat: jsValueImpl({ emit: () => (i: BigInt) => globalThis.Number(i) }),
     }
 };
 

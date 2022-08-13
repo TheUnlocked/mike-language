@@ -1,12 +1,15 @@
 import { expect } from 'chai';
-import MiKe from '../src/api/MiKe';
+import MiKe from '../src/MiKe';
 import { Position } from '../src/ast/Ast';
 import { createMiKeDiagnosticsManager } from '../src/diagnostics/DiagnosticCodes';
 import { DiagnosticsManager } from '../src/diagnostics/Diagnostics';
-import { MiKeProgram } from '../src/codegen/js/types';
+import { MiKeProgram, MiKeProgramWithoutExternals } from '../src/codegen/js/types';
 import JavascriptTarget from '../src/codegen/js/JavascriptTarget';
 import { loadModule } from '@brillout/load-module';
 import path from 'path';
+import { LibraryInterface } from '../src/library/Library';
+import { JsLibraryImplementation } from '../src/codegen/js/LibraryImpl';
+import { noop } from 'lodash';
 
 export function createTestFunction(assertion: string, variables: { [name: string]: any }) {
     const testContext = { ...variables, expect } as { [name: string]: any };
@@ -168,25 +171,69 @@ export async function createContextFromImports(imports: TestImport[], relativeTo
     }))).flat(1));
 }
 
-export function compileJs(...args: Parameters<typeof String.raw>): {
-    thenIt: (name: string, callback: (program: MiKeProgram) => void) => void
-} {
-    return {
-        thenIt(name, callback) {
-            it(name, async () => {
-                const diagnostics = createMiKeDiagnosticsManager();
-                const mike = new MiKe();
-                mike.setDiagnosticsManager(diagnostics);
-                mike.init();
-                mike.loadScript('.', String.raw(...args));
-                mike.setTarget(JavascriptTarget);
-                const code = mike.tryValidateAndEmit('.');
-                if (!code) {
-                    expect.fail(diagnostics.getDiagnostics(), [], `Failed to compile.`);
-                }
-                const module = await loadModule(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`);
-                callback(module.default);
-            });
-        }
-    };
+export async function compileMiKeToJavascriptText(source: string, options?: {
+    libs?: LibraryInterface[];
+    impls?: JsLibraryImplementation[];
+}): Promise<string> {
+    const diagnostics = createMiKeDiagnosticsManager();
+    const mike = new MiKe();
+    mike.setDiagnosticsManager(diagnostics);
+    for (const lib of options?.libs ?? []) {
+        mike.addLibrary(lib);
+    }
+    mike.init();
+    mike.loadScript('.', source);
+
+    mike.setTarget(JavascriptTarget);
+    for (const impl of options?.impls ?? []) {
+        mike.addLibraryImplementation(impl);
+    }
+
+    const output = mike.tryValidateAndEmit('.');
+    if (!output) {
+        expect.fail(`Failed to compile:\n\t${diagnostics.getDiagnostics().map(x => x.toString()).join('\n\t')}`);
+    }
+
+    return new TextDecoder().decode(output);
 }
+
+export async function compileMiKeToJavascriptWithoutExternals(source: string, options?: {
+    libs?: LibraryInterface[];
+    impls?: JsLibraryImplementation[];
+}): Promise<MiKeProgramWithoutExternals> {
+    const diagnostics = createMiKeDiagnosticsManager();
+    const mike = new MiKe();
+    mike.setDiagnosticsManager(diagnostics);
+    for (const lib of options?.libs ?? []) {
+        mike.addLibrary(lib);
+    }
+    mike.init();
+    mike.loadScript('.', source);
+
+    mike.setTarget(JavascriptTarget);
+    for (const impl of options?.impls ?? []) {
+        mike.addLibraryImplementation(impl);
+    }
+
+    const output = mike.tryValidateAndEmit('.');
+    if (!output) {
+        expect.fail(`Failed to compile:\n\t${diagnostics.getDiagnostics().map(x => x.toString()).join('\n\t')}`);
+    }
+
+    const importString = `data:text/javascript;base64,${Buffer.from(output).toString('base64')}`;
+    const module = await loadModule(importString);
+    return module.default;
+}
+
+export async function compileMiKeToJavascript(source: string, options?: {
+    libs?: LibraryInterface[];
+    impls?: JsLibraryImplementation[];
+    debug?: (...args: any[]) => void;
+    externals?: { [extName: string]: any };
+}): Promise<MiKeProgram> {
+    return (await compileMiKeToJavascriptWithoutExternals(source, options))({
+        debug: options?.debug ?? noop,
+        ...options?.externals,
+    });
+}
+
