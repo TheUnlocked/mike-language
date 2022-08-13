@@ -88,7 +88,7 @@ export class ExprAstGenVisitor extends WithDiagnostics(AbstractMiKeVisitor<Expre
         return {
             kind: ASTNodeKind.IntLiteral,
             metadata: this.getMetadata(ctx),
-            value: +ctx.INT(),
+            value: ctx.INT().text,
         };
     }
 

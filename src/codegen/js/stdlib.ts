@@ -32,13 +32,13 @@ const jsStdlibImpl: JsLibraryImplementation<StdlibInterface> = {
             class Queue<T> {
                 _arr: T[];
                 constructor(arr: T[]) { this._arr = [...arr]; }
-                enqueue = (v: T) => { this._arr.unshift(v); };
+                enqueue = (v: T) => { this._arr.push(v); };
                 pop = () => {
-                    const result = this._arr.pop();
+                    const result = this._arr.shift();
                     return result === undefined ? __SAFE_NAME('none') : __SAFE_NAME('some')(result);
                 };
                 peek = () => {
-                    const result = this._arr.at(-1);
+                    const result = this._arr[0];
                     return result === undefined ? __SAFE_NAME('none') : __SAFE_NAME('some')(result);
                 };
                 get length() { return globalThis.BigInt(this._arr.length); }
@@ -92,15 +92,15 @@ const jsStdlibImpl: JsLibraryImplementation<StdlibInterface> = {
         QueueSet: jsTypeImpl(
             class QueueSet<T> {
                 _set: Set<T>;
-                constructor(arr: T[]) { this._set = new globalThis.Set([...arr].reverse()); }
+                constructor(arr: T[]) { this._set = new globalThis.Set(arr); }
                 enqueue = (v: T) => { this._set.add(v); };
                 pop = () => {
                     const value = this._set[globalThis.Symbol.iterator]().next().value;
                     if (value === undefined) {
-                        this._set.delete(value);
-                        return __SAFE_NAME('some')(value);
+                        return __SAFE_NAME('none');
                     }
-                    return __SAFE_NAME('none');
+                    this._set.delete(value);
+                    return __SAFE_NAME('some')(value);
                 };
                 peek = () => {
                     const value = this._set[globalThis.Symbol.iterator]().next().value;
@@ -112,7 +112,7 @@ const jsStdlibImpl: JsLibraryImplementation<StdlibInterface> = {
             },
             {
                 serialize: (obj, { typeArguments: [t] }, serialize) =>
-                    [...obj._set].reverse().map(elt => serialize(elt, t)),
+                    [...obj._set].map(elt => serialize(elt, t)),
                 deserialize: (obj, { typeArguments: [t] }, deserialize, QueueSet) =>
                     new QueueSet(obj.map(x => deserialize(x, t))),
             }

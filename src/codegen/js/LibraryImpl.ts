@@ -16,6 +16,19 @@ interface TypeImpl {
     deserialize: string;
 }
 
+type GetName = (name: string) => string;
+
+function injectNames<T extends string | undefined>(code: T, getName: GetName): T {
+    if (!code) {
+        return undefined as T;
+    }
+    const result = code.replace(/__SAFE_NAME\(['"`]([^'"`]*)['"`]\)/g, (_, name) => getName(name));
+    if (result.includes('__SAFE_NAME')) {
+        throw new Error(`Incorrect usage of __SAFE_NAME magic identifier: ${code}`);
+    }
+    return result as T;
+}
+
 type MaybeInstanceType<C> = C extends Constructor ? InstanceType<C> : any;
 
 export function jsTypeImpl<C extends Constructor | undefined, OutputType>($class: C | undefined, typeImpl: {
@@ -35,30 +48,19 @@ export function jsTypeImpl<C extends Constructor | undefined, OutputType>($class
         destructure?(val: MaybeInstanceType<C>): any;
     };
 }): (getName: GetName) => TypeImpl {
-    return (getName) => {
-        function injectNames<T extends string | undefined>(code: T): T {
-            if (!code) {
-                return undefined as T;
-            }
-            const result = code.replace(/__SAFE_NAME\(['"`]([^'"]*)['"`]\)/g, (_, name) => getName(name));
-            if (result.includes('__SAFE_NAME')) {
-                throw new Error(`Incorrect usage of __SAFE_NAME magic identifier: ${code}`);
-            }
-            return result as T;
-        }
-
+    return getName => {
         let hasConditionMethods: boolean = Boolean(typeImpl.conditionMethods);
         let conditionFn: string | undefined;
         let destructureFn: string | undefined;
         if (hasConditionMethods) {
-            conditionFn = injectNames(typeImpl.conditionMethods!.condition.toString());
-            destructureFn = injectNames(typeImpl.conditionMethods!.destructure?.toString());
+            conditionFn = injectNames(typeImpl.conditionMethods!.condition.toString(), getName);
+            destructureFn = injectNames(typeImpl.conditionMethods!.destructure?.toString(), getName);
         }
         
         return {
-            class: injectNames($class?.toString()),
-            serialize: injectNames(typeImpl.serialize.toString()),
-            deserialize: injectNames(typeImpl.deserialize.toString()),
+            class: injectNames($class?.toString(), getName),
+            serialize: injectNames(typeImpl.serialize.toString(), getName),
+            deserialize: injectNames(typeImpl.deserialize.toString(), getName),
             conditionMethods: typeImpl.conditionMethods ? {
                 condition: code => `(${conditionFn})(${code})`,
                 destructure: destructureFn
@@ -76,24 +78,12 @@ interface ValueImpl {
 export function jsValueImpl<T>(valueImpl: {
     emit: () => T
 }): (getName: GetName) => ValueImpl {
-    return (getName) => {
-        function injectNames<T extends string | undefined>(code: T): T {
-            if (!code) {
-                return undefined as T;
-            }
-            const result = code.replace(/__SAFE_NAME\(['"`](.*?)['"`]\)/, (_, name) => getName(name));
-            if (result.includes('__SAFE_NAME')) {
-                throw new Error(`Incorrect usage of __SAFE_NAME magic identifier: ${code}`);
-            }
-            return result as T;
-        }
+    return getName => {
         return {
-            emit: `(${injectNames(valueImpl.emit.toString())})()`,
+            emit: `(${injectNames(valueImpl.emit.toString(), getName)})()`,
         };
     }; 
 }
-
-type GetName = (name: string) => string;
 
 export type JsLibraryImplementation<Interface extends LibraryInterface = any> = LibraryImplementation<
     Interface,

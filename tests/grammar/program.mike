@@ -14,7 +14,7 @@ type Foo (
 param increment: int;
 param multiplyMode: boolean;
 
-// v expect $.kind == ASTNodeKind.StateDefinition, $.default.value == 0
+// v expect $.kind == ASTNodeKind.StateDefinition, $.default.value == '0'
 state points = 0;
 state messages = Queue["abc"];
 

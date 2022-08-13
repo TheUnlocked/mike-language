@@ -94,6 +94,14 @@ export class DiagnosticsManager {
             return;
         }
 
+        const specialMessage = diagnostic.specializedMessages?.find(x => x.when(...args));
+        if (specialMessage) {
+            this.diagnostics.push(
+                new Diagnostic(namespace, id, diagnostic.severity, this.currentRange, specialMessage.message, args)
+            );
+            return;
+        }
+
         this.diagnostics.push(
             new Diagnostic(namespace, id, diagnostic.severity, this.currentRange, diagnostic.description, args)
         );

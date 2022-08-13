@@ -90,7 +90,7 @@ const stdlib = suggestType<LibraryInterface>()({
                     { kind: TypeAttributeKind.IsMapLike },
                 ],
                 members: {
-                    put: functionOf([k, v], unitType),
+                    set: functionOf([k, v], unitType),
                     remove: functionOf([k], booleanType),
                     get: functionOf([k], optionOf(v)),
                     has: functionOf([k], booleanType),

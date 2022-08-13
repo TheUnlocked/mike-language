@@ -63,7 +63,9 @@ export const defaultDiagnosticDetails = suggestType<{ readonly [name in Diagnost
     [DiagnosticCodes.Uninvokable]: { severity: Severity.Error, description: 'Expected a function type, found {0}.' },
     [DiagnosticCodes.WrongNumberOfArguments]: { severity: Severity.Error, description: 'Wrong number of arguments: expected {0}, found {1}.' },
     [DiagnosticCodes.ArgumentParameterTypeMismatch]: { severity: Severity.Error, description: 'Cannot fit argument of type {0} into parameter of type {1}.' },
-    [DiagnosticCodes.BadArithmeticOpArgumentType]: { severity: Severity.Error, description: 'Arithmetic operators can only take int or float, instead found {0}.' },
+    [DiagnosticCodes.BadArithmeticOpArgumentType]: { severity: Severity.Error, description: 'Arithmetic operators can only take int or float, instead found {0}.', specializedMessages: [
+        { when: t => ['int', 'float'].includes(t), message: 'The types of the arguments to an arithmetic operator must match. Use a toInt or toFloat conversion.' },
+    ] },
     [DiagnosticCodes.BadInequalityOpArgumentType]: { severity: Severity.Error, description: 'Inequality operators can only take int or float, instead found {0}.' },
     [DiagnosticCodes.BadLogicalOpArgumentType]: { severity: Severity.Error, description: 'Logical operators can only take booleans, instead found {0}.' },
     [DiagnosticCodes.InvalidMember]: { severity: Severity.Error, description: 'Type {0} does not have a member {1}.' },

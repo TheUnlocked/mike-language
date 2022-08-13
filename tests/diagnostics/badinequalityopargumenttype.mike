@@ -10,6 +10,8 @@ on _() {
     // v expect diagnostics ~ has ~ id == DiagnosticCodes.BadInequalityOpArgumentType
     //      v expect diagnostics ~ has ~ id == DiagnosticCodes.BadInequalityOpArgumentType
     true <= false;
+
+    1 > 1.0;
 }
 
 // assert diagnostics.length == 5

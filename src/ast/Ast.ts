@@ -128,7 +128,7 @@ export interface FloatLiteral extends ExpressionNode {
 
 export interface IntLiteral extends ExpressionNode {
     readonly kind: ASTNodeKind.IntLiteral;
-    readonly value: number;
+    readonly value: string;
 }
 
 export interface BoolLiteral extends ExpressionNode {

@@ -189,11 +189,14 @@ export default class JavascriptTarget implements Target {
             joinBy(',', typeNamesInState, name => {
                 let serializer: string;
                 if (primitiveTypes.some(x => x.name === name)) {
-                    if (name === 'int') {
-                        serializer = 'x=>globalThis.String(x)'
-                    }
-                    else {
-                        serializer = 'x=>x';
+                    switch (name) {
+                        case 'int':
+                        case 'float':
+                            serializer = 'x=>globalThis.String(x)';
+                            break;
+                        default:
+                            serializer = 'x=>x';
+                            break;
                     }
                 }
                 else {
@@ -228,11 +231,16 @@ export default class JavascriptTarget implements Target {
             joinBy(',', typeNamesInState, name => {
                 let deserializer: string;
                 if (primitiveTypes.some(x => x.name === name)) {
-                    if (name === 'int') {
-                        deserializer = 'x=>globalThis.BigInt(x)'
-                    }
-                    else {
-                        deserializer = 'x=>x';
+                    switch (name) {
+                        case 'int':
+                            deserializer = 'x=>globalThis.BigInt(x)';
+                            break;
+                        case 'float':
+                            deserializer = 'x=>globalThis.Number(x)';
+                            break;
+                        default:
+                            deserializer = 'x=>x';
+                            break;
                     }
                 }
                 else {
@@ -372,8 +380,9 @@ export default class JavascriptTarget implements Target {
             case ASTNodeKind.IntLiteral:
                 return `${ast.value}n`;
             case ASTNodeKind.FloatLiteral:
-            case ASTNodeKind.StringLiteral:
             case ASTNodeKind.BoolLiteral:
+                return String(ast.value);
+            case ASTNodeKind.StringLiteral:
                 return JSON.stringify(ast.value);
             case ASTNodeKind.Variable:
                 return this.visitIdentifier(ast.identifier);

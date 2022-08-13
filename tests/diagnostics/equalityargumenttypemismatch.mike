@@ -11,8 +11,11 @@ on _() {
     // v expect diagnostics ~ has ~ id == DiagnosticCodes.EqualityArgumentTypeMismatch
     q1 != q2;
 
+    //  v expect diagnostics ~ has ~ id == DiagnosticCodes.EqualityArgumentTypeMismatch
+    1.0 == 2;
+
     1 == 2;
     some(1) == none;
 }
 
-// assert diagnostics.length == 3
+// assert diagnostics.length == 4
