@@ -1,0 +1,12 @@
+// import { DiagnosticCodes } from '../../src/diagnostics/DiagnosticCodes'
+
+//    v expect diagnostics ~ has ~ id == DiagnosticCodes.CannotInferVariableType
+state x = none;
+
+on test() {
+//      v expect diagnostics ~ has ~ id == DiagnosticCodes.CannotInferVariableType
+    let y = none;
+    let z = y;
+}
+
+// assert diagnostics.length == 2

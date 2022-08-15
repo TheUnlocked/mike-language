@@ -9,11 +9,9 @@ import { TypeInfo } from '../types/TypeInfo';
 import { KnownType, FunctionType, IncompleteType, MapLike, SequenceLike, SimpleType, TypeKind, TOXIC, ToxicType, matchesSequenceLike, matchesMapLike, TypeVariable, replaceTypeVariables, optionOf } from '../types/KnownType';
 import { Binder } from './Binder';
 import { withCache } from '../utils/cache';
-import { expectNever } from '../utils/types';
 
 export class Typechecker extends DiagnosticsMixin {
-    private typeCache = new Map<Expression | Identifier, KnownType>();
-    private typeNodeCache = new Map<Type, KnownType>();
+    private typeCache = new Map<Expression | Identifier | VariableDefinition | Type, KnownType>();
 
     private types!: Map<string, TypeInfo>;
 
@@ -29,7 +27,6 @@ export class Typechecker extends DiagnosticsMixin {
 
     private clearCache() {
         this.typeCache.clear();
-        this.typeNodeCache.clear();
     }
 
     loadTypes(types: readonly TypeDefinition[]) {
@@ -470,7 +467,7 @@ export class Typechecker extends DiagnosticsMixin {
 
     @boundMethod
     fetchTypeOfTypeNode(ast: Type): KnownType {
-        return withCache(ast, this.typeNodeCache, (): KnownType => {
+        return withCache(ast, this.typeCache, (): KnownType => {
             let result: KnownType;
             switch (ast.kind) {
                 case ASTNodeKind.TypeIdentifier:
@@ -504,44 +501,65 @@ export class Typechecker extends DiagnosticsMixin {
     }
 
     fetchVariableDefinitionType(ast: VariableDefinition): KnownType {
-        switch (ast.kind) {
-            case ASTNodeKind.ParameterDefinition:
-            case ASTNodeKind.Parameter:
-                return this.fetchTypeOfTypeNode(ast.type);
-            case ASTNodeKind.StateDefinition:
-                if (ast.type) {
+        return withCache(ast, this.typeCache, () => {
+
+            switch (ast.kind) {
+                case ASTNodeKind.ParameterDefinition:
+                case ASTNodeKind.Parameter:
                     return this.fetchTypeOfTypeNode(ast.type);
-                }
-                return ast.default ? this.fetchType(ast.default) : TOXIC;
-            case ASTNodeKind.TypeDefinition:
-                return {
-                    kind: TypeKind.Function,
-                    typeParameters: [],
-                    parameters: ast.parameters.map(x => this.fetchTypeOfTypeNode(x.type)),
-                    returnType: { kind: TypeKind.Simple, name: ast.name.name, typeArguments: [] },
-                };
-            case ASTNodeKind.IfCase: {
-                const conditionType = this.fetchType(ast.condition);
-                if (conditionType.kind === TypeKind.Simple) {
-                    const deconstructAttr = this.fetchTypeInfoFromSimpleType(conditionType)!.attributes
-                        .find((x): x is CanIfDestructAttribute => x.kind === TypeAttributeKind.IsLegalCondition);
-                    
-                    if (deconstructAttr?.destructInto) {
-                        return deconstructAttr.destructInto;
+                case ASTNodeKind.StateDefinition:
+                    if (ast.type) {
+                        return this.fetchTypeOfTypeNode(ast.type);
                     }
-                    this.focus(ast.deconstruct);
-                    this.error(DiagnosticCodes.TypeCannotBeDestructured, conditionType);
+                    else if (ast.default) {
+                        const defaultType = this.fetchType(ast.default);
+                        if (defaultType.isNotInferrable) {
+                            this.focus(ast);
+                            this.error(DiagnosticCodes.CannotInferVariableType);
+                            return { ...defaultType, isNotInferrable: false };
+                        }
+                        return defaultType;
+                    }
+                    return TOXIC;
+                case ASTNodeKind.TypeDefinition:
+                    return {
+                        kind: TypeKind.Function,
+                        typeParameters: [],
+                        parameters: ast.parameters.map(x => this.fetchTypeOfTypeNode(x.type)),
+                        returnType: { kind: TypeKind.Simple, name: ast.name.name, typeArguments: [] },
+                    };
+                case ASTNodeKind.IfCase: {
+                    const conditionType = this.fetchType(ast.condition);
+                    if (conditionType.kind === TypeKind.Simple) {
+                        const deconstructAttr = this.fetchTypeInfoFromSimpleType(conditionType)!.attributes
+                            .find((x): x is CanIfDestructAttribute => x.kind === TypeAttributeKind.IsLegalCondition);
+                        
+                        if (deconstructAttr?.destructInto) {
+                            return deconstructAttr.destructInto;
+                        }
+                        this.focus(ast.deconstruct);
+                        this.error(DiagnosticCodes.TypeCannotBeDestructured, conditionType);
+                    }
+                    return TOXIC;
                 }
-                return TOXIC;
+                case ASTNodeKind.LetStatement:
+                    if (ast.type) {
+                        return this.fetchTypeOfTypeNode(ast.type);
+                    }
+                    else if (ast.value) {
+                        const valueType = this.fetchType(ast.value);
+                        if (valueType.isNotInferrable) {
+                            this.focus(ast);
+                            this.error(DiagnosticCodes.CannotInferVariableType);
+                            return { ...valueType, isNotInferrable: false };
+                        }
+                        return valueType;
+                    }
+                    return TOXIC;
+                case ASTNodeKind.OutOfTree:
+                    return ast.type;
             }
-            case ASTNodeKind.LetStatement:
-                if (ast.type) {
-                    return this.fetchTypeOfTypeNode(ast.type);
-                }
-                return ast.value ? this.fetchType(ast.value) : TOXIC;
-            case ASTNodeKind.OutOfTree:
-                return ast.type;
-        }
+        });
     }
 
     fetchTypeFromIdentifier(ast: Identifier): KnownType {

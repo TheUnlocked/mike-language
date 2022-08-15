@@ -121,7 +121,7 @@ export default class Validator extends DiagnosticsMixin {
         }
     }
 
-    checkSerializable(type: KnownType) {
+    private checkSerializable(type: KnownType) {
         const visited = new Set<string>();
         const rec = (type: KnownType): boolean => {
             switch (type.kind) {

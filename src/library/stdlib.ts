@@ -114,7 +114,7 @@ const stdlib = suggestType<LibraryInterface>()({
         },
     ],
     values: [
-        { name: 'none', type: optionOf(ANY_TYPE) },
+        { name: 'none', type: { ...optionOf(ANY_TYPE), isNotInferrable: true } },
         { name: 'some', type: genericFunctionOf(['T'], t => [t], t => optionOf(t)) },
 
         { name: 'toInt', type: functionOf([floatType], optionOf(intType)) },

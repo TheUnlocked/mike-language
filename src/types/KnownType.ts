@@ -11,7 +11,7 @@ export enum TypeKind {
 }
 
 interface TypeReference {
-    
+    readonly isNotInferrable?: boolean;
 }
 
 export interface ToxicType extends TypeReference {
