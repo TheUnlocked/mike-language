@@ -1,6 +1,6 @@
 // import { DiagnosticCodes } from '../../src/diagnostics/DiagnosticCodes'
 
-on _() {
+on test() {
     //  v expect diagnostics ~ has ~ id == DiagnosticCodes.BadArithmeticOpArgumentType
     1 + "abc";
     //  v expect diagnostics ~ has ~ id == DiagnosticCodes.BadArithmeticOpArgumentType

@@ -3,7 +3,7 @@ import MiKe from '../src/MiKe';
 import { Position } from '../src/ast/Ast';
 import { createMiKeDiagnosticsManager } from '../src/diagnostics/DiagnosticCodes';
 import { DiagnosticsManager } from '../src/diagnostics/Diagnostics';
-import { MiKeProgram, MiKeProgramWithoutExternals } from '../src/codegen/js/types';
+import { EventData, MiKeProgram, MiKeProgramWithoutExternals } from '../src/codegen/js/types';
 import JavascriptTarget from '../src/codegen/js/JavascriptTarget';
 import { loadModule } from '@brillout/load-module';
 import path from 'path';
@@ -207,6 +207,9 @@ export async function compileMiKeToJavascriptWithoutExternals(source: string, op
     for (const lib of options?.libs ?? []) {
         mike.addLibrary(lib);
     }
+    mike.setEvents([
+        { name: 'test', required: false, argumentTypes: [] }
+    ]);
     mike.init();
     mike.loadScript('.', source);
 
@@ -237,3 +240,23 @@ export async function compileMiKeToJavascript(source: string, options?: {
     });
 }
 
+export function getDebugFragments(programFn: MiKeProgramWithoutExternals, evtData?: Partial<EventData>) {
+    const debugFragments = [] as any[];
+
+    const program = programFn({ debug: debugFragments.push.bind(debugFragments) });
+    program.listeners.find(x => x.event === 'test')!.callback(Object.assign({
+        args: [],
+        params: {},
+        state: Object.fromEntries(program.state.map(st => [st.name, st.default])),
+    } as EventData, evtData));
+    
+    return debugFragments;
+}
+
+export function getStateAfterRunning(program: MiKeProgram, evtData?: Partial<EventData>) {
+    return program.listeners.find(x => x.event === 'test')!.callback(Object.assign({
+        args: [],
+        params: {},
+        state: Object.fromEntries(program.state.map(st => [st.name, st.default])),
+    } as EventData, evtData));
+}

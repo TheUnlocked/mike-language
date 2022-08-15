@@ -9,16 +9,18 @@ const jsStdlibImpl: JsLibraryImplementation<StdlibInterface> = {
             class Array<T> {
                 _arr: T[];
                 constructor(arr: T[]) { this._arr = [...arr]; }
-                get = (i: number) => i < 0 || i >= this._arr.length
-                    ? __SAFE_NAME('none')
-                    : __SAFE_NAME('some')(this._arr[i]);
-                set = (i: number, v: T) => {
+                get(i: number) {
+                    return i < 0 || i >= this._arr.length
+                        ? __SAFE_NAME('none')
+                        : __SAFE_NAME('some')(this._arr[i]);
+                }
+                set(i: number, v: T) {
                     if (i >= 0 && i < this._arr.length) {
                         this._arr[i] = v;
                         return true;
                     }
                     return false;
-                };
+                }
                 get length() { return globalThis.BigInt(this._arr.length); }
             },
             {
@@ -32,15 +34,15 @@ const jsStdlibImpl: JsLibraryImplementation<StdlibInterface> = {
             class Queue<T> {
                 _arr: T[];
                 constructor(arr: T[]) { this._arr = [...arr]; }
-                enqueue = (v: T) => { this._arr.push(v); };
-                pop = () => {
+                enqueue(v: T) { this._arr.push(v); }
+                pop() {
                     const result = this._arr.shift();
                     return result === undefined ? __SAFE_NAME('none') : __SAFE_NAME('some')(result);
-                };
-                peek = () => {
+                }
+                peek() {
                     const result = this._arr[0];
                     return result === undefined ? __SAFE_NAME('none') : __SAFE_NAME('some')(result);
-                };
+                }
                 get length() { return globalThis.BigInt(this._arr.length); }
             },
             {
@@ -54,15 +56,15 @@ const jsStdlibImpl: JsLibraryImplementation<StdlibInterface> = {
             class Stack<T> {
                 _arr: T[];
                 constructor(arr: T[]) { this._arr = [...arr]; }
-                push = (v: T) => { this._arr.push(v); };
-                pop = () => {
+                push(v: T) { this._arr.push(v); }
+                pop() {
                     const result = this._arr.pop();
                     return result === undefined ? __SAFE_NAME('none') : __SAFE_NAME('some')(result);
-                };
-                peek = () => {
+                }
+                peek() {
                     const result = this._arr.at(-1);
                     return result === undefined ? __SAFE_NAME('none') : __SAFE_NAME('some')(result);
-                };
+                }
                 get length() { return globalThis.BigInt(this._arr.length); }
             },
             {
@@ -76,9 +78,9 @@ const jsStdlibImpl: JsLibraryImplementation<StdlibInterface> = {
             class Set<T> {
                 _set: globalThis.Set<T>;
                 constructor(arr: T[]) { this._set = new globalThis.Set(arr); }
-                add = (v: T) => { this._set.add(v); };
-                remove = (v: T) => this._set.delete(v);
-                has = (v: T) => this._set.has(v);
+                add(v: T) { this._set.add(v); }
+                remove(v: T) { return this._set.delete(v); }
+                has(v: T) { return this._set.has(v); }
                 get length() { return globalThis.BigInt(this._set.size); }
             },
             {
@@ -93,21 +95,21 @@ const jsStdlibImpl: JsLibraryImplementation<StdlibInterface> = {
             class QueueSet<T> {
                 _set: Set<T>;
                 constructor(arr: T[]) { this._set = new globalThis.Set(arr); }
-                enqueue = (v: T) => { this._set.add(v); };
-                pop = () => {
+                enqueue(v: T) { this._set.add(v); }
+                pop() {
                     const value = this._set[globalThis.Symbol.iterator]().next().value;
                     if (value === undefined) {
                         return __SAFE_NAME('none');
                     }
                     this._set.delete(value);
                     return __SAFE_NAME('some')(value);
-                };
-                peek = () => {
+                }
+                peek() {
                     const value = this._set[globalThis.Symbol.iterator]().next().value;
                     return value === undefined ? __SAFE_NAME('none') : __SAFE_NAME('some')(value);
-                };
-                remove = (v: T) => this._set.delete(v);
-                has = (v: T) => this._set.has(v);
+                }
+                remove(v: T) { return this._set.delete(v); }
+                has(v: T) { return this._set.has(v); }
                 get length() { return globalThis.BigInt(this._set.size); }
             },
             {
@@ -121,13 +123,13 @@ const jsStdlibImpl: JsLibraryImplementation<StdlibInterface> = {
             class Map<K, V> {
                 _map: globalThis.Map<K, V>;
                 constructor(pairs: [K, V][]) { this._map = new globalThis.Map(pairs); }
-                set = (k: K, v: V) => { this._map.set(k, v); };
-                remove = (k: K) => this._map.delete(k);
-                get = (k: K) => {
+                set(k: K, v: V) { this._map.set(k, v); }
+                remove(k: K) { return this._map.delete(k) }
+                get(k: K) {
                     const result = this._map.get(k);
                     return result === undefined ? __SAFE_NAME('none') : __SAFE_NAME('some')(result);
-                };
-                has = (k: K) => this._map.has(k);
+                }
+                has(k: K) { return this._map.has(k); }
                 get length() { return globalThis.BigInt(this._map.size); }
             },
             {
@@ -137,7 +139,13 @@ const jsStdlibImpl: JsLibraryImplementation<StdlibInterface> = {
                     new Map(obj.map(([key, val]) => [deserialize(key, k), deserialize(val, v)])),
             }
         ),
-        option: jsTypeImpl(undefined, {
+        option: jsTypeImpl(
+            class Option<T> {
+                constructor(public readonly hasValue: boolean, public readonly value?: T) {
+                }
+                getOrDefault(x: T) { return this.hasValue ? this.value! : x; }
+            },
+            {
             conditionMethods: {
                 condition: v => v.hasValue,
                 destructure: v => v.value,
@@ -145,14 +153,14 @@ const jsStdlibImpl: JsLibraryImplementation<StdlibInterface> = {
             serialize: (obj, { typeArguments: [t] }, serialize) => obj.hasValue
                 ? { hasValue: true, value: serialize(obj.value, t) }
                 : { hasValue: false },
-            deserialize: (obj, { typeArguments: [t] }, deserialize) => obj.hasValue
-                ? { hasValue: true, value: deserialize(obj.value, t) }
-                : { hasValue: false },
+            deserialize: (obj, { typeArguments: [t] }, deserialize, Option) => obj.hasValue
+                ? new Option(true, deserialize(obj.value, t))
+                : new Option(false),
         }),
     },
     values: {
-        none: jsValueImpl({ emit: () => ({ hasValue: false }) }),
-        some: jsValueImpl({ emit: () => (value: any) => ({ hasValue: true, value }) }),
+        none: jsValueImpl({ emit: () => new (__SAFE_NAME('option'))(false) }),
+        some: jsValueImpl({ emit: () => (value: any) => new (__SAFE_NAME('option'))(true, value) }),
         toInt: jsValueImpl({
             emit: () => (f: number) => f % 1 === 0 ? __SAFE_NAME('some')(globalThis.BigInt(f)) : __SAFE_NAME('none')
         }),

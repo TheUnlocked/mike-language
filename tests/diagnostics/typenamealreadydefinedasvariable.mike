@@ -4,4 +4,8 @@ state Foo = 1;
 //   v expect diagnostics ~ has ~ id == DiagnosticCodes.TypeNameAlreadyDefinedAsVariable
 type Foo();
 
+on test() {
+    
+}
+
 // assert diagnostics.length == 1

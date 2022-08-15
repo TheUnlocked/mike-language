@@ -1,0 +1,8 @@
+// import { DiagnosticCodes } from '../../src/diagnostics/DiagnosticCodes'
+
+//              v expect diagnostics ~ has ~ id == DiagnosticCodes.TooManyListenerParameters
+on test(x: int, y: int, z: int) {
+    
+}
+
+// assert diagnostics.length == 1

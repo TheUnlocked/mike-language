@@ -1,5 +1,5 @@
 
-on _() {
+on test() {
     let arr: Stack<int> = [];
     //  v expect $t == type('Queue<float>')
     let q = Queue[1.0];

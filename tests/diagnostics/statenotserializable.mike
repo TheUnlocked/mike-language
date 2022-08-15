@@ -8,6 +8,8 @@ state y = Foo(Stack[0].push);
 state z: Bar = Bar(some(Stack[0].push));
 //        v expect diagnostics ~ has ~ id == DiagnosticCodes.StateNotSerializable
 state r = A(none);
+//        v expect diagnostics ~ has ~ id == DiagnosticCodes.StateNotSerializable
+state u: unit = Stack[0].push(1);
 
 type Foo(fn: (int) => unit);
 type Bar(fn: option<(int) => unit>);
@@ -16,4 +18,8 @@ type A(b: option<B>);
 
 type B(a: A, fn: (int) => unit);
 
-// assert diagnostics.length == 4
+on test() {
+    
+}
+
+// assert diagnostics.length == 5

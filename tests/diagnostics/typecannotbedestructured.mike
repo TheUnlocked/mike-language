@@ -1,6 +1,6 @@
 // import { DiagnosticCodes } from '../../src/diagnostics/DiagnosticCodes'
 
-on _() {
+on test() {
     //  v expect diagnostics ~ has ~ id == DiagnosticCodes.TypeCannotBeUsedAsACondition
     //      v expect diagnostics ~ has ~ id == DiagnosticCodes.TypeCannotBeDestructured
     if (1) |x| {

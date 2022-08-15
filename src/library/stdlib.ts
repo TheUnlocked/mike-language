@@ -108,6 +108,7 @@ const stdlib = suggestType<LibraryInterface>()({
                 ],
                 members: {
                     hasValue: booleanType,
+                    getOrDefault: functionOf([t], t),
                 }
             })
         },

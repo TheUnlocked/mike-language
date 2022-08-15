@@ -102,7 +102,7 @@ export class Binder {
     }
 
     getVariableDefinition(ident: Identifier) {
-        return this.getScope(ident).get(ident.name)!;
+        return this.getScope(ident).get(ident.name);
     }
 
     private getOrCreateScope(node: Block | Program | TypeDefinition) {

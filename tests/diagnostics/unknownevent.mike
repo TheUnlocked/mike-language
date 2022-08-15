@@ -1,7 +1,9 @@
 // import { DiagnosticCodes } from '../../src/diagnostics/DiagnosticCodes'
 
-// v expect diagnostics ~ has ~ id == DiagnosticCodes.NoStateInitialValue
-state x: int;
+// v expect diagnostics ~ has ~ id == DiagnosticCodes.UnknownEvent
+on abc() {
+
+}
 
 on test() {
     

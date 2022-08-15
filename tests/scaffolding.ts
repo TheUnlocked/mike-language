@@ -74,8 +74,7 @@ export default function scaffoldTests(
                                 else {
                                     createTestFunction(condition, {
                                         ...context,
-                                        diagnostics: diagnosticsManager.getDiagnostics()
-                                            .filter(x => x.range ? isAfter(position, x.range.end) : true),
+                                        diagnostics: diagnosticsManager.getDiagnostics(),
                                     })();
                                 }
                             });

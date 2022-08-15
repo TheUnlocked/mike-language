@@ -27,4 +27,8 @@ type C(
     y: option<C>,
 );
 
+on test() {
+    
+}
+
 // assert diagnostics ~ none

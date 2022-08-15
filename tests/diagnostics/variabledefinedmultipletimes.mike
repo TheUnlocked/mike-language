@@ -6,7 +6,7 @@ state x = 1.0;
 //    v expect diagnostics ~ has ~ id == DiagnosticCodes.VariableDefinedMultipleTimes
 param x: int;
 
-on _() {
+on test() {
     let x = 1;
     //  v expect diagnostics ~ has ~ id == DiagnosticCodes.VariableDefinedMultipleTimes
     let x = 1;

@@ -3,7 +3,7 @@
 //         v expect diagnostics ~ has ~ id == DiagnosticCodes.TypeDoesNotExist
 param foo: Foo;
 
-on _() {
+on test() {
     //     v expect diagnostics ~ has ~ id == DiagnosticCodes.TypeDoesNotExist
     let x: Foo;
 }

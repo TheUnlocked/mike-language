@@ -1,4 +1,4 @@
-import { AnyNode, ASTNodeKind, Comment, ExternalVariableDefinition, Position, Program, TypeDefinition } from './ast/Ast';
+import { AnyNode, ASTNodeKind, Comment, Position, Program, TypeDefinition } from './ast/Ast';
 import { getNodeAt } from './ast/AstUtils';
 import { TargetFactory } from './codegen/Target';
 import { createMiKeDiagnosticsManager } from './diagnostics/DiagnosticCodes';
@@ -9,7 +9,7 @@ import stdlib from './library/stdlib';
 import { Binder } from './semantics/Binder';
 import Scope from './semantics/Scope';
 import { Typechecker } from './semantics/Typechecker';
-import Validator from './semantics/Validator';
+import Validator, { EventRegistration } from './semantics/Validator';
 import { TypeAttributeKind } from './types/Attribute';
 import { TypeKind } from './types/KnownType';
 
@@ -20,6 +20,7 @@ export default class MiKe {
     private initialized = false;
     private libraries: LibraryInterface[] = [stdlib];
     private libraryImplementations!: Partial<LibraryImplementation>[];
+    private events: EventRegistration[] = [];
     private files = new Map<string, Program>();
 
     private _binder!: Binder;
@@ -61,6 +62,13 @@ export default class MiKe {
         }
     }
 
+    setEvents(events: EventRegistration[]) {
+        this.events = events;
+        if (this.initialized) {
+            this.initValidator();
+        }
+    }
+
     init() {
         if (!this.diagnosticsManager) {
             this.setDiagnosticsManager(createMiKeDiagnosticsManager());
@@ -84,7 +92,12 @@ export default class MiKe {
     private initTypechecker() {
         this.typechecker = new Typechecker(this.libraries.flatMap(lib => lib.types), this.binder);
         this.typechecker.setDiagnostics(this.diagnostics);
+        this.initValidator();
+    }
+
+    private initValidator() {
         this.validator = new Validator(this.typechecker, {
+            events: this.events,
             isLegalParameterType: t => t.kind === TypeKind.Toxic || Boolean(
                 t.kind === TypeKind.Simple &&
                 this.typechecker.fetchTypeInfoFromSimpleType(t)?.attributes

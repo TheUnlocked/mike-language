@@ -1,6 +1,6 @@
 // import { TypeKind } from '../../src/types/KnownType'
 
-on _() {
+on test() {
     //v expect $t == type('int')
     1 + 2;
 

@@ -1,6 +1,6 @@
 // import { DiagnosticCodes } from '../../src/diagnostics/DiagnosticCodes'
 
-on _() {
+on test() {
     // v expect $t == type('int'), diagnostics ~ has ~ id == DiagnosticCodes.NotYetDefined
        x;
     // v expect $t == type('int'), diagnostics ~ has ~ id == DiagnosticCodes.NotYetDefined

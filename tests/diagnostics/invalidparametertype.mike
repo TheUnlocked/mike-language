@@ -9,4 +9,8 @@ param y: Stack<int>;
 // v expect diagnostics ~ has ~ id == DiagnosticCodes.InvalidParameterType
 param z: unit;
 
+on test() {
+    
+}
+
 // assert diagnostics.length == 3

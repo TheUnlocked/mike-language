@@ -1,6 +1,6 @@
 // import { InfixOperator, PrefixOperator } from '../../src/ast/Ast'
 
-on _() {
+on test() {
     //v expect $.op == InfixOperator.Add
     1 + 2;
     //v expect $.op == InfixOperator.Subtract, $.rhs.op == InfixOperator.Multiply

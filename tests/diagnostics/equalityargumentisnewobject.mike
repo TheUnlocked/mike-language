@@ -1,6 +1,6 @@
 // import { DiagnosticCodes } from '../../src/diagnostics/DiagnosticCodes'
 
-on _() {
+on test() {
     // v expect diagnostics ~ has ~ id == DiagnosticCodes.EqualityArgumentIsNewObject
     //          v expect diagnostics ~ has ~ id == DiagnosticCodes.EqualityArgumentIsNewObject
     Queue[1] == Queue[1];

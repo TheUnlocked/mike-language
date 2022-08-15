@@ -1,10 +1,4 @@
 // import { DiagnosticCodes } from '../../src/diagnostics/DiagnosticCodes'
 
-// v expect diagnostics ~ has ~ id == DiagnosticCodes.NoStateInitialValue
-state x: int;
-
-on test() {
-    
-}
-
+// assert diagnostics ~ has ~ id == DiagnosticCodes.MissingRequiredListener
 // assert diagnostics.length == 1

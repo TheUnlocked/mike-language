@@ -1,6 +1,6 @@
 // import { DiagnosticCodes } from '../../src/diagnostics/DiagnosticCodes'
 
-on _() {
+on test() {
     //     v expect diagnostics ~ has ~ id == DiagnosticCodes.WrongNumberOfTypeArguments
     let x: Queue<>;
     //     v expect diagnostics ~ has ~ id == DiagnosticCodes.WrongNumberOfTypeArguments

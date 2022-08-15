@@ -4,7 +4,7 @@ type Foo(x: float);
 
 state st: string = "abc";
 
-on _() {
+on test() {
     let x: int;
     //  v expect diagnostics ~ has ~ id == DiagnosticCodes.AssignmentTypeMismatch
     x = 1.0;

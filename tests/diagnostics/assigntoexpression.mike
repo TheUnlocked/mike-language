@@ -2,7 +2,7 @@
 
 type Foo(x: int);
 
-on _() {
+on test() {
     // v expect diagnostics ~ has ~ id == DiagnosticCodes.AssignToExpression
     1 = 2;
     // v expect diagnostics ~ has ~ id == DiagnosticCodes.AssignToExpression

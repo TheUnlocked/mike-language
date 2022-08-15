@@ -4,6 +4,9 @@ import { TypeAstGenVisitor } from '../src/grammar/Types';
 import scaffoldTests from './scaffolding';
 
 scaffoldTests('types', ({ mike, filename, diagnosticsManager }) => {
+    mike.setEvents([
+        { name: 'test', required: false, argumentTypes: [parseType('(Queue<boolean>) => unit')] }
+    ]);
     mike.validate(filename);
 
     function fetchType(node: AnyNode) {

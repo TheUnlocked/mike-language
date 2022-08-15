@@ -1,4 +1,4 @@
-on _(foo: (Queue<boolean>) => unit) {
+on test(foo: (Queue<boolean>) => unit) {
     //                                v expect $t == type('Stack<Map<int, string>>')
     //                                 v expect $t == type('Map<int, string>')
     let x1: Stack<Map<int, string>> = [{}];

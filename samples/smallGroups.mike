@@ -24,7 +24,7 @@ on join(user: User) {
     else {
         if needsMembers.peek() |groupInfo| {
             groupInfo.numMembers = groupInfo.numMembers + 1;
-            groupByUser.put(user, groupInfo);
+            groupByUser.set(user, groupInfo);
             if groupInfo.numMembers >= groupSize {
                 needsMembers.pop();
             }
@@ -35,7 +35,7 @@ on join(user: User) {
         else {
             let group = Group(subpolicy);
             let groupInfo = GroupInfo(group, 1);
-            groupByUser.put(user, groupInfo);
+            groupByUser.set(user, groupInfo);
             needsMembers.enqueue(groupInfo);
 
             group.join(user);

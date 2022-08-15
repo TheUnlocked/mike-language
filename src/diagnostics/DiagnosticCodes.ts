@@ -18,6 +18,9 @@ export enum DiagnosticCodes {
     InvalidParameterType,
     NotYetDefined,
     NotYetInitialized,
+    ListenerDefinedMultipleTimes,
+    MissingRequiredListener,
+    UnknownEvent,
 
     // 4000: Types
     Uninvokable = 4000,
@@ -44,11 +47,13 @@ export enum DiagnosticCodes {
     CannotAssignToReadonlyField,
     TypeCannotBeUsedAsACondition,
     TypeCannotBeDestructured,
+    ListenerParameterTypeMismatch,
+    TooManyListenerParameters,
 }
 
 export const defaultDiagnosticDetails = suggestType<{ readonly [name in DiagnosticCodes]: DiagnosticInfo }>()({
-    [DiagnosticCodes.GenericLexError]: { severity: Severity.Error, description: 'Generic Lexer error: {0}.' },
-    [DiagnosticCodes.GenericParseError]: { severity: Severity.Error, description: 'Generic Parser error: {0}.' },
+    [DiagnosticCodes.GenericLexError]: { severity: Severity.Error, description: 'Generic lexer error: {0}.' },
+    [DiagnosticCodes.GenericParseError]: { severity: Severity.Error, description: 'Generic parser error: {0}.' },
     [DiagnosticCodes.AssignToExpression]: { severity: Severity.Error, description: 'Cannot understand assignment, did you intend the left side to be a field dereference?' },
     [DiagnosticCodes.LetIsEmpty]: { severity: Severity.Error, description: 'A let statement must have a type, or a value from which its type can be inferred.' },
     [DiagnosticCodes.MixedAndOr]: { severity: Severity.Error, description: '&& and || have the same precedence, so order of operations must be explicitly declared using parentheses.' },
@@ -56,10 +61,13 @@ export const defaultDiagnosticDetails = suggestType<{ readonly [name in Diagnost
     [DiagnosticCodes.TypeDefinedMultipleTimes]: { severity: Severity.Error, description: 'Type {0} was already defined.' },
     [DiagnosticCodes.VariableDefinedMultipleTimes]: { severity: Severity.Error, description: 'Variable {0} was already defined in this scope.' },
     [DiagnosticCodes.TypeNameAlreadyDefinedAsVariable]: { severity: Severity.Error, description: 'Type {0} cannot be defined because a variable with that name already exists.' },
-    [DiagnosticCodes.StateNotSerializable]: { severity: Severity.Error, description: 'State variables must be serializable, but type {0} is not serializable.' },
+    [DiagnosticCodes.StateNotSerializable]: { severity: Severity.Error, description: 'Tried to declare a state variable with type {0}, but that type is not serializable.' },
     [DiagnosticCodes.InvalidParameterType]: { severity: Severity.Error, description: 'Type {0} is not a valid parameter type. Only readonly types and primitives can be used in parameters.' },
     [DiagnosticCodes.NotYetDefined]: { severity: Severity.Error, description: 'Variable {0} is used before it is defined.' },
     [DiagnosticCodes.NotYetInitialized]: { severity: Severity.Error, description: 'Variable {0} is not definitely assigned here.' },
+    [DiagnosticCodes.ListenerDefinedMultipleTimes]: { severity: Severity.Error, description: 'Listener for event {0} was already defined.' },
+    [DiagnosticCodes.MissingRequiredListener]: { severity: Severity.Error, description: 'A listener for event {0} must be provided, but none was.' },
+    [DiagnosticCodes.UnknownEvent]: { severity: Severity.Error, description: 'There is no known event {0}.' },
     [DiagnosticCodes.Uninvokable]: { severity: Severity.Error, description: 'Expected a function type, found {0}.' },
     [DiagnosticCodes.WrongNumberOfArguments]: { severity: Severity.Error, description: 'Wrong number of arguments: expected {0}, found {1}.' },
     [DiagnosticCodes.ArgumentParameterTypeMismatch]: { severity: Severity.Error, description: 'Cannot fit argument of type {0} into parameter of type {1}.' },
@@ -86,6 +94,8 @@ export const defaultDiagnosticDetails = suggestType<{ readonly [name in Diagnost
     [DiagnosticCodes.CannotAssignToReadonlyField]: { severity: Severity.Error, description: 'Cannot assign to readonly field {0} on type {1}.' },
     [DiagnosticCodes.TypeCannotBeUsedAsACondition]: { severity: Severity.Error, description: 'Cannot use type {0} as a condition in an if statement.' },
     [DiagnosticCodes.TypeCannotBeDestructured]: { severity: Severity.Error, description: 'Cannot destructure type {0} in an if statement.' },
+    [DiagnosticCodes.ListenerParameterTypeMismatch]: { severity: Severity.Error, description: 'Listener parameter type {0} does not match event argument type {1}.' },
+    [DiagnosticCodes.TooManyListenerParameters]: { severity: Severity.Error, description: 'Unexpected extra parameter in listener for event {0}.' },
 } as const);
 
 export function createMiKeDiagnosticsManager() {

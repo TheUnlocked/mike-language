@@ -1,7 +1,7 @@
 import { boundMethod } from 'autobind-decorator';
 import { groupBy, isEqual } from 'lodash';
 import { check as isReserved } from 'reserved-words';
-import { AnyNode, ASTNodeKind, BinaryOp, Block, Expression, Identifier, IfElseChain, InfixOperator, ListenerDefinition, MapLiteral, ParameterDefinition, PrefixOperator, Program, SequenceLiteral, StateDefinition, Statement, StatementOrBlock, TypeDefinition, TypeIdentifier, UnaryOp } from '../../ast/Ast';
+import { AnyNode, ASTNodeKind, BinaryOp, Block, Dereference, Expression, Identifier, IfElseChain, InfixOperator, ListenerDefinition, MapLiteral, ParameterDefinition, PrefixOperator, Program, SequenceLiteral, StateDefinition, Statement, StatementOrBlock, TypeDefinition, TypeIdentifier, UnaryOp } from '../../ast/Ast';
 import { ParameterType } from './types';
 import { Typechecker } from '../../semantics/Typechecker';
 import { KnownType, stringifyType, TypeKind } from '../../types/KnownType';
@@ -391,7 +391,7 @@ export default class JavascriptTarget implements Target {
             case ASTNodeKind.MapLiteral:
                 return this.visitMapLiteral(ast);
             case ASTNodeKind.Dereference:
-                return this.dereference(ast.obj, ast.member);
+                return this.visitDereference(ast);
             case ASTNodeKind.Invoke:
                 return this.makeCall(this.visitExpression(ast.fn), ast.args);
             case ASTNodeKind.UnaryOp:
@@ -476,6 +476,25 @@ export default class JavascriptTarget implements Target {
         return `(${this.visitExpression(ast.lhs)})${op}(${this.visitExpression(ast.rhs)})`;
     }
 
+    private get builtin_deref_function_bind() {
+        return this.defineBuiltin('deref_function_bind', () => '(obj,member)=>obj[member].bind(obj)');
+    }
+
+    private visitDereference(ast: Dereference) {
+        const parent = this.typechecker.binder.getParent(ast);
+        if (parent.kind !== ASTNodeKind.Invoke) {
+            const memberType = this.typechecker.fetchTypeFromIdentifier(ast.member);
+            if (memberType.kind === TypeKind.Function) {
+                return `${this.builtin_deref_function_bind}(${
+                    this.visitExpression(ast.obj)
+                },${
+                    this.getPublicIdentifierString(ast.member)
+                })`;
+            }
+        }
+        return this.dereference(ast.obj, ast.member);
+    }
+
     private dereference(obj: Expression, member: Identifier) {
         return `${this.visitExpression(obj)}[${this.getPublicIdentifierString(member)}]`;
     }
@@ -487,12 +506,22 @@ export default class JavascriptTarget implements Target {
 
     @boundMethod
     private getBuiltinVariableName(name: string) {
-        return this.defineBuiltin(name, () => this.impl.values[name](this.getBuiltinVariableName).emit);
+        return this.defineBuiltin(name, () => {
+            const val = this.impl.values[name];
+            if (val) {
+                return val(this.getBuiltinVariableName).emit;
+            }
+            const type = this.impl.types[name]?.(this.getBuiltinVariableName);
+            if (type?.class) {
+                return type.class.toString();
+            }
+            throw new Error(`Invalid builtin identifier name: ${name}`);
+        });
     }
 
     @boundMethod
     private visitIdentifier(ast: Identifier) {
-        if (this.typechecker.binder.getVariableDefinition(ast).kind === ASTNodeKind.OutOfTree) {
+        if (this.typechecker.binder.getVariableDefinition(ast)?.kind === ASTNodeKind.OutOfTree) {
             const valueImpl = this.impl.values[ast.name](this.getBuiltinVariableName);
             if (valueImpl) {
                 return this.defineBuiltin(ast.name, () => valueImpl.emit);

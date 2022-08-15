@@ -1,9 +1,13 @@
 import { AnyNode, ASTNodeKind, isExpression } from '../src/ast/Ast';
 import { getLexer, getParser } from '../src/grammar/Parser';
 import { TypeAstGenVisitor } from '../src/grammar/Types';
+import { intType } from '../src/types/Primitives';
 import scaffoldTests from './scaffolding';
 
 scaffoldTests('diagnostics', ({ mike, filename, diagnosticsManager }) => {
+    mike.setEvents([
+        { name: 'test', required: true, argumentTypes: [intType] }
+    ]);
     mike.validate(filename);
 
     function fetchType(node: AnyNode) {

@@ -1,6 +1,6 @@
 // import { DiagnosticCodes } from '../../src/diagnostics/DiagnosticCodes'
 
-on _() {
+on test() {
     //       v expect diagnostics ~ has ~ id == DiagnosticCodes.NoCommonType
     Queue[1, 1.0, 1];
     //          v expect diagnostics ~ has ~ id == DiagnosticCodes.NoCommonType

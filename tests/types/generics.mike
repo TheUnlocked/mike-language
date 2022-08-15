@@ -1,4 +1,4 @@
-on _() {
+on test() {
     //    v expect fetchType($.name) == fetchType($.value)
     let x = some;
     //  v expect $t == type('option<int>')

@@ -8,7 +8,14 @@ import { KnownType, TypeKind } from '../types/KnownType';
 import { expectNever } from '../utils/types';
 import { Typechecker } from './Typechecker';
 
+export interface EventRegistration {
+    readonly name: string;
+    readonly required: boolean;
+    readonly argumentTypes: readonly KnownType[];
+}
+
 export interface ValidatorOptions {
+    events: readonly EventRegistration[];
     isLegalParameterType(type: KnownType): boolean;
 }
 
@@ -39,6 +46,9 @@ export default class Validator extends DiagnosticsMixin {
                 this.error(DiagnosticCodes.VariableDefinedMultipleTimes, ident.name);
             }
         }
+
+        const requiredEventNames = new Set(this.options.events.filter(x => x.required).map(x => x.name));
+        const registeredListenerEventNames = new Set<string>();
         for (const child of ast.definitions) {
             switch (child.kind) {
                 case ASTNodeKind.ParameterDefinition:
@@ -51,9 +61,22 @@ export default class Validator extends DiagnosticsMixin {
                     this.validateTypeDefinition(child);
                     break;
                 case ASTNodeKind.ListenerDefinition:
+                    requiredEventNames.delete(child.event);
+                    if (registeredListenerEventNames.has(child.event)) {
+                        this.focus(child);
+                        this.error(DiagnosticCodes.ListenerDefinedMultipleTimes, child.event);
+                    }
+                    else {
+                        registeredListenerEventNames.add(child.event);
+                    }
                     this.validateListenerDefinition(child);
                     break;
             }
+        }
+
+        for (const eventName of requiredEventNames) {
+            this.focus(ast);
+            this.error(DiagnosticCodes.MissingRequiredListener, eventName);
         }
     }
 
@@ -116,6 +139,10 @@ export default class Validator extends DiagnosticsMixin {
                         visited.add(type.name);
                         return Object.values(typeInfo.members).every(rec);
                     }
+                    if (type.name === 'unit') {
+                        // Unit is a special case not serializable.
+                        return false;
+                    }
                     return type.typeArguments.every(rec);
                 }
             }
@@ -131,7 +158,29 @@ export default class Validator extends DiagnosticsMixin {
         if (this.testSetValidated(ast)) {
             return;
         }
-        ast.parameters.forEach(this.validateParameter);
+
+        const event = this.options.events.find(evt => evt.name === ast.event);
+        if (!event) {
+            this.focus(ast);
+            this.error(DiagnosticCodes.UnknownEvent, ast.event);
+        }
+
+        ast.parameters.forEach((param, i) => {
+            const paramType = this.validateParameter(param);
+            if (event) {
+                if (i < event.argumentTypes.length) {
+                    const argumentType = event.argumentTypes[i];
+                    if (!this.typechecker.fitsInType(argumentType, paramType)) {
+                        this.focus(param.type);
+                        this.error(DiagnosticCodes.ListenerParameterTypeMismatch, paramType, argumentType);
+                    }
+                }
+                else if (i === event.argumentTypes.length) {
+                    this.focus(param);
+                    this.error(DiagnosticCodes.TooManyListenerParameters, ast.event);
+                }
+            }
+        });
         this.validateBlock(ast.body);
     }
 
@@ -248,8 +297,7 @@ export default class Validator extends DiagnosticsMixin {
 
     @boundMethod
     private validateParameter(ast: Parameter) {
-        this.focus(ast);
-        this.typechecker.fetchTypeOfTypeNode(ast.type);
+        return this.typechecker.fetchTypeOfTypeNode(ast.type);
     }
 
     private testSetValidated(node: AnyNode) {

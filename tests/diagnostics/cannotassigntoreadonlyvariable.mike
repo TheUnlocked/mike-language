@@ -2,7 +2,7 @@
 
 param value: int;
 
-on _() {
+on test() {
     // v expect diagnostics ~ has ~ id == DiagnosticCodes.CannotAssignToReadonlyVariable
     value = 10;
     // v expect diagnostics ~ has ~ id == DiagnosticCodes.CannotAssignToReadonlyVariable

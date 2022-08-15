@@ -1,28 +1,6 @@
 import { expect } from 'chai';
-import { noop } from 'lodash';
-import { EventData, MiKeProgram, MiKeProgramWithoutExternals } from '../../../src/codegen/js/types';
-import { compileMiKeToJavascriptWithoutExternals as compile, compileMiKeToJavascript as compileDefault, compileMiKeToJavascriptText } from '../../util';
-
-function getDebugFragments(programFn: MiKeProgramWithoutExternals, evtData?: Partial<EventData>) {
-    const debugFragments = [] as any[];
-
-    const program = programFn({ debug: debugFragments.push.bind(debugFragments) });
-    program.listeners.find(x => x.event === 'test')!.callback(Object.assign({
-        args: [],
-        params: {},
-        state: Object.fromEntries(program.state.map(st => [st.name, st.default])),
-    } as EventData, evtData));
-    
-    return debugFragments;
-}
-
-function getStateAfterRunning(program: MiKeProgram, evtData?: Partial<EventData>) {
-    return program.listeners.find(x => x.event === 'test')!.callback(Object.assign({
-        args: [],
-        params: {},
-        state: Object.fromEntries(program.state.map(st => [st.name, st.default])),
-    } as EventData, evtData));
-}
+import { compileMiKeToJavascriptWithoutExternals as compile, compileMiKeToJavascript as compileDefault, getDebugFragments, getStateAfterRunning } from '../../util';
+import { none, some } from './util';
 
 export default () => describe('stdlib', () => {
 
@@ -38,10 +16,10 @@ export default () => describe('stdlib', () => {
                     }
                 `));
                 expect(result).deep.equals([
-                    { hasValue: true, value: 1n },
-                    { hasValue: true, value: 3n },
-                    { hasValue: false },
-                    { hasValue: false },
+                    some(1n),
+                    some(3n),
+                    none,
+                    none,
                 ]);
             });
 
@@ -57,9 +35,9 @@ export default () => describe('stdlib', () => {
                     true,
                     false,
                     false,
-                    { hasValue: true, value: 1n },
-                    { hasValue: true, value: 9n },
-                    { hasValue: false },
+                    some(1n),
+                    some(9n),
+                    none,
                 ]);
             });
 
@@ -125,11 +103,11 @@ export default () => describe('stdlib', () => {
                     }
                 `));
                 expect(result).deep.equals([
-                    { hasValue: true, value: 3n },
-                    { hasValue: true, value: 2n },
-                    { hasValue: true, value: 1n },
-                    { hasValue: false },
-                    { hasValue: false },
+                    some(3n),
+                    some(2n),
+                    some(1n),
+                    none,
+                    none,
                 ]);
             });
 
@@ -146,9 +124,9 @@ export default () => describe('stdlib', () => {
                     }
                 `));
                 expect(result).deep.equals([
-                    { hasValue: true, value: 3n },
-                    { hasValue: true, value: 1n },
-                    { hasValue: false },
+                    some(3n),
+                    some(1n),
+                    none,
                 ]);
             });
 
@@ -162,11 +140,11 @@ export default () => describe('stdlib', () => {
                     }
                 `));
                 expect(result).deep.equals([
-                    { hasValue: true, value: 'a' },
-                    { hasValue: true, value: 'a' },
-                    { hasValue: true, value: 'b' },
-                    { hasValue: true, value: 'b' },
-                    { hasValue: true, value: 'c' },
+                    some('a'),
+                    some('a'),
+                    some('b'),
+                    some('b'),
+                    some('c'),
                 ]);
             });
 
@@ -241,11 +219,11 @@ export default () => describe('stdlib', () => {
                     }
                 `));
                 expect(result).deep.equals([
-                    { hasValue: true, value: 3n },
-                    { hasValue: true, value: 2n },
-                    { hasValue: true, value: 1n },
-                    { hasValue: false },
-                    { hasValue: false },
+                    some(3n),
+                    some(2n),
+                    some(1n),
+                    none,
+                    none,
                 ]);
             });
 
@@ -262,9 +240,9 @@ export default () => describe('stdlib', () => {
                     }
                 `));
                 expect(result).deep.equals([
-                    { hasValue: true, value: 3n },
-                    { hasValue: true, value: 1n },
-                    { hasValue: false },
+                    some(3n),
+                    some(1n),
+                    none,
                 ]);
             });
 
@@ -278,11 +256,11 @@ export default () => describe('stdlib', () => {
                     }
                 `));
                 expect(result).deep.equals([
-                    { hasValue: true, value: 'c' },
-                    { hasValue: true, value: 'c' },
-                    { hasValue: true, value: 'b' },
-                    { hasValue: true, value: 'b' },
-                    { hasValue: true, value: 'a' },
+                    some('c'),
+                    some('c'),
+                    some('b'),
+                    some('b'),
+                    some('a'),
                 ]);
             });
 
@@ -483,11 +461,11 @@ export default () => describe('stdlib', () => {
                     }
                 `));
                 expect(result).deep.equals([
-                    { hasValue: true, value: 3n },
-                    { hasValue: true, value: 2n },
-                    { hasValue: true, value: 1n },
-                    { hasValue: false },
-                    { hasValue: false },
+                    some(3n),
+                    some(2n),
+                    some(1n),
+                    none,
+                    none,
                 ]);
             });
 
@@ -503,10 +481,10 @@ export default () => describe('stdlib', () => {
                     }
                 `));
                 expect(result).deep.equals([
-                    { hasValue: true, value: 'a' },
-                    { hasValue: true, value: 'b' },
-                    { hasValue: true, value: 'c' },
-                    { hasValue: false },
+                    some('a'),
+                    some('b'),
+                    some('c'),
+                    none,
                 ]);
             });
 
@@ -545,11 +523,11 @@ export default () => describe('stdlib', () => {
                     }
                 `));
                 expect(result).deep.equals([
-                    { hasValue: true, value: 3n },
-                    { hasValue: true, value: 3n },
-                    { hasValue: true, value: 2n },
-                    { hasValue: true, value: 3n },
-                    { hasValue: false },
+                    some(3n),
+                    some(3n),
+                    some(2n),
+                    some(3n),
+                    none,
                 ]);
             });
 
@@ -636,9 +614,9 @@ export default () => describe('stdlib', () => {
                     }
                 `));
                 expect(result).deep.equals([
-                    { hasValue: true, value: 1n },
-                    { hasValue: true, value: 2n },
-                    { hasValue: false },
+                    some(1n),
+                    some(2n),
+                    none,
                 ]);
             });
 
@@ -654,9 +632,9 @@ export default () => describe('stdlib', () => {
                     }
                 `));
                 expect(result).deep.equals([
-                    { hasValue: true, value: 3n },
-                    { hasValue: true, value: 11n },
-                    { hasValue: true, value: 10n },
+                    some(3n),
+                    some(11n),
+                    some(10n),
                 ]);
             });
 
@@ -748,6 +726,21 @@ export default () => describe('stdlib', () => {
                 ]);
             });
 
+            it('getOrDefault', async () => {
+                const result = getDebugFragments(await compile(`
+                    on test() {
+                        debug some(1).getOrDefault(10), none.getOrDefault(10);
+                        let f = some(1).getOrDefault;
+                        debug f(10);
+                    }
+                `));
+                expect(result).deep.equals([
+                    1n,
+                    10n,
+                    1n,
+                ]);
+            });
+
             it('condition', async () => {
                 const result = getDebugFragments(await compile(`
                     on test() {
@@ -836,7 +829,7 @@ export default () => describe('stdlib', () => {
                 }
             `));
             expect(result).deep.equals([
-                { hasValue: false },
+                none,
                 false,
             ]);
         });
@@ -852,7 +845,7 @@ export default () => describe('stdlib', () => {
                 }
             `));
             expect(result).deep.equals([
-                { hasValue: true, value: 1n },
+                some(1n),
                 true,
                 'abc',
             ]);
@@ -866,12 +859,12 @@ export default () => describe('stdlib', () => {
             `));
             
             expect(result).deep.equals([
-                { hasValue: true, value: 1n },
-                { hasValue: true, value: 0n },
-                { hasValue: true, value: -1n },
-                { hasValue: false },
-                { hasValue: false },
-                { hasValue: false },
+                some(1n),
+                some(0n),
+                some(-1n),
+                none,
+                none,
+                none,
             ]);
         });
 

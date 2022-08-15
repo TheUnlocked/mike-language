@@ -10,4 +10,8 @@ type Bar();
 //   v expect diagnostics ~ has ~ id == DiagnosticCodes.TypeDefinedMultipleTimes
 type option();
 
+on test() {
+    
+}
+
 // assert diagnostics.length == 3

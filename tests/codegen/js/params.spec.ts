@@ -1,5 +1,5 @@
 import { expect } from 'chai';
-import { compileMiKeToJavascript as compile } from '../../util';
+import { compileMiKeToJavascript as compile, compileMiKeToJavascriptWithoutExternals as compileToFn, getDebugFragments } from '../../util';
 
 export default () => describe('parameters', () => {
 
@@ -34,6 +34,24 @@ export default () => describe('parameters', () => {
             { name: 'externals', type: { variant: 'string' } },
             { name: 'globalThis', type: { variant: 'string' } },
         ]);
+    });
+
+    it('works in runtime', async () => {
+        const result = getDebugFragments(await compileToFn(`
+            param a: int;
+            param b: int;
+
+            on test() {
+                debug a + b;
+            }
+        `), {
+            params: {
+                a: 1n,
+                b: 2n,
+            }
+        });
+        
+        expect(result).deep.equals([3n]);
     });
 
 });
