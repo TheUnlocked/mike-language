@@ -164,7 +164,9 @@ export default class JavascriptTarget implements Target {
                     if (memberType.kind !== TypeKind.Simple) {
                         throw new Error(`Non-serializable type ${stringifyType(memberType)} in user type ${stringifyType(type)} used in state`);
                     }
-                    typeNames.add(memberType.name);
+                    if (!typeNames.has(memberType.name)) {
+                        typeNames.add(toSerializableType(memberType).name);
+                    }
                 }
             }
             return {
@@ -227,7 +229,7 @@ export default class JavascriptTarget implements Target {
     }
 
     private generateDeserializer({ nameTypePairs, typeNamesInState }: StateTypeInfo) {
-        return `state=>{const{objs,refs}=globalThis.JSON.parse(state);const $deserialize=(ref,type)=>({${
+        return `state=>{const{objs,refs}=globalThis.JSON.parse(state);const objMap=new globalThis.Map();const $deserialize=(ref,type)=>{if(objMap.has(ref)){return objMap.get(ref)}const obj={${
             joinBy(',', typeNamesInState, name => {
                 let deserializer: string;
                 if (primitiveTypes.some(x => x.name === name)) {
@@ -249,12 +251,12 @@ export default class JavascriptTarget implements Target {
                         const members = Object.entries(type.members);
                         deserializer = `({${
                             joinBy(',', members, ([name]) => this.getPublicPrivateObjectBindingFromString(name))
-                        }})=>({${
+                        }})=>{const obj={};objMap.set(ref,obj);return Object.assign(obj,{${
                             joinBy(',', members, ([name, type]) => {
                                 const serializableType = this.toSerializableType(type);
                                 return `${JSON.stringify(name)}:$deserialize(${this.getSafeName(name)},${JSON.stringify(serializableType)})`;
                             })
-                        }})`;
+                        }})}`;
                     }
                     else {
                         const typeImpl = this.impl.types[name](this.getBuiltinVariableName);
@@ -270,7 +272,7 @@ export default class JavascriptTarget implements Target {
                 }
                 return `${JSON.stringify(name)}:${deserializer}`;
             })
-        }}[type.name](objs[ref],type,$deserialize));return{${
+        }}[type.name](objs[ref],type,$deserialize);objMap.set(ref,obj);return obj};return{${
             joinBy(',', nameTypePairs, ([id, type]) => {
                 const stateName = this.getPublicIdentifierString(id);
                 return `${stateName}:$deserialize(refs[${stateName}],${JSON.stringify(type)})`;
@@ -546,10 +548,6 @@ function groupByKind<T extends AnyNode>(arr: readonly T[]) {
 
 function seq(joiner: string, ...arr: readonly string[]) {
     return arr.join(joiner);
-}
-
-function join(joiner: string, arr: Iterable<any>) {
-    return [...arr].join(joiner);
 }
 
 function joinBy<T>(joiner: string, arr: Iterable<T>, callback: (arg: T, idx: number) => string) {

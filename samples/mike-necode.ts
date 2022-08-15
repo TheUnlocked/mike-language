@@ -2,7 +2,7 @@ import JavascriptTarget from '../src/codegen/js/JavascriptTarget';
 import { createMiKeDiagnosticsManager } from '../src/diagnostics/DiagnosticCodes';
 import MiKe from '../src/MiKe';
 import { readFileSync } from 'fs';
-import { functionOf, SimpleType, TypeKind } from '../src/types/KnownType';
+import { functionOf, optionOf, SimpleType, TypeKind } from '../src/types/KnownType';
 import { unitType } from '../src/types/Primitives';
 import { suggestType } from '../src/utils/types';
 import { LibraryInterface } from '../src/library/Library';
@@ -58,6 +58,10 @@ mike.setDiagnosticsManager(diagnostics);
 mike.setTarget(JavascriptTarget);
 mike.addLibrary(necodeLib);
 mike.addLibraryImplementation(necodeLibImpl);
+mike.setEvents([
+    { name: 'join', required: false, argumentTypes: [userType] },
+    { name: 'leave', required: false, argumentTypes: [userType] },
+])
 mike.init();
 try {
     mike.loadScript(filename, readFileSync(filename, { encoding: 'utf-8' }));
