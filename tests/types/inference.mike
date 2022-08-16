@@ -1,4 +1,3 @@
-
 on test() {
     let arr: Stack<int> = [];
     //  v expect $t == type('Queue<float>')

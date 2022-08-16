@@ -10,3 +10,5 @@ on test() {
         some == s;
     }
 }
+
+// assert diagnostics ~ none

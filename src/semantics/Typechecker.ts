@@ -234,6 +234,10 @@ export class Typechecker extends DiagnosticsMixin {
 
     private fitsInFunctionType(other: IncompleteType, target: FunctionType) {
         if (other.kind === TypeKind.Function) {
+            if (isEqual(other, target)) {
+                // Edge case for supporting things like some === some
+                return true;
+            }
             const constraints = this.solveTypeVariables(target, other.parameters);
             return Boolean(constraints) && this.fitsInType(other.returnType, target.returnType);
         }
@@ -602,6 +606,12 @@ export class Typechecker extends DiagnosticsMixin {
                             this.error(DiagnosticCodes.NotYetInitialized, ast.identifier.name);
                         }
                     }
+                }
+                const statement = this.binder.getParentStatement(ast);
+                if (statement.kind === ASTNodeKind.StateDefinition &&
+                    ![ASTNodeKind.OutOfTree, ASTNodeKind.TypeDefinition].includes(varDef.kind)
+                ) {
+                    this.error(DiagnosticCodes.NotYetDefined, ast.identifier.name);
                 }
                 return this.fetchVariableDefinitionType(varDef);
             }

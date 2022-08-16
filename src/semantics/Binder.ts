@@ -142,7 +142,7 @@ export class Binder {
 
     getExpressionPositionInBlock(expr: Expression, targetBlock: Block) {
         let child = this.getParentStatement(expr);
-        if (child) {
+        if (child.kind !== ASTNodeKind.StateDefinition) {
             return this.getStatementPositionInBlock(child, targetBlock);
         }
     }
@@ -171,13 +171,10 @@ export class Binder {
         }
     }
 
-    getParentStatement(expr: Expression): Statement | undefined {
+    getParentStatement(expr: Expression): Statement | StateDefinition {
         let parent: Expression | Statement | IfCase | StateDefinition | Pair = this.getParent(expr);
         while (isExpression(parent) || parent.kind === ASTNodeKind.Pair || parent.kind === ASTNodeKind.IfCase) {
             parent = this.getParent(parent);
-        }
-        if (parent.kind === ASTNodeKind.StateDefinition) {
-            return;
         }
         return parent;
     }

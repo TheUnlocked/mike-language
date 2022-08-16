@@ -1,7 +1,31 @@
 import { expect } from 'chai';
 import { compileMiKeToJavascript as compile, compileMiKeToJavascriptWithoutExternals as compileToFn, getDebugFragments } from '../../util';
 
-export default () => describe('parameters', () => {
+export default () => describe('serialization', () => {
+
+    it('can serialize cycles', async () => {
+        const result = [] as string[];
+        const program = (await compileToFn(`
+            type Foo(f: option<Foo>);
+
+            state foo = Foo(none);
+
+            on test() {
+                foo.f = some(foo);
+            }
+        `))({ debug: result.push.bind(result) });
+
+        const state = program.listeners.find(x => x.event === 'test')!.callback({
+            args: [],
+            params: {},
+            state: Object.fromEntries(program.state.map(st => [st.name, st.default])),
+        }).state;
+        
+        expect(JSON.parse(program.serialize(state))).deep.equals({
+            objs: [{ f: 1 }, { hasValue: true, value: 0 }],
+            refs: { foo: 0 }
+        });
+    });
 
     it('can deserialize multiple references to the same object', async () => {
         const result = [] as string[];
@@ -27,6 +51,32 @@ export default () => describe('parameters', () => {
         });
         
         expect(result).deep.equals([1n]);
+    });
+
+    it('can deserialize multiple references to the same object with stdlib objects', async () => {
+        const result = [] as string[];
+        const program = (await compileToFn(`
+            state m: Map<Set<string>, Set<string>> = {};
+            state s: Set<string> = [];
+
+            on test() {
+                if m.get(s) |set| {
+                    set.add('a');
+                    debug s.has('a');
+                }
+            }
+        `))({ debug: result.push.bind(result) });
+
+        program.listeners.find(x => x.event === 'test')!.callback({
+            args: [],
+            params: {},
+            state: program.deserialize(JSON.stringify({
+                objs: [[[1, 1]], []],
+                refs: { m: 0, s: 1 }
+            }))
+        });
+        
+        expect(result).deep.equals([true]);
     });
 
     it('can deserialize cycles', async () => {
@@ -57,6 +107,30 @@ export default () => describe('parameters', () => {
         });
         
         expect(result).deep.equals([1n]);
+    });
+
+    it('can deserialize clever-er cycles', async () => {
+        const result = [] as string[];
+        const program = (await compileToFn(`
+            type Foo(s: Set<Foo>);
+
+            state s: Set<Foo> = [];
+
+            on test() {
+                debug true;
+            }
+        `))({ debug: result.push.bind(result) });
+
+        program.listeners.find(x => x.event === 'test')!.callback({
+            args: [],
+            params: {},
+            state: program.deserialize(JSON.stringify({
+                objs: [[1], { s: 0 }],
+                refs: { s: 0 }
+            }))
+        });
+        
+        expect(result).deep.equals([true]);
     });
 
 });

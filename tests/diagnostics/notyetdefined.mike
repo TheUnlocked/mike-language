@@ -1,5 +1,11 @@
 // import { DiagnosticCodes } from '../../src/diagnostics/DiagnosticCodes'
 
+//        v expect $t == type('int'), diagnostics ~ has ~ id == DiagnosticCodes.NotYetDefined
+state a = b;
+state b = 1;
+//        v expect $t == type('int'), diagnostics ~ has ~ id == DiagnosticCodes.NotYetDefined
+state c = a;
+
 on test() {
     // v expect $t == type('int'), diagnostics ~ has ~ id == DiagnosticCodes.NotYetDefined
        x;
@@ -8,4 +14,4 @@ on test() {
     let x = 0;
 }
 
-// assert diagnostics.length == 2
+// assert diagnostics.length == 4
