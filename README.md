@@ -1,0 +1,1 @@
+Informative readme tbd. In the meantime, this blog post should cover most of the important stuff: https://blog.necode.org/posts/introducing-mike
