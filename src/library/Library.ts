@@ -1,4 +1,4 @@
-import { KnownType, SimpleType } from '../types/KnownType';
+import { KnownType } from '../types/KnownType';
 import { TypeInfo } from '../types/TypeInfo';
 
 export interface LibraryInterface {

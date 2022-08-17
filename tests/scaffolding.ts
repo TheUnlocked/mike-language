@@ -2,7 +2,7 @@ import { expect } from 'chai';
 import { readdirSync, readFileSync } from 'fs';
 import path from 'path';
 import { AnyNode } from '../src/ast/Ast';
-import { inRange, isAfter } from '../src/ast/AstUtils';
+import { getNodeAt, inRange, isAfter } from '../src/ast/AstUtils';
 import { AssertionContext, createContextFromImports, createTestFunction, getTestData, TestData } from './util';
 
 export default function scaffoldTests(
@@ -31,6 +31,8 @@ export default function scaffoldTests(
                         imports,
                         isEmpty
                     } = testData;
+
+                    const rootNode = mike.getRoot(filename)!;
 
                     const createAdditionalContext = getCreateAdditionalContext(testData);
                     
@@ -62,7 +64,7 @@ export default function scaffoldTests(
                         for (const { position, condition, isTargeted } of assertions) {
                             it(`${filenameWithoutExt}:${position.line}:${position.col + 1} -- ${condition.trim()}`, () => {
                                 if (isTargeted) {
-                                    const node = mike.getNodeAt(filename, position);
+                                    const node = getNodeAt(rootNode, position);
                                     createTestFunction(condition, {
                                         ...context,
                                         ...createAdditionalContext(node),

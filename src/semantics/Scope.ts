@@ -1,6 +1,6 @@
 import { VariableDefinition } from '../ast/Ast';
 
-export default class Scope {
+export class Scope {
     private bindings: Map<string, VariableDefinition>;
     private _duplicateBindings = [] as VariableDefinition[];
     

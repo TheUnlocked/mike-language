@@ -1,4 +1,4 @@
-import { isEqual, zip } from 'lodash';
+import { isEqual } from 'lodash';
 import { ReadonlyTupleOf } from '../utils/types';
 
 export enum TypeKind {

@@ -6,7 +6,7 @@ export interface SerializableType {
     readonly typeArguments: readonly SerializableType[];
 }
 
-interface TypeImpl {
+export interface TypeImpl {
     readonly class?: string;
     readonly conditionMethods?: {
         readonly condition: (code: string) => string;
@@ -71,7 +71,7 @@ export function jsTypeImpl<C extends Constructor | undefined, OutputType>($class
     };
 }
 
-interface ValueImpl {
+export interface ValueImpl {
     readonly emit: string;
 }
 

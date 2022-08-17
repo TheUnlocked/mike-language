@@ -6,7 +6,7 @@ on test() {
     //  v expect $t == type('option<float>')
     let f = x(5.0);
     if x(some) |s| {
-    //       v expect fetchType($.lhs) == fetchType($.rhs)
+        //   v expect fetchType($.lhs) == fetchType($.rhs)
         some == s;
     }
 }

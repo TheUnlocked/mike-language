@@ -379,6 +379,6 @@ export type AnyNode
     ;
 
 // TODO: Improve stringification
-export default function stringifyNode(node: AnyNode) {
+export function stringifyNode(node: AnyNode) {
     return JSON.stringify(node);
 } 

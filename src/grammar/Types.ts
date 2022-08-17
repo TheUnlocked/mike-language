@@ -1,6 +1,5 @@
-import { FunctionTypeContext, MaybeGenericTypeContext, TypeIdentifierContext } from './generated/MiKeParser';
-import { ParserRuleContext } from 'antlr4ts';
-import { AstMetadata, ASTNodeKind, Type } from '../ast/Ast';
+import { FunctionTypeContext, MaybeGenericTypeContext } from './generated/MiKeParser';
+import { ASTNodeKind, Type } from '../ast/Ast';
 import { WithDiagnostics } from '../diagnostics/DiagnosticsMixin';
 import { AbstractMiKeVisitor } from './BaseVisitor';
 

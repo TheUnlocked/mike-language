@@ -1,13 +1,12 @@
-import { AnyNode, ASTNodeKind, Comment, Position, Program, TypeDefinition } from './ast/Ast';
-import { getNodeAt } from './ast/AstUtils';
+import { ASTNodeKind, Comment, Program, TypeDefinition } from './ast/Ast';
 import { TargetFactory } from './codegen/Target';
 import { createMiKeDiagnosticsManager } from './diagnostics/DiagnosticCodes';
-import { DiagnosticsManager, DiagnosticsReporter } from './diagnostics/Diagnostics';
+import { DiagnosticsManager, DiagnosticsReporter, Severity } from './diagnostics/Diagnostics';
 import { parseMiKe } from './grammar/Parser';
 import { LibraryImplementation, LibraryInterface } from './library/Library';
 import stdlib from './library/stdlib';
 import { Binder } from './semantics/Binder';
-import Scope from './semantics/Scope';
+import { Scope } from './semantics/Scope';
 import { Typechecker } from './semantics/Typechecker';
 import Validator, { EventRegistration } from './semantics/Validator';
 import { TypeAttributeKind } from './types/Attribute';
@@ -34,6 +33,8 @@ export default class MiKe {
     private _target!: TargetFactory;
     get target() { return this._target }
     private set target(value) { this._target = value; }
+
+    failSeverity = Severity.Warning;
 
     addLibrary(library: LibraryInterface) {
         this.libraries.push(library);
@@ -130,19 +131,14 @@ export default class MiKe {
         return this.files.get(filename);
     }
 
-    getNodeAt(filename: string, position: Position): AnyNode | undefined {
-        const ast = this.files.get(filename);
-        if (ast) {
-            return getNodeAt(ast, position);
-        }
-    }
-
     getComments(filename: string): readonly Comment[] | undefined {
         return this.files.get(filename)?.comments;
     }
 
     private passedValidation() {
-        return this.diagnosticsManager.getDiagnostics().length === 0;
+        return this.diagnosticsManager
+            .getDiagnostics()
+            .every(x => x.severity < this.failSeverity);
     }
 
     validate(filename: string) {

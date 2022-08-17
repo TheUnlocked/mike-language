@@ -1,6 +1,6 @@
-import stringifyNode, { AnyNode, ASTNodeKind, Block, Expression, Invoke, ListenerDefinition, Program, Statement, TopLevelDefinition, BinaryOp, UnaryOp, Dereference, StringLiteral, BoolLiteral, IntLiteral, FloatLiteral, Variable, SequenceLiteral, MapLiteral, ExpressionStatement, LetStatement, AssignVar, AssignField, IfElseChain, DebugStatement, ParameterDefinition, StateDefinition, TypeDefinition, isExpression, isStatement, StatementOrBlock, Parameter, IfCase, Pair, Comment, GenericType, TypeIdentifier, FunctionType, Type, Identifier, VariableDefinition, isVariableDefinition } from '../ast/Ast';
+import { AnyNode, ASTNodeKind, Block, Expression, Invoke, ListenerDefinition, Program, Statement, TopLevelDefinition, BinaryOp, UnaryOp, Dereference, StringLiteral, BoolLiteral, IntLiteral, FloatLiteral, Variable, SequenceLiteral, MapLiteral, ExpressionStatement, LetStatement, AssignVar, AssignField, IfElseChain, DebugStatement, ParameterDefinition, StateDefinition, TypeDefinition, isExpression, isStatement, StatementOrBlock, Parameter, IfCase, Pair, Comment, GenericType, TypeIdentifier, FunctionType, Type, Identifier, VariableDefinition, isVariableDefinition, stringifyNode } from '../ast/Ast';
 import { expectNever } from '../utils/types';
-import Scope from './Scope';
+import { Scope } from './Scope';
 
 type AssignmentMap = Map<string, number>;
 

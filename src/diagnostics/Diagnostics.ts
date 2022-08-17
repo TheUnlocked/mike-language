@@ -2,9 +2,9 @@ import { AnyNode, Range } from '../ast/Ast';
 import { stringifyRange } from '../ast/AstUtils';
 
 export enum Severity {
-    Info,
-    Warning,
-    Error,
+    Info = 1,
+    Warning = 2,
+    Error = 3,
 }
 
 export interface DiagnosticInfo {
