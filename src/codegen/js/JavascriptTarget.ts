@@ -82,8 +82,6 @@ export default class JavascriptTarget implements Target {
 
         const stateTypeInfo = this.getStateTypeInfo(state);
 
-        // Reserve key names
-        this.getSafeName('globalThis');
         const externalsName = this.builtin_externals;
 
         const userCode = `${joinBy('', typeDefs, this.visitTypeDefinition)}return{${seq(',',

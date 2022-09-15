@@ -43,12 +43,12 @@ const necodeLibImpl: JsLibraryImplementation<typeof necodeLib> = {
     types: {
         User: () => ({ serialize: 'x=>x', deserialize: 'x=>x', }),
         Policy: () => ({ serialize: 'x=>x', deserialize: 'x=>x', }),
-        Group: getName => ({ serialize: 'x=>x._id', deserialize: `id=>${getName(externals)}.fetchGroupById(id)`}),
+        Group: () => ({ serialize: 'x=>x._id', deserialize: `id=>${externals}.fetchGroupById(id)`}),
     },
     values: {
-        link: getName => ({ emit: `${getName(externals)}.link` }),
-        unlink: getName => ({ emit: `${getName(externals)}.unlink` }),
-        Group: getName => ({ emit: `${getName(externals)}.makeGroup` }),
+        link: () => ({ emit: `${externals}.link` }),
+        unlink: () => ({ emit: `${externals}.unlink` }),
+        Group: () => ({ emit: `${externals}.makeGroup` }),
     },
 };
 

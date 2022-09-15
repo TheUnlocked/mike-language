@@ -25,14 +25,14 @@ on join(user: User) {
         unlink(item.prev, item.user);
         link(item.prev, user);
         link(user, item.user);
-        ring.put(user, RingItem(user, item.prev, item.user));
+        ring.set(user, RingItem(user, item.prev, item.user));
         debug user, "joined between", item.prev, "and", item.user;
     }
     else {
         // ring is empty
         link(user, user);
         let item = RingItem(user, user, user);
-        ring.put(user, item);
+        ring.set(user, item);
         head = some(item);
         debug user, "joined and is the only user in the ring";
     }

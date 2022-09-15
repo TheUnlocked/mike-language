@@ -17,7 +17,11 @@ export interface ListenerResult {
     state: { [stateName: string]: any };
 }
 
-export type MiKeProgramWithoutExternals = (externals: { debug(...args: any[]): void; }) => MiKeProgram;
+export interface MiKeProgramExternals extends Record<string, any> {
+    debug(...args: any[]): void;
+}
+
+export type MiKeProgramWithoutExternals = (externals: MiKeProgramExternals) => MiKeProgram;
 
 export interface MiKeProgram {
     params: { name: string, type: ParameterType }[];
