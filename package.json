@@ -28,7 +28,6 @@
     "coverage:watch": "nodemon --exec c8 --reporter=lcov mocha"
   },
   "dependencies": {
-    "antlr4ts": "^0.5.0-alpha.4",
     "autobind-decorator": "^2.4.0",
     "lodash": "^4.17.21",
     "reserved-words": "^0.1.2"
@@ -40,7 +39,6 @@
     "@types/mocha": "^9.1.1",
     "@types/omit-deep-lodash": "^1.1.1",
     "@types/reserved-words": "^0.1.0",
-    "antlr4ts-cli": "https://gitpkg.now.sh/TheUnlocked/antlr4ts/tool?generate-optional-method&scripts.postinstall=%26%26%20npm%20run%20prepare",
     "c8": "^7.11.3",
     "chai": "^4.3.6",
     "mocha": "^10.0.0",
