@@ -16,6 +16,11 @@ on test() {
     }
 
     // v expect $.kind == ASTNodeKind.MapLiteral
+    if (Foo{}) {
+
+    }
+
+    // v expect $.kind == ASTNodeKind.MapLiteral
     Foo{};
 }
 

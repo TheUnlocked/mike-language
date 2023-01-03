@@ -72,7 +72,7 @@ enum ParseFlags {
     NONE = 0,
     DISABLE_TYPED_MAP = 1 << 0,
 
-    CLEAR_ON_REPEAT = DISABLE_TYPED_MAP,
+    CLEAR_ON_SURROUNDED = DISABLE_TYPED_MAP,
 }
 
 export class Parser extends DiagnosticsMixin implements Rules {
@@ -287,7 +287,7 @@ export class Parser extends DiagnosticsMixin implements Rules {
         excludeTrailingDelimeter = false,
         abortOnFail = true,
     ): NonNullable<ReturnType<Rules[T]>>[] {
-        this.removeFlags(ParseFlags.CLEAR_ON_REPEAT);
+        this.removeFlags(ParseFlags.CLEAR_ON_SURROUNDED);
         try {
             const firstItem = this.visit(rule);
             if (!firstItem) {
@@ -765,7 +765,9 @@ export class Parser extends DiagnosticsMixin implements Rules {
         switch (this.next()?.type) {
             case TokenType.SYNTAX_LPAREN:
                 this.commit();
+                this.removeFlags(ParseFlags.CLEAR_ON_SURROUNDED);
                 const expr = this.expectExpression();
+                this.resetFlags();
                 this.expect(TokenType.SYNTAX_RPAREN);
                 return expr;
             case TokenType.LIT_INT:
