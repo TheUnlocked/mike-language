@@ -22,9 +22,6 @@ export enum DiagnosticCodes {
     LetIsEmpty,
     MixedAndOr,
     
-    // old parsing
-    GenericParseError,
-    
     // 3000: Definitions & Flow
     TypeDefinedMultipleTimes = 3000,
     VariableDefinedMultipleTimes,
@@ -73,9 +70,7 @@ export const defaultDiagnosticDetails = suggestType<{ readonly [name in Diagnost
     [DiagnosticCodes.IdentifierCannotStartWithDigit]: { severity: Severity.Error, description: 'Identifiers cannot start with a digit.' },
     [DiagnosticCodes.NoTrailingQuote]: { severity: Severity.Error, description: 'No trailing quote found for string.' },
     [DiagnosticCodes.SingleAmp]: { severity: Severity.Error, description: 'There is no & operator. Use && for logical AND.' },
-    
-    [DiagnosticCodes.GenericParseError]: { severity: Severity.Error, description: 'Generic parser error: {0}.' },
-    
+        
     [DiagnosticCodes.UnexpectedToken]: { severity: Severity.Error, description: 'Encountered {0}, but it is unclear what it is supposed to mean.' },
     [DiagnosticCodes.UnexpectedEndOfInput]: { severity: Severity.Error, description: 'Input unexpectedly ends. This error often appears while writing code.' },
     [DiagnosticCodes.ExpectedTokenNotPresent]: { severity: Severity.Error, description: 'Expected {0} here.' },
