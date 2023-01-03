@@ -1,6 +1,6 @@
 // import { DiagnosticCodes } from '../../src/diagnostics/DiagnosticCodes'
 
-// v expect diagnostics ~ has ~ id == DiagnosticCodes.NoStateInitialValue
+//    v expect diagnostics ~ has ~ id == DiagnosticCodes.NoStateInitialValue
 state x: int;
 
 on test() {

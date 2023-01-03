@@ -1,3 +1,4 @@
+import { Token } from '../parser/lexer';
 import { KnownType } from '../types/KnownType';
 
 export enum ASTNodeKind {
@@ -64,23 +65,17 @@ export enum PrefixOperator {
     Not,
 }
 
-export interface Position {
-    line: number;
-    col: number;
-}
-
-export interface Range {
-    start: Position;
-    end: Position;
-}
-
-export interface AstMetadata {
-    extent: Range;
-}
-
 interface ASTNode {
-    readonly metadata: AstMetadata;
+    readonly tokens?: readonly Token[];
+    readonly trivia?: readonly Trivia[];
 }
+
+export interface Comment extends ASTNode {
+    readonly kind: ASTNodeKind.Comment;
+    readonly content: string;
+}
+
+export type Trivia = Comment;
 
 interface ExpressionNode extends ASTNode {
 
@@ -324,15 +319,9 @@ export type TopLevelDefinition
     | ListenerDefinition
     | TypeDefinition
 
-export interface Comment extends ASTNode {
-    readonly kind: ASTNodeKind.Comment;
-    readonly content: string;
-}
-
 export interface Program extends ASTNode {
     readonly kind: ASTNodeKind.Program;
     readonly definitions: readonly TopLevelDefinition[];
-    readonly comments: readonly Comment[];
 }
 
 export interface ExternalVariableDefinition {

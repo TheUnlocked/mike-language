@@ -200,7 +200,12 @@ export default class JavascriptTarget implements Target {
                     }
                 }
                 else {
-                    const type = this.typechecker.fetchTypeInfoFromSimpleType({ kind: TypeKind.Simple, name, typeArguments: [] });
+                    const type = this.typechecker.fetchTypeInfoFromSimpleType({
+                        _type: true,
+                        kind: TypeKind.Simple,
+                        name,
+                        typeArguments: [],
+                    });
                     if (type?.attributes.some(x => x.kind === TypeAttributeKind.IsUserDefined)) {
                         const members = Object.entries(type.members);
                         serializer = `({${
@@ -244,7 +249,12 @@ export default class JavascriptTarget implements Target {
                     }
                 }
                 else {
-                    const type = this.typechecker.fetchTypeInfoFromSimpleType({ kind: TypeKind.Simple, name, typeArguments: [] });
+                    const type = this.typechecker.fetchTypeInfoFromSimpleType({
+                        _type: true,
+                        kind: TypeKind.Simple,
+                        name,
+                        typeArguments: [],
+                    });
                     if (type?.attributes.some(x => x.kind === TypeAttributeKind.IsUserDefined)) {
                         const members = Object.entries(type.members);
                         deserializer = `({${

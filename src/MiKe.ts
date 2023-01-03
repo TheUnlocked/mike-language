@@ -1,10 +1,12 @@
+import { visit } from './ast';
 import { ASTNodeKind, Comment, Program, TypeDefinition } from './ast/Ast';
 import { TargetFactory } from './codegen/Target';
 import { createMiKeDiagnosticsManager } from './diagnostics/DiagnosticCodes';
 import { DiagnosticsManager, DiagnosticsReporter, Severity } from './diagnostics/Diagnostics';
-import { parseMiKe } from './grammar/Parser';
 import { LibraryImplementation, LibraryInterface } from './library/Library';
 import stdlib from './library/stdlib';
+import { StringLexer } from './parser/lexer';
+import { Parser } from './parser/parser';
 import { Binder } from './semantics/Binder';
 import { Scope } from './semantics/Scope';
 import { Typechecker } from './semantics/Typechecker';
@@ -112,7 +114,13 @@ export default class MiKe {
         if (!this.initialized) {
             throw new Error('You must call Mike.init before loading a script.')
         }
-        const ast = parseMiKe(script, this.diagnostics);
+
+        const lexer = new StringLexer(script);
+        lexer.setDiagnostics(this.diagnostics);
+        const parser = new Parser(lexer.readAllTokens());
+        parser.setDiagnostics(this.diagnostics);
+        const ast = parser.parse();
+
         this.binder.bind(ast);
 
         this.typechecker.notifyChange();
@@ -132,7 +140,17 @@ export default class MiKe {
     }
 
     getComments(filename: string): readonly Comment[] | undefined {
-        return this.files.get(filename)?.comments;
+        const root = this.files.get(filename);
+        if (root) {
+            const comments: Comment[] = [];
+            visit(root, node => {
+                if (node.kind === ASTNodeKind.Comment) {
+                    comments.push(node);
+                    return true;
+                }
+            });
+            return comments;
+        }
     }
 
     private passedValidation() {

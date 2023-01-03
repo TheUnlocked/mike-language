@@ -398,7 +398,6 @@ export class Binder {
             }
         }
         this.bindChildren(node, node.definitions);
-        this.bindChildren(node, node.comments);
     }
 
     private bindParameter(node: Parameter) {

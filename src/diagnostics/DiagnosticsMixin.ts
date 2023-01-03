@@ -1,4 +1,6 @@
-import { AnyNode, Range } from '../ast/Ast';
+import { Range } from '../ast';
+import { AnyNode } from '../ast/Ast';
+import { Token } from '../parser/lexer';
 import { AnyType, stringifyType } from '../types/KnownType';
 import { mix } from '../utils/mixin';
 import { Constructor, InterpolatedStringArgumentList } from '../utils/types';
@@ -21,10 +23,16 @@ export class DiagnosticsMixin {
         this.diagnostics.focus(node);
     }
 
-    protected error<D extends DiagnosticCodes>(code: D, ...args: InterpolatedStringArgumentList<string | number | AnyType, DiagnosticDescription<D>>): void {
+    protected error<D extends DiagnosticCodes>(code: D, ...args: InterpolatedStringArgumentList<string | number | Token | AnyType, DiagnosticDescription<D>>): void {
         this.diagnostics.report(code, ...args.map(x => {
             if (typeof x === 'object') {
-                return stringifyType(x);
+                if ('_type' in x) {
+                    return stringifyType(x);
+                }
+                if ('_token' in x) {
+                    return x.content;
+                }
+                return '[[COMPILER_BUG]]';
             }
             else {
                 return x.toString();

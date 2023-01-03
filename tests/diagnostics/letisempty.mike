@@ -1,7 +1,7 @@
 // import { DiagnosticCodes } from '../../src/diagnostics/DiagnosticCodes'
 
 on test() {
-    // v expect diagnostics ~ has ~ id == DiagnosticCodes.LetIsEmpty
+    //  v expect diagnostics ~ has ~ id == DiagnosticCodes.LetIsEmpty
     let x;
 }
 

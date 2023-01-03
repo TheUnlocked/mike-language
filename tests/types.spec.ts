@@ -1,6 +1,7 @@
+import { expect } from 'chai';
 import { AnyNode, ASTNodeKind, isExpression } from '../src/ast/Ast';
-import { getLexer, getParser } from '../src/grammar/Parser';
-import { TypeAstGenVisitor } from '../src/grammar/Types';
+import { StringLexer } from '../src/parser/lexer';
+import { Parser } from '../src/parser/parser';
 import scaffoldTests from './scaffolding';
 
 scaffoldTests('types', ({ mike, filename, diagnosticsManager }) => {
@@ -19,10 +20,13 @@ scaffoldTests('types', ({ mike, filename, diagnosticsManager }) => {
     }
     
     function parseType(str: string) {
-        const lexer = getLexer(str, diagnosticsManager.getReporter('test'))
-        const parser = getParser(lexer, diagnosticsManager.getReporter('test'));
-        const ast = parser.type().accept(new TypeAstGenVisitor());
-        return mike.typechecker.fetchTypeOfTypeNode(ast);
+        const lexer = new StringLexer(str);
+        lexer.setDiagnostics(diagnosticsManager.getReporter('mike'));
+        const parser = new Parser(lexer.readAllTokens());
+        parser.setDiagnostics(diagnosticsManager.getReporter('mike'));
+        const ast = parser.type();
+        expect(ast).to.exist;
+        return mike.typechecker.fetchTypeOfTypeNode(ast!);
     }
 
     return node => ({

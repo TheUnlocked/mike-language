@@ -1,5 +1,5 @@
-import { AnyNode, Range } from '../ast/Ast';
-import { stringifyRange } from '../ast/AstUtils';
+import { AnyNode } from '../ast/Ast';
+import { getNodeSourceRange, Range, stringifyRange } from '../ast/AstUtils';
 
 export enum Severity {
     Info = 1,
@@ -59,6 +59,14 @@ export class DiagnosticsManager {
 
     private diagnostics = [] as Diagnostic[];
 
+    /**
+     * A new diagnostics manager does not come with pre-defined diagnostics codes.
+     * To get these, use `createMiKeDiagnosticsManager` instead.
+     */
+    constructor() {
+
+    }
+
     registerDiagnostic(namespace: string, id: number, severity: Severity, description: string) {
         if (!namespace.match(/^[a-z0-9]*$/)) {
             throw new Error(`Diagnostic namespaces can only include lowercase alphanumeric characters`);
@@ -110,7 +118,7 @@ export class DiagnosticsManager {
     getReporter(namespace: string): DiagnosticsReporter {
         const focus: DiagnosticsReporter['focus'] = nodeOrRange => {
             if (nodeOrRange && 'kind' in nodeOrRange) {
-                this.currentRange = nodeOrRange.metadata.extent;
+                this.currentRange = getNodeSourceRange(nodeOrRange);
             }
             else {
                 this.currentRange = nodeOrRange;

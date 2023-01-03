@@ -2,7 +2,7 @@ import { expect } from 'chai';
 import { readdirSync, readFileSync } from 'fs';
 import path from 'path';
 import { AnyNode } from '../src/ast/Ast';
-import { getNodeAt, inRange, isAfter } from '../src/ast/AstUtils';
+import { getNodeAt, inRange, stringifyPosition } from '../src/ast/AstUtils';
 import { AssertionContext, createContextFromImports, createTestFunction, getTestData, TestData } from './util';
 
 export default function scaffoldTests(
@@ -45,7 +45,7 @@ export default function scaffoldTests(
                             let locationStr = '';
                             if (diagnostic.range) {
                                 const { line, col } = diagnostic.range.start;
-                                locationStr = `${filename.replace(/\..*$/, '')}:${line}:${col + 1} -- `;
+                                locationStr = `${filename.replace(/\..*$/, '')}:${line}:${col} -- `;
                             }
                             it(`${locationStr}${diagnostic.id}: ${diagnostic.getDescription().replace(/\.$/, '')}`, () => {
                                 expect.fail(diagnostic.getDescription());
@@ -62,9 +62,10 @@ export default function scaffoldTests(
                         });
 
                         for (const { position, condition, isTargeted } of assertions) {
-                            it(`${filenameWithoutExt}:${position.line}:${position.col + 1} -- ${condition.trim()}`, () => {
+                            it(`${filenameWithoutExt}:${position.line}:${position.col} -- ${condition.trim()}`, () => {
                                 if (isTargeted) {
                                     const node = getNodeAt(rootNode, position);
+                                    expect(node, `There is no node at ${stringifyPosition(position)}`).to.exist;
                                     createTestFunction(condition, {
                                         ...context,
                                         ...createAdditionalContext(node),

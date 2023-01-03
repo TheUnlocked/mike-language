@@ -4,6 +4,7 @@ import { TypeAttribute, TypeAttributeKind } from './Attribute';
 
 function typeRefOf(type: TypeInfo): SimpleType {
     return {
+        _type: true,
         kind: TypeKind.Simple,
         name: type.name,
         typeArguments: []

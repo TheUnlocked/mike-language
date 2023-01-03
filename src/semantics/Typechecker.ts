@@ -475,16 +475,22 @@ export class Typechecker extends DiagnosticsMixin {
             let result: KnownType;
             switch (ast.kind) {
                 case ASTNodeKind.TypeIdentifier:
-                    result = { kind: TypeKind.Simple, name: ast.name, typeArguments: [] } as SimpleType;
+                    result = {
+                        _type: true,
+                        kind: TypeKind.Simple,
+                        name: ast.name,
+                        typeArguments: [],
+                    } as SimpleType;
                     if (!this.fetchTypeInfoFromSimpleTypeWithDiagnostics(result, ast)) {
                         result = TOXIC;
                     }
                     break;
                 case ASTNodeKind.GenericType: {
                     result = {
+                        _type: true,
                         kind: TypeKind.Simple,
                         name: ast.name.name,
-                        typeArguments: ast.typeArguments.map(this.fetchTypeOfTypeNode)
+                        typeArguments: ast.typeArguments.map(this.fetchTypeOfTypeNode),
                     } as SimpleType;
                     if (!this.fetchTypeInfoFromSimpleTypeWithDiagnostics(result, ast)) {
                         result = TOXIC;
@@ -493,10 +499,11 @@ export class Typechecker extends DiagnosticsMixin {
                 }
                 case ASTNodeKind.FunctionType:
                     result = {
+                        _type: true,
                         kind: TypeKind.Function,
                         typeParameters: [],
                         parameters: ast.parameters.map(this.fetchTypeOfTypeNode),
-                        returnType: this.fetchTypeOfTypeNode(ast.returnType)
+                        returnType: this.fetchTypeOfTypeNode(ast.returnType),
                     };
                     break;
             }
@@ -527,10 +534,16 @@ export class Typechecker extends DiagnosticsMixin {
                     return TOXIC;
                 case ASTNodeKind.TypeDefinition:
                     return {
+                        _type: true,
                         kind: TypeKind.Function,
                         typeParameters: [],
                         parameters: ast.parameters.map(x => this.fetchTypeOfTypeNode(x.type)),
-                        returnType: { kind: TypeKind.Simple, name: ast.name.name, typeArguments: [] },
+                        returnType: {
+                            _type: true,
+                            kind: TypeKind.Simple,
+                            name: ast.name.name,
+                            typeArguments: []
+                        },
                     };
                 case ASTNodeKind.IfCase: {
                     const conditionType = this.fetchType(ast.condition);
@@ -642,16 +655,23 @@ export class Typechecker extends DiagnosticsMixin {
                     this.focus(ast.type);
                     this.error(DiagnosticCodes.TypeIsNotSequenceLike, ast.type.name);
                 }
-                return { kind: TypeKind.Simple, name: ast.type.name, typeArguments: [eltType] };
+                return {
+                    _type: true,
+                    kind: TypeKind.Simple,
+                    name: ast.type.name,
+                    typeArguments: [eltType]
+                };
             }
 
             targetType = this.fetchSequenceLiteralTargetType({
+                _type: true,
                 kind: TypeKind.SequenceLike,
                 name: ast.type.name
             }, ast);
         }
         else {
             targetType = this.fetchSequenceLiteralTargetType({
+                _type: true,
                 kind: TypeKind.SequenceLike,
                 element: this.getCommonSupertype(ast.elements)
             }, ast);
@@ -689,11 +709,17 @@ export class Typechecker extends DiagnosticsMixin {
                         this.focus(ast.type);
                         this.error(DiagnosticCodes.TypeIsNotMapLike, ast.type.name);
                     }
-                    return { kind: TypeKind.Simple, name: ast.type.name, typeArguments: [keyType, valType] };
+                    return {
+                        _type: true,
+                        kind: TypeKind.Simple,
+                        name: ast.type.name,
+                        typeArguments: [keyType, valType]
+                    };
                 }
             }
             
             targetType = this.fetchMapLiteralTargetType({
+                _type: true,
                 kind: TypeKind.MapLike,
                 name: ast.type.name
             }, ast);
@@ -704,6 +730,7 @@ export class Typechecker extends DiagnosticsMixin {
                 const valType = this.getCommonSupertype(ast.pairs.map(x => x.value));
                 if (valType) {
                     targetType = this.fetchMapLiteralTargetType({
+                        _type: true,
                         kind: TypeKind.MapLike,
                         typeArguments: [keyType, valType]
                     }, ast);
@@ -711,6 +738,7 @@ export class Typechecker extends DiagnosticsMixin {
             }
             else {
                 targetType = this.fetchMapLiteralTargetType({
+                    _type: true,
                     kind: TypeKind.MapLike
                 }, ast);
             }
@@ -749,7 +777,7 @@ export class Typechecker extends DiagnosticsMixin {
             case ASTNodeKind.SequenceLiteral: {
                 const sequenceType = this.fetchTargetType(parent);
                 if (sequenceType) {
-                    if (matchesSequenceLike(sequenceType, { kind: TypeKind.SequenceLike })) {
+                    if (matchesSequenceLike(sequenceType, { _type: true, kind: TypeKind.SequenceLike })) {
                         return sequenceType.typeArguments[0];
                     }
                     return TOXIC;
@@ -759,7 +787,7 @@ export class Typechecker extends DiagnosticsMixin {
             case ASTNodeKind.Pair: {
                 const mapType = this.fetchTargetType(this.binder.getParent(parent));
                 if (mapType) {
-                    if (matchesMapLike(mapType, { kind: TypeKind.MapLike })) {
+                    if (matchesMapLike(mapType, { _type: true, kind: TypeKind.MapLike })) {
                         const positionInPair = this.binder.getPositionInParent(ast, parent);
                         return mapType.typeArguments[positionInPair];
                     }

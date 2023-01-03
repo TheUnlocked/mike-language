@@ -1,6 +1,5 @@
 import { expect } from 'chai';
 import MiKe from '../src/MiKe';
-import { Position } from '../src/ast/Ast';
 import { createMiKeDiagnosticsManager } from '../src/diagnostics/DiagnosticCodes';
 import { DiagnosticsManager } from '../src/diagnostics/Diagnostics';
 import { EventData, MiKeProgram, MiKeProgramWithoutExternals } from '../src/codegen/js/types';
@@ -10,6 +9,7 @@ import path from 'path';
 import { LibraryInterface } from '../src/library/Library';
 import { JsLibraryImplementation } from '../src/codegen/js/LibraryImpl';
 import { noop } from 'lodash';
+import { getNodePosition, Position } from '../src/ast/AstUtils';
 
 export function createTestFunction(assertion: string, variables: { [name: string]: any }) {
     const testContext = { ...variables, expect } as { [name: string]: any };
@@ -29,7 +29,7 @@ function assertionToJs(assertion: string): string {
         switch (operator) {
             case 'none':
                 if (rest.length === 0) {
-                    return `expect(${lhs}).empty;`
+                    return `expect(${lhs}, ${lhs}.join('\\n')).empty;`
                 }
             case 'has':
                 if (rest.length > 0) {
@@ -98,17 +98,19 @@ export function getTestData(filename: string, contents: string): TestData {
                 if (condition) {
                     const cursorPosInString = comment.content.indexOf('v');
                     let commentIndex = i;
-                    let line = comment.metadata.extent.start.line + 1;
-                    const col = comment.metadata.extent.start.col + 2 + cursorPosInString;
+                    const commentPos = getNodePosition(comment);
+                    let line = commentPos.line + 1;
+                    const col = commentPos.col + cursorPosInString;
                     while (comments[++commentIndex]) {
                         const belowComment = comments[commentIndex];
-                        if (belowComment.metadata.extent.start.line !== line) {
+                        const belowCommentPos = getNodePosition(belowComment);
+                        if (belowCommentPos.line !== line) {
                             break;
                         }
                         // -2 for //
-                        const commentIndexAtCol = col - 2 - belowComment.metadata.extent.start.col;
+                        const commentIndexAtCol = col - belowCommentPos.col;
                         // + 1 to include the character at that column
-                        if (!/^\s*$/.test(belowComment.content.slice(0, Math.max(0, commentIndexAtCol + 1)))) {
+                        if (!/^\/\/\s*$/.test(belowComment.content.slice(0, Math.max(0, commentIndexAtCol + 1)))) {
                             break;
                         }
                         line++;
@@ -119,7 +121,7 @@ export function getTestData(filename: string, contents: string): TestData {
             else if (comment.content.includes('assert')) {
                 const condition = comment.content.match(/assert\s+(.*)$/)?.[1].trim();
                 if (condition) {
-                    assertions.push({ position: comment.metadata.extent.start, condition, isTargeted: false });
+                    assertions.push({ position: getNodePosition(comment), condition, isTargeted: false });
                 }
             }
             else if (comment.content.includes('import')) {

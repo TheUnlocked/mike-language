@@ -2,7 +2,7 @@
 
 on test() {
     // v expect diagnostics ~ has ~ id == DiagnosticCodes.CannotInferMapLiteralType
-    {"a": 1};
+    ({"a": 1});
     // v expect diagnostics ~ has ~ id == DiagnosticCodes.CannotInferMapLiteralType
     Stack{};
 }

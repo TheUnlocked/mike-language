@@ -11,6 +11,7 @@ export enum TypeKind {
 }
 
 interface TypeReference {
+    readonly _type: true;
     readonly isNotInferrable?: boolean;
 }
 
@@ -40,12 +41,14 @@ export function replaceTypeVariables<T extends Exclude<KnownType, TypeVariable>>
                 return vars.get(type.symbol) ?? type;
             case TypeKind.Simple:
                 return {
+                    _type: true,
                     kind: TypeKind.Simple,
                     name: type.name,
                     typeArguments: type.typeArguments.map(rec),
                 };
             case TypeKind.Function: {
                 return {
+                    _type: true,
                     kind: TypeKind.Function,
                     typeParameters: type.typeParameters,
                     parameters: type.parameters.map(rec),
@@ -162,6 +165,7 @@ export const ANY_TYPE = TOXIC;
 
 export function optionOf(t: KnownType): KnownType {
     return {
+        _type: true,
         kind: TypeKind.Simple,
         name: 'option',
         typeArguments: [t]
@@ -169,7 +173,13 @@ export function optionOf(t: KnownType): KnownType {
 }
 
 export function functionOf(parameters: readonly KnownType[], returnType: KnownType): FunctionType {
-    return { kind: TypeKind.Function, typeParameters: [], parameters, returnType };
+    return {
+        _type: true,
+        kind: TypeKind.Function,
+        typeParameters: [],
+        parameters,
+        returnType,
+    };
 }
 
 export function genericFunctionOf(
@@ -179,6 +189,7 @@ export function genericFunctionOf(
 ): FunctionType {
     const typeParameters = typeParameterNames.map(x => ({ kind: TypeKind.TypeVariable, symbol: Symbol(x) } as TypeVariable));
     return {
+        _type: true,
         kind: TypeKind.Function,
         typeParameters,
         parameters: parametersCallback(...typeParameters),

@@ -1,0 +1,22 @@
+// import { ASTNodeKind } from '../../src/ast/Ast'
+
+on test() {
+    //  v expect $.kind == ASTNodeKind.MapLiteral
+    //   v expect $.kind == ASTNodeKind.IfCase
+    //    v expect $.kind == ASTNodeKind.Block
+    if {} {
+
+    }
+
+    //  v expect $.kind == ASTNodeKind.Identifier, parent($).kind == ASTNodeKind.Variable
+    //    v expect $.kind == ASTNodeKind.Block
+    //       v expect $.kind == ASTNodeKind.Block
+    if Foo{} {
+
+    }
+
+    // v expect $.kind == ASTNodeKind.MapLiteral
+    Foo{};
+}
+
+// assert diagnostics ~ none

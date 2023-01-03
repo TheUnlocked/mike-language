@@ -2,13 +2,28 @@ import { suggestType } from '../utils/types';
 import { DiagnosticInfo, DiagnosticsManager, Severity } from './Diagnostics';
 
 export enum DiagnosticCodes {
+    // 1000: Lexing
+    IllegalCharacter = 1000,
+    InvalidNumberFormat,
+    IdentifierCannotStartWithDigit,
+    NoTrailingQuote,
+    SingleAmp,
+
     // 2000: Parsing
-    GenericLexError = 2000,
-    GenericParseError,
+    UnexpectedToken = 2000,
+    UnexpectedEndOfInput,
+    ExpectedTokenNotPresent,
+    ExpectedIdentifier,
+    ExpectedType,
+    ExpectedExpression,
+    ExpectedBlock,
+    NoStateInitialValue,
     AssignToExpression,
     LetIsEmpty,
     MixedAndOr,
-    NoStateInitialValue,
+    
+    // old parsing
+    GenericParseError,
     
     // 3000: Definitions & Flow
     TypeDefinedMultipleTimes = 3000,
@@ -53,12 +68,26 @@ export enum DiagnosticCodes {
 }
 
 export const defaultDiagnosticDetails = suggestType<{ readonly [name in DiagnosticCodes]: DiagnosticInfo }>()({
-    [DiagnosticCodes.GenericLexError]: { severity: Severity.Error, description: 'Generic lexer error: {0}.' },
+    [DiagnosticCodes.IllegalCharacter]: { severity: Severity.Error, description: 'Illegal characters: {0}.' },
+    [DiagnosticCodes.InvalidNumberFormat]: { severity: Severity.Error, description: 'Invalid number format.' },
+    [DiagnosticCodes.IdentifierCannotStartWithDigit]: { severity: Severity.Error, description: 'Identifiers cannot start with a digit.' },
+    [DiagnosticCodes.NoTrailingQuote]: { severity: Severity.Error, description: 'No trailing quote found for string.' },
+    [DiagnosticCodes.SingleAmp]: { severity: Severity.Error, description: 'There is no & operator. Use && for logical AND.' },
+    
     [DiagnosticCodes.GenericParseError]: { severity: Severity.Error, description: 'Generic parser error: {0}.' },
+    
+    [DiagnosticCodes.UnexpectedToken]: { severity: Severity.Error, description: 'Encountered {0}, but it is unclear what it is supposed to mean.' },
+    [DiagnosticCodes.UnexpectedEndOfInput]: { severity: Severity.Error, description: 'Input unexpectedly ends. This error often appears while writing code.' },
+    [DiagnosticCodes.ExpectedTokenNotPresent]: { severity: Severity.Error, description: 'Expected {0} here.' },
+    [DiagnosticCodes.ExpectedIdentifier]: { severity: Severity.Error, description: 'Expected an identifier here.' },
+    [DiagnosticCodes.ExpectedType]: { severity: Severity.Error, description: 'Expected a type here.' },
+    [DiagnosticCodes.ExpectedExpression]: { severity: Severity.Error, description: 'Expected an expression here.' },
+    [DiagnosticCodes.ExpectedBlock]: { severity: Severity.Error, description: 'Expected a block here.' },
+    [DiagnosticCodes.NoStateInitialValue]: { severity: Severity.Error, description: 'State declarations must have initial values.' },
     [DiagnosticCodes.AssignToExpression]: { severity: Severity.Error, description: 'Cannot understand assignment, did you intend the left side to be a field dereference?' },
     [DiagnosticCodes.LetIsEmpty]: { severity: Severity.Error, description: 'A let statement must have a type, or a value from which its type can be inferred.' },
     [DiagnosticCodes.MixedAndOr]: { severity: Severity.Error, description: '&& and || have the same precedence, so order of operations must be explicitly declared using parentheses.' },
-    [DiagnosticCodes.NoStateInitialValue]: { severity: Severity.Error, description: 'State declarations must have initial values.' },
+
     [DiagnosticCodes.TypeDefinedMultipleTimes]: { severity: Severity.Error, description: 'Type {0} was already defined.' },
     [DiagnosticCodes.VariableDefinedMultipleTimes]: { severity: Severity.Error, description: 'Variable {0} was already defined in this scope.' },
     [DiagnosticCodes.TypeNameAlreadyDefinedAsVariable]: { severity: Severity.Error, description: 'Type {0} cannot be defined because a variable with that name already exists.' },
@@ -69,6 +98,7 @@ export const defaultDiagnosticDetails = suggestType<{ readonly [name in Diagnost
     [DiagnosticCodes.ListenerDefinedMultipleTimes]: { severity: Severity.Error, description: 'Listener for event {0} was already defined.' },
     [DiagnosticCodes.MissingRequiredListener]: { severity: Severity.Error, description: 'A listener for event {0} must be provided, but none was.' },
     [DiagnosticCodes.UnknownEvent]: { severity: Severity.Error, description: 'There is no known event {0}.' },
+    
     [DiagnosticCodes.Uninvokable]: { severity: Severity.Error, description: 'Expected a function type, found {0}.' },
     [DiagnosticCodes.WrongNumberOfArguments]: { severity: Severity.Error, description: 'Wrong number of arguments: expected {0}, found {1}.' },
     [DiagnosticCodes.ArgumentParameterTypeMismatch]: { severity: Severity.Error, description: 'Cannot fit argument of type {0} into parameter of type {1}.' },

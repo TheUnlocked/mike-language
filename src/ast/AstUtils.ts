@@ -1,14 +1,58 @@
 import { expectNever } from '../utils/types';
-import { AnyNode, ASTNodeKind, Range, Position, Identifier, VariableDefinition, TypeIdentifier } from './Ast';
+import { AnyNode, ASTNodeKind, Identifier, VariableDefinition, TypeIdentifier } from './Ast';
+
+export interface Position {
+    line: number;
+    col: number;
+}
+
+export interface Range {
+    start: Position;
+    end: Position;
+}
+
+const OUT_OF_TREE_POSITION: Position = { line: 0, col: 0 };
+const OUT_OF_TREE_RANGE: Range = { start: OUT_OF_TREE_POSITION, end: OUT_OF_TREE_POSITION };
+
+export const DUMMY_IDENTIFIER: Identifier = {
+    kind: ASTNodeKind.Identifier,
+    name: 'unknown!'
+};
+
+export function getNodePosition(ast: AnyNode): Position {
+    if (ast.tokens && ast.tokens.length > 0) {
+        return {
+            line: ast.tokens[0].startLine,
+            col: ast.tokens[0].startCol,
+        };
+    }
+    return OUT_OF_TREE_POSITION;
+}
+
+export function getNodeSourceRange(ast: AnyNode): Range {
+    if (ast.tokens && ast.tokens.length > 0) {
+        return {
+            start: {
+                line: ast.tokens[0].startLine,
+                col: ast.tokens[0].startCol,
+            },
+            end: {
+                line: ast.tokens.at(-1)!.endLine,
+                col: ast.tokens.at(-1)!.endCol,
+            },
+        };
+    }
+    return OUT_OF_TREE_RANGE;
+}
 
 export function getNodeAt(ast: AnyNode, position: Position): AnyNode | undefined {
-    if (!inRange(ast.metadata.extent, position)) {
+    if (!inRange(getNodeSourceRange(ast), position)) {
         return undefined;
     }
     let node = ast;
     main: while (true) {
         for (const child of getChildren(node)) {
-            if (inRange(child.metadata.extent, position)) {
+            if (inRange(getNodeSourceRange(child), position)) {
                 node = child;
                 continue main;
             }
@@ -17,7 +61,7 @@ export function getNodeAt(ast: AnyNode, position: Position): AnyNode | undefined
     }
 }
 
-export function getChildren(ast: AnyNode): readonly AnyNode[] {
+export function getNonTriviaChildren(ast: AnyNode): readonly AnyNode[] {
     switch (ast.kind) {
         default: expectNever(ast);
         case ASTNodeKind.Invoke:
@@ -62,7 +106,7 @@ export function getChildren(ast: AnyNode): readonly AnyNode[] {
         case ASTNodeKind.TypeDefinition:
             return [ast.name, ...ast.parameters];
         case ASTNodeKind.Program:
-            return [...ast.comments, ...ast.definitions];
+            return ast.definitions;
         case ASTNodeKind.Parameter:
             return [ast.name, ast.type];
         case ASTNodeKind.IfCase:
@@ -81,6 +125,10 @@ export function getChildren(ast: AnyNode): readonly AnyNode[] {
             return [];
 
     }
+}
+
+export function getChildren(ast: AnyNode): readonly AnyNode[] {
+    return getNonTriviaChildren(ast).concat(ast.trivia ?? []);
 }
 
 export function inRange({ start, end }: Range, position: Position) {
@@ -147,8 +195,14 @@ export function getVariableDefinitionIdentifier(def: VariableDefinition): Identi
     }
 }
 
-export const DUMMY_IDENTIFIER: Identifier = {
-    kind: ASTNodeKind.Identifier,
-    metadata: { extent: { start: { line: 0, col: 0 }, end: { line: 0, col: 0 } } },
-    name: 'unknown!'
+/**
+ * @param ast 
+ * @param visitor A function which is called on every visited node. Return true to prevent visiting the node's children.
+ */
+export function visit(ast: AnyNode, visitor: (node: AnyNode) => boolean | void) {
+    if (!visitor(ast)) {
+        for (const child of getChildren(ast)) {
+            visit(child, visitor);
+        }
+    }
 }

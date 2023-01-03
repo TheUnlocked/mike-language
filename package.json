@@ -15,12 +15,10 @@
   "license": "MIT",
   "scripts": {
     "prepublishOnly": "do not use `npm publish`, use `npm run publish` instead.",
-
     "prepack": "npm run clean && npm run antlr4ts && tsc && node ./prepack.mjs",
     "pack": "npm pack ./dist",
     "publish": "npm run test && npm run prepack && cd ./dist && npm publish",
     "prepare": "npm run antlr4ts",
-
     "clean": "rimraf src/grammar/generated dist",
     "antlr4ts": "antlr4ts -visitor src/grammar/MiKe.g4 -o src/grammar/generated",
     "typecheck": "tsc --noEmit",
@@ -50,6 +48,6 @@
     "omit-deep-lodash": "^1.1.7",
     "rimraf": "^3.0.2",
     "ts-node": "^10.8.0",
-    "typescript": "^4.7.4"
+    "typescript": "^4.9.4"
   }
 }
