@@ -38,30 +38,40 @@ interface Rules {
 
 type ExpressionRuleNames = keyof { [R in keyof Rules as Expression extends ReturnType<Rules[R]> ? R : never]: 1 };
 
-const NO_IDENT: Identifier = {
-    kind: ASTNodeKind.Identifier,
-    name: '',
-};
+function NO_IDENT(): Identifier {
+    return {
+        kind: ASTNodeKind.Identifier,
+        name: '',
+    };
+}
 
-const NO_TYPE_IDENT: TypeIdentifier = {
-    kind: ASTNodeKind.TypeIdentifier,
-    name: '',
-};
+function NO_TYPE_IDENT(): TypeIdentifier {
+    return {
+        kind: ASTNodeKind.TypeIdentifier,
+        name: '',
+    };
+}
 
-const NO_TYPE: Type = {
-    kind: ASTNodeKind.TypeIdentifier,
-    name: '',
-};
+function NO_TYPE(): Type {
+    return {
+        kind: ASTNodeKind.TypeIdentifier,
+        name: '',
+    };
+}
 
-const NO_EXPR: Expression = {
-    kind: ASTNodeKind.Variable,
-    identifier: NO_IDENT,
-};
+function NO_EXPR(): Expression {
+    return {
+        kind: ASTNodeKind.Variable,
+        identifier: NO_IDENT(),
+    };
+}
 
-const NO_BLOCK: Block = {
-    kind: ASTNodeKind.Block,
-    statements: [],
-};
+function NO_BLOCK(): Block {
+    return {
+        kind: ASTNodeKind.Block,
+        statements: [],
+    };
+}
 
 enum ParseFlags {
     NONE = 0,
@@ -354,7 +364,7 @@ export class Parser extends DiagnosticsMixin implements Rules {
         node.trivia = this.consumeTrivia();
 
         // Assign children
-        getChildren(node).forEach(x => x.parent = node);
+        getChildren(node).forEach((x: Mutable<AnyNode>) => x.parent = node);
 
         // Memoize own tokens, and the first token even if not an own token.
         for (const token of node.tokens) {
@@ -435,7 +445,7 @@ export class Parser extends DiagnosticsMixin implements Rules {
             this.focusHere();
             this.error(DiagnosticCodes.ExpectedIdentifier);
         }
-        return id ?? NO_IDENT;
+        return id ?? NO_IDENT();
     }
 
     private expectTypeIdentifier() {
@@ -444,7 +454,7 @@ export class Parser extends DiagnosticsMixin implements Rules {
             this.focusHere();
             this.error(DiagnosticCodes.ExpectedIdentifier);
         }
-        return id ?? NO_TYPE_IDENT;
+        return id ?? NO_TYPE_IDENT();
     }
 
     private expectType() {
@@ -453,7 +463,7 @@ export class Parser extends DiagnosticsMixin implements Rules {
             this.focusHere();
             this.error(DiagnosticCodes.ExpectedType);
         }
-        return type ?? NO_TYPE;
+        return type ?? NO_TYPE();
     }
     
     private expectExpression(
@@ -464,7 +474,7 @@ export class Parser extends DiagnosticsMixin implements Rules {
             this.focusHere();
             this.error(DiagnosticCodes.ExpectedExpression);
         }
-        return expr ?? NO_EXPR;
+        return expr ?? NO_EXPR();
     }
 
     private expectBlock() {
@@ -473,7 +483,7 @@ export class Parser extends DiagnosticsMixin implements Rules {
             this.focusHere();
             this.error(DiagnosticCodes.ExpectedBlock);
         }
-        return body ?? NO_BLOCK;
+        return body ?? NO_BLOCK();
     }
 
     parse() {
@@ -577,7 +587,7 @@ export class Parser extends DiagnosticsMixin implements Rules {
     parameter(): Parameter | undefined {
         const name = this.visit('identifier');
         if (name) {
-            const type = this.expect(TokenType.SYNTAX_COLON) ? this.expectType() : this.visit('type') ?? NO_TYPE;
+            const type = this.expect(TokenType.SYNTAX_COLON) ? this.expectType() : this.visit('type') ?? NO_TYPE();
             return {
                 kind: ASTNodeKind.Parameter,
                 name,
@@ -747,9 +757,9 @@ export class Parser extends DiagnosticsMixin implements Rules {
                 // Intentionally not saving trivia here.
                 const op = mapping[this.currentToken!.type]!;
                 firstOp ??= op;
-                const rhs = this.expectExpression(lowerRule);
+                const rhs: Mutable<Expression> = this.expectExpression(lowerRule);
 
-                const lhs: Expression = expr;
+                const lhs: Mutable<Expression> = expr;
                 expr = {
                     kind: ASTNodeKind.BinaryOp,
                     op,
@@ -828,28 +838,32 @@ export class Parser extends DiagnosticsMixin implements Rules {
                 // Intentionally not saving trivia here.
                 switch (this.currentToken!.type) {
                     case TokenType.SYNTAX_DOT:
-                        const obj: Expression = expr;
+                        const obj: Mutable<Expression> = expr;
+                        const member: Mutable<Identifier> = this.expectIdentifier();
                         // Dereference
                         expr = {
                             kind: ASTNodeKind.Dereference,
                             obj,
-                            member: this.expectIdentifier(),
+                            member,
                             tokens: this.tokens.slice(firstTokenIndex, this.head + 1),
                             trivia: this.consumeTrivia(),
                         };
                         obj.parent = expr;
+                        member.parent = expr;
                         break;
                     case TokenType.SYNTAX_LPAREN:
                         // Invoke
-                        const fn: Expression = expr;
+                        const fn: Mutable<Expression> = expr;
+                        const args = this.repeat('expression', TokenType.SYNTAX_RPAREN, TokenType.SYNTAX_COMMA);
                         expr = {
                             kind: ASTNodeKind.Invoke,
                             fn,
-                            args: this.repeat('expression', TokenType.SYNTAX_RPAREN, TokenType.SYNTAX_COMMA),
+                            args,
                             tokens: this.tokens.slice(firstTokenIndex, this.head + 1),
                             trivia: this.consumeTrivia(),
                         };
                         fn.parent = expr;
+                        args.forEach((x: Mutable<Expression>) => x.parent = expr);
                         break;
                 }
                 this.saveTrivia();
@@ -985,7 +999,7 @@ export class Parser extends DiagnosticsMixin implements Rules {
             }
             else {
                 // Type identifier
-                const typeId: TypeIdentifier = {
+                const typeId: Mutable<TypeIdentifier> = {
                     kind: ASTNodeKind.TypeIdentifier,
                     name: this.currentToken!.content,
                     tokens: [this.currentToken!],

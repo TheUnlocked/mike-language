@@ -68,7 +68,7 @@ export enum PrefixOperator {
 interface ASTNode {
     readonly tokens?: readonly Token[];
     readonly trivia?: readonly Trivia[];
-    /** @internal */ parent?: AnyNode;
+    readonly parent?: AnyNode;
 }
 
 export interface Comment extends ASTNode {

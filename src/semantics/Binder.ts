@@ -6,7 +6,6 @@ type AssignmentMap = Map<string, number>;
 
 export class Binder {
     // WeakMap so that the GC can pick up dead nodes.
-    private parentMap = new WeakMap<AnyNode, AnyNode>();
     private visited = new WeakSet<AnyNode>();
     private positionMap = new WeakMap<AnyNode, number>();
     private assignmentMap = new WeakMap<Block, AssignmentMap>();
@@ -36,7 +35,7 @@ export class Binder {
     // Fallback
     getParent(node: AnyNode): AnyNode;
     getParent(node: AnyNode) {
-        return this.parentMap.get(node);
+        return node.parent;
     }
 
     getPositionInParent(child: Expression, parent: UnaryOp | Dereference | ExpressionStatement | LetStatement | AssignVar | StateDefinition): 0;
@@ -68,7 +67,7 @@ export class Binder {
     // Everything else is impossible
     getPositionInParent(child: AnyNode, parent: AnyNode): never;
     getPositionInParent(child: AnyNode, parent: AnyNode) {
-        if (this.parentMap.get(child) !== parent) {
+        if (child.parent !== parent) {
             throw new Error(`${stringifyNode(child)} is not a child of ${stringifyNode(parent)}`);
         }
         return this.positionMap.get(child);
@@ -250,26 +249,26 @@ export class Binder {
     }
     
     private bindInvoke(node: Invoke) {
-        this.bindChild(node, node.fn, -1);
-        this.bindChildren(node, node.args);
+        this.bindChild(node.fn, -1);
+        this.bindChildren(node.args);
     }
 
     private bindBinaryOp(node: BinaryOp) {
-        this.bindChild(node, node.lhs, 0);
-        this.bindChild(node, node.rhs, 1);
+        this.bindChild(node.lhs, 0);
+        this.bindChild(node.rhs, 1);
     }
 
     private bindUnaryOp(node: UnaryOp) {
-        this.bindChild(node, node.expr, 0);
+        this.bindChild(node.expr, 0);
     }
 
     private bindDereference(node: Dereference) {
-        this.bindChild(node, node.obj, 0);
-        this.bindChild(node, node.member, 0);
+        this.bindChild(node.obj, 0);
+        this.bindChild(node.member, 0);
     }
 
     private bindVariable(node: Variable) {
-        this.bindChild(node, node.identifier, 0);
+        this.bindChild(node.identifier, 0);
     }
 
     private bindAtomicLiteral(node: FloatLiteral | IntLiteral | BoolLiteral | StringLiteral) {
@@ -277,50 +276,50 @@ export class Binder {
     }
 
     private bindSequenceLiteral(node: SequenceLiteral) {
-        this.bindChildren(node, node.elements);
+        this.bindChildren(node.elements);
         if (node.type) {
-            this.bindChild(node, node.type, 0);
+            this.bindChild(node.type, 0);
         }
     }
 
     private bindMapLiteral(node: MapLiteral) {
-        this.bindChildren(node, node.pairs);
+        this.bindChildren(node.pairs);
         if (node.type) {
-            this.bindChild(node, node.type, 0);
+            this.bindChild(node.type, 0);
         }
     }
 
     private bindExpressionStatement(node: ExpressionStatement) {
-        this.bindChild(node, node.expr, 0);
+        this.bindChild(node.expr, 0);
     }
 
     private bindDeclareVar(node: LetStatement) {
-        this.bindChild(node, node.name, 0);
+        this.bindChild(node.name, 0);
         if (node.value) {
-            this.bindChild(node, node.value, 0);
+            this.bindChild(node.value, 0);
         }
     }
 
     private bindAssignVar(node: AssignVar) {
-        this.bindChild(node, node.variable, 0);
-        this.bindChild(node, node.value, 0);
+        this.bindChild(node.variable, 0);
+        this.bindChild(node.value, 0);
     }
 
     private bindAssignField(node: AssignField) {
-        this.bindChild(node, node.member, 0);
-        this.bindChild(node, node.obj, 0);
-        this.bindChild(node, node.value, 0);
+        this.bindChild(node.member, 0);
+        this.bindChild(node.obj, 0);
+        this.bindChild(node.value, 0);
     }
 
     private bindIfElseChain(node: IfElseChain) {
-        this.bindChildren(node, node.cases);
+        this.bindChildren(node.cases);
         if (node.else) {
-            this.bindChild(node, node.else, -1);
+            this.bindChild(node.else, -1);
         }
     }
 
     private bindDebugStatement(node: DebugStatement) {
-        this.bindChildren(node, node.arguments);
+        this.bindChildren(node.arguments);
     }
 
     private bindBlock(node: Block) {
@@ -329,7 +328,7 @@ export class Binder {
 
         for (let i = 0; i < node.statements.length; i++) {
             const child = node.statements[i]!;
-            this.bindChild(node, child, i);
+            this.bindChild(child, i);
             switch (child.kind) {
                 case ASTNodeKind.LetStatement:
                     this.setInScope(scope, child.name, child);
@@ -358,36 +357,36 @@ export class Binder {
     }
 
     private bindParameterDefinition(node: ParameterDefinition) {
-        this.bindChild(node, node.name, 0);
-        this.bindChild(node, node.type, 0);
+        this.bindChild(node.name, 0);
+        this.bindChild(node.type, 0);
     }
 
     private bindStateDefinition(node: StateDefinition) {
         if (node.default) {
-            this.bindChild(node, node.default, 0);
+            this.bindChild(node.default, 0);
         }
         if (node.type) {
-            this.bindChild(node, node.type, 0);
+            this.bindChild(node.type, 0);
         }
-        this.bindChild(node, node.name, 0);
+        this.bindChild(node.name, 0);
     }
 
     private bindListenerDefinition(node: ListenerDefinition) {
-        this.bindChildren(node, node.parameters);
+        this.bindChildren(node.parameters);
         const scope = this.getOrCreateScope(node.body);
         for (const param of node.parameters) {
             this.setInScope(scope, param.name, param);
         }
-        this.bindChild(node, node.body, 0);
+        this.bindChild(node.body, 0);
     }
 
     private bindTypeDefinition(node: TypeDefinition) {
-        this.bindChild(node, node.name, 0);
+        this.bindChild(node.name, 0);
         const scope = this.getOrCreateScope(node);
         for (const param of node.parameters) {
             this.setInScope(scope, param.name, param);
         }
-        this.bindChildren(node, node.parameters);
+        this.bindChildren(node.parameters);
     }
 
     private bindProgram(node: Program) {
@@ -397,34 +396,34 @@ export class Binder {
                 this.setInScope(scope, child.name, child);
             }
         }
-        this.bindChildren(node, node.definitions);
+        this.bindChildren(node.definitions);
     }
 
     private bindParameter(node: Parameter) {
-        this.bindChild(node, node.name, 0);
-        this.bindChild(node, node.type, 0);
+        this.bindChild(node.name, 0);
+        this.bindChild(node.type, 0);
     }
 
     private bindIfCase(node: IfCase) {
         if (node.deconstruct) {
-            this.bindChild(node, node.deconstruct, 0);
+            this.bindChild(node.deconstruct, 0);
             const scope = this.getOrCreateScope(node.body);
             this.setInScope(scope, node.deconstruct, node);
             const assignmentMap = this.getOrCreateAssignmentMap(node.body);
             this.setAssignmentPosition(assignmentMap, node.deconstruct.name, -1);
         }
-        this.bindChild(node, node.condition, 0);
-        this.bindChild(node, node.body, 0);
+        this.bindChild(node.condition, 0);
+        this.bindChild(node.body, 0);
     }
 
     private bindPair(node: Pair) {
-        this.bindChild(node, node.key, 0);
-        this.bindChild(node, node.value, 1);
+        this.bindChild(node.key, 0);
+        this.bindChild(node.value, 1);
     }
     
     private bindFunctionType(node: FunctionType) {
-        this.bindChild(node, node.returnType, -1);
-        this.bindChildren(node, node.parameters);
+        this.bindChild(node.returnType, -1);
+        this.bindChildren(node.parameters);
     }
 
     private bindTypeIdentifier(node: TypeIdentifier) {
@@ -432,8 +431,8 @@ export class Binder {
     }
 
     private bindGenericType(node: GenericType) {
-        this.bindChild(node, node.name, -1);
-        this.bindChildren(node, node.typeArguments);
+        this.bindChild(node.name, -1);
+        this.bindChildren(node.typeArguments);
     }
 
     private bindComment(node: Comment) {
@@ -444,15 +443,14 @@ export class Binder {
         
     }
 
-    private bindChild(self: AnyNode, child: AnyNode, pos: number) {
-        this.parentMap.set(child, self);
+    private bindChild(child: AnyNode, pos: number) {
         this.positionMap.set(child, pos);
         this.bind(child);
     }
 
-    private bindChildren(self: AnyNode, children: readonly AnyNode[]) {
+    private bindChildren(children: readonly AnyNode[]) {
         for (let i = 0; i < children.length; i++) {
-            this.bindChild(self, children[i]!, i);
+            this.bindChild(children[i]!, i);
         }
     }
 
