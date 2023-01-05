@@ -115,10 +115,9 @@ export default class MiKe {
             throw new Error('You must call Mike.init before loading a script.')
         }
 
-        const lexer = new StringLexer(script);
-        lexer.setDiagnostics(this.diagnostics);
-        const parser = new Parser(lexer.readAllTokens());
+        const parser = new Parser();
         parser.setDiagnostics(this.diagnostics);
+        parser.loadSource(script);
         const ast = parser.parse();
 
         this.binder.bind(ast);

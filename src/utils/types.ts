@@ -47,3 +47,5 @@ type _TupleOf<T, N extends number, R extends unknown[]> =
         ? R
         // else try again w/ [T, ...R]
         : _TupleOf<T, N, [T, ...R]>;
+
+export type Mutable<T> = { -readonly [Key in keyof T]: T[Key] };

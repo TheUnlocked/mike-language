@@ -1,5 +1,4 @@
 import { AnyNode, ASTNodeKind, isExpression } from '../src/ast/Ast';
-import { StringLexer } from '../src/parser/lexer';
 import { Parser } from '../src/parser/parser';
 import { intType } from '../src/types/Primitives';
 import scaffoldTests from './scaffolding';
@@ -20,10 +19,9 @@ scaffoldTests('diagnostics', ({ mike, filename, diagnosticsManager }) => {
     }
     
     function parseType(str: string) {
-        const lexer = new StringLexer(str);
-        lexer.setDiagnostics(diagnosticsManager.getReporter('mike'));
-        const parser = new Parser(lexer.readAllTokens());
+        const parser = new Parser();
         parser.setDiagnostics(diagnosticsManager.getReporter('mike'));
+        parser.loadSource(str);
         const ast = parser.type()!;
         return mike.typechecker.fetchTypeOfTypeNode(ast);
     }

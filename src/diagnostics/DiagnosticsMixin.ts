@@ -13,7 +13,7 @@ const DUMMY_REPORTER: DiagnosticsReporter = {
 };
 
 export class DiagnosticsMixin {
-    private diagnostics = DUMMY_REPORTER;
+    protected diagnostics = DUMMY_REPORTER;
 
     setDiagnostics(diagnostics: DiagnosticsReporter) {
         this.diagnostics = diagnostics;
@@ -43,7 +43,7 @@ export class DiagnosticsMixin {
 
 export function WithDiagnostics<C extends Constructor>(Base: C): { new(...a: any[]): DiagnosticsMixin } & C {
     abstract class WithDiagnostics extends Base {
-        private diagnostics = DUMMY_REPORTER;
+        protected diagnostics = DUMMY_REPORTER;
     }
     mix(WithDiagnostics, DiagnosticsMixin);
     return WithDiagnostics as any;

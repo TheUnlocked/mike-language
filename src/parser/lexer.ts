@@ -104,7 +104,7 @@ export interface Token {
     readonly endCol: number;
 
     /** @internal */
-    edits: EditChain<Mutation>;
+    _edits: EditChain<Mutation>;
 }
 
 enum CharType {
@@ -203,7 +203,10 @@ export interface ILexer extends DiagnosticsMixin {
      */
     readToken(): Token;
 
-    mutate(firstTokenIndex: number, numTokens: number, insert: string): { insertedTokens: Token[], removedTokens: Token[] };
+    mutate(firstTokenIndex: number, numTokens: number, insert: string): {
+        readonly insertedTokens: Token[],
+        readonly removedTokens: Token[],
+    };
 }
 
 function isIdentChar(c: string) {
@@ -225,18 +228,28 @@ function countLines(str: string) {
 export class StringLexer extends DiagnosticsMixin implements ILexer {
     private tailPtr = 0;
     private headPtr = 0;
-    
+    private byteOffset: number;
+
     private startLine = 1;
     private startCol = 1;
-    private line = 1;
-    private col = 1;
+    private line: number;
+    private col: number;
 
-    private edits = EditChain.createEditChain<Mutation>();
+    private edits: EditChain<Mutation>;
 
     tokens: Token[] = [];
 
-    constructor(private input: string) {
+    constructor(private input: string, initialParams = {
+        byteOffset: 0,
+        line: 1,
+        col: 1,
+        edits: EditChain.createEditChain<Mutation>(),
+    }) {
         super();
+        this.byteOffset = initialParams.byteOffset;
+        this.line = initialParams.line;
+        this.col = initialParams.col;
+        this.edits = initialParams.edits;
     }
 
     private peek() {
@@ -245,7 +258,7 @@ export class StringLexer extends DiagnosticsMixin implements ILexer {
 
     private token(type: TokenType): Token {
         const length = this.headPtr - this.tailPtr;
-        let start = this.tailPtr;
+        let start = this.tailPtr + this.byteOffset;
 
         let startLine = this.startLine;
         let startCol = this.startCol;
@@ -255,26 +268,26 @@ export class StringLexer extends DiagnosticsMixin implements ILexer {
         function applyEdit(mutation: Mutation) {
             if (start >= mutation.bytePos) {
                 start += mutation.byteOffset;
-            }
 
-            if (startLine >= mutation.linePos) {
-                if (startLine === mutation.linePos) {
-                    // The token is on the affected line so the start column needs to be shifted
-                    startCol += mutation.colOffset;
-                    if (endLine === mutation.linePos) {
-                        // The token is entirely on one line so both the start and end column need to be shifted
-                        endCol += mutation.colOffset;
+                if (startLine >= mutation.linePos) {
+                    if (startLine === mutation.linePos) {
+                        // The token is on the affected line so the start column needs to be shifted
+                        startCol += mutation.colOffset;
+                        if (endLine === mutation.linePos) {
+                            // The token is entirely on one line so both the start and end column need to be shifted
+                            endCol += mutation.colOffset;
+                        }
                     }
+                    startLine += mutation.lineOffset;
+                    endLine += mutation.lineOffset;
                 }
-                startLine += mutation.lineOffset;
-                endLine += mutation.lineOffset;
             }
         }
 
         // Mutations can adjust the position, so we need to rectify it.
         // We use an EditChain to apply position updates lazily when properties are accessed.
         function commit() {
-            token.edits = token.edits.apply(applyEdit);
+            token._edits = token._edits.apply(applyEdit);
         }
 
         const token: Token = {
@@ -290,7 +303,7 @@ export class StringLexer extends DiagnosticsMixin implements ILexer {
             get endLine() { commit(); return endLine; },
             get endCol() { commit(); return endCol; },
 
-            edits: this.edits,
+            _edits: this.edits,
         };
 
         return token;
@@ -546,15 +559,44 @@ export class StringLexer extends DiagnosticsMixin implements ILexer {
         }
     }
 
-    mutate(firstTokenIndex: number, numTokens: number, insert: string) {
+    mutate(firstTokenIndex: number, numTokens: number, insert: string): {
+        readonly insertedTokens: Token[],
+        readonly removedTokens: Token[],
+    } {
+        // console.log(this.tokens.length, firstTokenIndex, numTokens);
+        // console.log(this.tokens.slice(firstTokenIndex, numTokens + firstTokenIndex).map(x => x.content), insert);
+        
+        if (firstTokenIndex < 0) {
+            numTokens += firstTokenIndex;
+            firstTokenIndex = 0;
+        }
+        if (numTokens < 0) {
+            numTokens = 0;
+        }
+        if (this.input === '') {
+            // Special case for previously empty input
+            this.input = insert;
+            return {
+                insertedTokens: this.readAllTokens(),
+                removedTokens: [],
+            };
+        }
+        if (this.tokens.length === 0) {
+            // Special case for non-empty input but unread tokens
+            this.readAllTokens();
+            return this.mutate(firstTokenIndex, numTokens, insert);
+        }
+
+        // Even in the case of appending, we still need to re-lex the last token since it may have changed.
+
         /** The first token which is mutated/removed */
-        const firstToken = this.tokens[firstTokenIndex];
+        const firstToken = this.tokens[firstTokenIndex] ?? this.tokens.at(-1);
         /** The last token which is mutated/removed */
-        const lastToken = this.tokens[firstTokenIndex + numTokens];
+        const lastToken = this.tokens[firstTokenIndex + numTokens] ?? this.tokens.at(-1);
         /** The start byte position of the first token which is mutated/removed */
-        const removalStart = firstToken?.start ?? this.input.length;
+        const removalStart = firstToken.start;
         /** The end byte position of the last token which is mutated/removed */
-        const removalEnd = (lastToken?.end ?? this.input.length);
+        const removalEnd = lastToken.end;
         /** The byte length of the span of tokens which are mutated/removed */
         const removalLength = removalEnd - removalStart;
         /** The change in byte length */
@@ -566,69 +608,97 @@ export class StringLexer extends DiagnosticsMixin implements ILexer {
         const lineDelta = linesAdded - linesRemoved;
         /** The column directly after the inserted content */
         const endColumn =
-            linesAdded === 0
+            lineDelta === 0
                 // If the edit doesn't include any newlines, add the byte delta to the starting column 
-                ? firstToken.startCol + byteDelta
-                // If it does, just take the number of characters after (including) the newline
-                // TODO: Check for off-by-one error here
-                : insert.length - insert.lastIndexOf('\n');
+                ? lastToken.endCol + byteDelta
+                : insert.length - insert.lastIndexOf('\n') - 1;
 
         // Push onto the edit change so that tokens can update their position
         this.edits = this.edits.push({
             bytePos: removalStart + insert.length,
             byteOffset: byteDelta,
 
-            linePos: lastToken.endLine + lineDelta,
+            // The line to change column numbers on is one off if the last token ends in a newline.
+            linePos: lastToken.endLine - (lastToken.endCol === 1 ? 1 : 0),
             lineOffset: lineDelta,
-            colOffset: lastToken.endCol - endColumn,
+            colOffset: endColumn - lastToken.endCol,
         });
+        // console.log({ insert, linesAdded, linesRemoved, byteDelta, startCol: firstToken.startCol, endCol: lastToken.endCol })
+        // console.log(this.edits.edit);
 
         // We also have to include the rest of the input after the removed area.
         // Example:
         //  Before: foo(1, 2);
         //  After:  foo("1, 2);
         // Only " was inserted but it changes how the rest of the input lexes.
-        const subLexer = new StringLexer(insert + this.input.slice(removalEnd));
+        const subLexer = new StringLexer(
+            insert + this.input.slice(removalEnd),
+            { byteOffset: firstToken.start, line: firstToken.startLine, col: firstToken.startCol, edits: this.edits },
+        );
+        subLexer.setDiagnostics(this.diagnostics);
         
         // We should only match the existing token if it appears after the tokens being removed
-        let existingTokenIndex = firstTokenIndex + numTokens;
+        let checkExistingTokenIndex = firstTokenIndex + numTokens;
+
         const matchesExistingToken = (token: Token) => {
-            // If the new token matches an existing token exactly, we can stop there.
-            let existingToken;
-            while (true) {
-                existingToken = this.tokens[existingTokenIndex];
-                if (!existingToken) {
+            for (;; checkExistingTokenIndex++) {
+
+                const existingToken = this.tokens[checkExistingTokenIndex];
+                if (!existingToken || existingToken.start > token.start) {
                     return false;
                 }
-                if (existingToken.start >= token.start) {
-                    break;
+
+                // An existing token should be in the same position with the same type and same content.
+                // Offsets aren't an issue because we already pushed to the edit chain.
+                if (existingToken.type === token.type
+                    && existingToken.start === token.start
+                    && existingToken.content === token.content
+                ) {
+                    return true;
                 }
-                existingTokenIndex++;
             }
-            // Should be in the same position with the same type and same content
-            // Offsets aren't an issue because we already pushed to the edit chain
-            return existingToken.type === token.type
-                && existingToken.start === token.start
-                && existingToken.content === token.content;
-        }
+        };
 
         while (!subLexer.isComplete) {
             const token = subLexer.readToken();
+
+            // If the new token matches an existing token exactly, we can stop there.
             if (matchesExistingToken(token)) {
                 // Because this is definitely after the removed area,
                 // if we match an existing token then it's safe to stop lexing
-                // and reuse our previous work. 
+                // and reuse our previous work.
+
+                // Slice off the existing token
+                const insertedTokens = subLexer.tokens.slice(0, -1);
+
+                const removedTokens = this.tokens.slice(firstTokenIndex, checkExistingTokenIndex);
+
+                // Update local fields
+                this.tokens.splice(firstTokenIndex, removedTokens.length, ...insertedTokens);
+                this.input = this.input.slice(0, removalStart)
+                    + insert
+                    + this.input.slice(removedTokens.at(-1)!.end);
+
                 return {
-                    // Slice off the existing token
-                    insertedTokens: subLexer.tokens.slice(0, -1),
-                    removedTokens: this.tokens.slice(firstTokenIndex, existingTokenIndex),
+                    insertedTokens,
+                    removedTokens,
                 }
             }
         }
 
+        // Did not find matching token
+
+        const removedTokens = this.tokens.slice(firstTokenIndex);
+
+        // Update local fields
+        this.tokens.splice(firstTokenIndex, removedTokens.length, ...subLexer.tokens);
+        this.input = this.input.slice(0, removalStart)
+            + insert
+            + this.input.slice(removedTokens.at(-1)!.end);
+        
         return {
             insertedTokens: subLexer.tokens,
-            removedTokens: this.tokens.slice(firstTokenIndex, existingTokenIndex),
+            removedTokens,
         }
     }
 }

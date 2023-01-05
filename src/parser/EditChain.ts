@@ -20,6 +20,10 @@ export class EditChain<T> {
             return this;
         }
 
+        if (this.next.edit) {
+            applyEdit(this.next.edit);
+        }
+        
         return this.next.apply(applyEdit);
     }
 }

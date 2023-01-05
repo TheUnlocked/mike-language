@@ -7,5 +7,8 @@ module.exports = {
     "watch-files": [
         "src/**",
         "tests/**",
-    ]
+    ],
+    "reporter-option": [
+        "maxDiffSize=32768"
+    ],
 };

@@ -1,13 +1,8 @@
-import { AnyNode, ASTNodeKind, Block, DUMMY_IDENTIFIER, Expression, Identifier, IfCase, InfixOperator, ListenerDefinition, Pair, Parameter, ParameterDefinition, PrefixOperator, Program, StateDefinition, StatementOrBlock, TopLevelDefinition, Trivia, Type, TypeDefinition, TypeIdentifier } from '../ast';
-import { DiagnosticCodes, DiagnosticsMixin } from '../diagnostics';
+import { AnyNode, ASTNodeKind, Block, DUMMY_IDENTIFIER, Expression, GenericType, getChildren, Identifier, IfCase, InfixOperator, ListenerDefinition, Pair, Parameter, ParameterDefinition, PrefixOperator, Program, StateDefinition, StatementOrBlock, TopLevelDefinition, Trivia, Type, TypeDefinition, TypeIdentifier } from '../ast';
+import { DiagnosticCodes, DiagnosticsMixin, DiagnosticsReporter } from '../diagnostics';
+import { Mutable } from '../utils';
 import { hasFlag } from '../utils/flags';
-import { isTrivia, Token, TokenType } from './lexer';
-
-interface MemoEntry {
-    // Memo entries are double-keyed to tokens (referentially) and parse rules.
-    readonly parseRule: string;
-    readonly astNode: AnyNode;
-}
+import { isTrivia, StringLexer, Token, TokenType } from './lexer';
 
 /** @internal */
 interface Rules {
@@ -76,12 +71,75 @@ enum ParseFlags {
 }
 
 export class Parser extends DiagnosticsMixin implements Rules {
-    private tokens: Token[];
-    
-    constructor(tokens: Token[]) {
-        super();
-        // Defensive copy
-        this.tokens = [...tokens];
+    private tokens!: Token[];
+    private lexer?: StringLexer;
+
+    loadSource(source: string) {
+        this.lexer = new StringLexer(source);
+        this.lexer.setDiagnostics(this.diagnostics);
+        this.tokens = this.lexer.readAllTokens();
+    }
+
+    editSource(bytePos: number, length: number, insert: string) {
+        if (!this.lexer) {
+            this.loadSource(insert);
+            return;
+        }
+
+        const firstToken = this.findTokenIndexAtBytePos(bytePos);
+        const lastToken = this.findTokenIndexAtBytePos(bytePos + length, firstToken);
+        const tokenSpanLength = lastToken - firstToken;
+
+        // The inserted text fed to the lexer needs to include the parts of the tokens which will be re-lexed
+        const frontTokenPart = this.tokens[firstToken].content.slice(0, bytePos - this.tokens[firstToken].start);
+        const backTokenPart = this.tokens[lastToken].content.slice(bytePos + length - this.tokens[lastToken].start);
+        const fullInsertion = frontTokenPart + insert + backTokenPart;
+
+        const { removedTokens } = this.lexer.mutate(firstToken, tokenSpanLength, fullInsertion);
+
+        // Cache invalidation
+        for (const token of removedTokens) {
+            let node = this.memoTable.get(token)?.[0]?.[1];
+            this.memoTable.delete(token);
+            while (node) {
+                const firstToken = node.tokens!.find(x => !isTrivia(x))!;
+
+                const memoEntry = this.memoTable.get(firstToken);
+                if (memoEntry) {
+                    this.memoTable.set(firstToken, memoEntry.filter(x => x[1] !== node));
+                }
+                node = node.parent;
+            }
+        }
+
+        this.tokens = this.lexer.tokens;
+    }
+
+    setDiagnostics(diagnostics: DiagnosticsReporter) {
+        super.setDiagnostics(diagnostics);
+        this.lexer?.setDiagnostics(diagnostics);
+    }
+
+    private findTokenIndexAtBytePos(pos: number, from = 0) {
+        let first = from;
+        let last = this.tokens.length - 1;
+        
+        while (last > first) {
+            let pivot = first + Math.floor((last - first) / 2);
+            if (pos < this.tokens[pivot].start) {
+                // Token is earlier
+                last = pivot - 1;
+            }
+            else if (pos >= this.tokens[pivot].end) {
+                // Token is later
+                first = pivot + 1;
+            }
+            else {
+                return pivot;
+            }
+        }
+        // first is either 0 or tokens.length
+        return first;
     }
 
     private focusHere() {
@@ -109,7 +167,7 @@ export class Parser extends DiagnosticsMixin implements Rules {
         });
     }
 
-    private memoTable = new Map<Token, MemoEntry>();
+    private memoTable = new Map<Token, [string, AnyNode][]>();
 
     private head = -1;
     private rollbackStack: number[] = [];
@@ -176,6 +234,17 @@ export class Parser extends DiagnosticsMixin implements Rules {
         this.flagStack.pop();
     }
 
+    private memoize(token: Token, rule: string, node: AnyNode) {
+        const ruleStack = this.memoTable.get(token);
+
+        if (ruleStack) {
+            ruleStack.push([rule, node]);
+        }
+        else {
+            this.memoTable.set(token, [[rule, node]]);
+        }
+    }
+
     private advanceToBeforeNextNonTrivia() {
         let token = this.tokens[this.head + 1];
         while (token && isTrivia(token)) {
@@ -193,19 +262,33 @@ export class Parser extends DiagnosticsMixin implements Rules {
         }
     }
 
-    private next(): Token | undefined {
+    private advanceWithoutChangingCache(): Token | undefined {
         this.advanceToBeforeNextNonTrivia();
         const token = this.tokens[++this.head];
+        return token;
+    }
+
+    private next(): Token | undefined {
+        const token = this.advanceWithoutChangingCache();
         // Invalidate a token's cache whenever we re-accept it
-        this.memoTable.delete(token);
+        this.memoTable.delete(token!);
+        return token;
+    }
+
+    private peek(): Token | undefined {
+        this.save();
+        const token = this.advanceWithoutChangingCache();
+        this.rollback();
         return token;
     }
 
     private accept(tokenType: TokenType): Token | undefined {
         this.save();
-        const token = this.next();
+        const token = this.advanceWithoutChangingCache();
         if (token?.type === tokenType) {
             this.commit();
+            // Invalidate a token's cache whenever we re-accept it
+            this.memoTable.delete(token);
             return token;
         }
         this.rollback();
@@ -250,34 +333,37 @@ export class Parser extends DiagnosticsMixin implements Rules {
 
         const nextToken = this.tokens[this.head + 1];
         if (nextToken) {
-            let entry = this.memoTable.get(nextToken);
-            if (entry?.parseRule === rule) {
-                this.head += entry.astNode.tokens!.length;
-                return entry.astNode as any;
+            const node = this.memoTable.get(nextToken)?.find(entry => entry[0] === rule)?.[1];
+            if (node) {
+                this.head += node.tokens!.length;
+                return node as any;
             }
         }
 
         // If it was a Program node we already saved it, so no need to save it again 
         if (!isProgramRule) this.saveTrivia();
 
-        const result = (this as any)[rule]() as ReturnType<Rules[T]>;
+        const node = (this as any)[rule]() as Mutable<AnyNode>;
 
-        if (!result) {
+        if (!node) {
             this.propagateTrivia();
-            return result;
+            return node; // undefined
         }
 
-        if (nextToken) {
-            this.memoTable.set(nextToken, {
-                astNode: result,
-                parseRule: rule,
-            });
+        node.tokens = this.tokens.slice(firstTokenIndex, this.head + 1);
+        node.trivia = this.consumeTrivia();
+
+        // Assign children
+        getChildren(node).forEach(x => x.parent = node);
+
+        // Memoize own tokens, and the first token even if not an own token.
+        for (const token of node.tokens) {
+            if (!this.memoTable.has(token) || token === nextToken) {
+                this.memoize(token, rule, node);
+            }
         }
-        // @ts-expect-error Mutating tokens is okay here.
-        result.tokens = this.tokens.slice(firstTokenIndex, this.head + 1);
-        // @ts-expect-error Mutating trivia is okay here.
-        result.trivia = this.consumeTrivia();
-        return result;
+
+        return node as ReturnType<Rules[T]>;
     }
 
     private repeat<T extends keyof Rules>(
@@ -403,16 +489,11 @@ export class Parser extends DiagnosticsMixin implements Rules {
     }
 
     topLevelDef(): TopLevelDefinition | undefined {
-        switch (this.next()?.type) {
+        switch (this.peek()?.type) {
             case TokenType.KW_PARAM:
                 return this.visit('paramDef');
             case TokenType.KW_STATE:
-                const stateDef = this.visit('stateDef');
-                if (!stateDef.default) {
-                    this.focus(stateDef);
-                    this.error(DiagnosticCodes.NoStateInitialValue);
-                }
-                return stateDef;
+                return this.visit('stateDef');
             case TokenType.KW_ON:
                 return this.visit('listenerDef');
             case TokenType.KW_TYPE:
@@ -421,12 +502,13 @@ export class Parser extends DiagnosticsMixin implements Rules {
                 // End of file-- OK because this is the top level
                 return;
             default:
-                this.focusToken(this.currentToken!);
+                this.focusToken(this.next()!);
                 this.error(DiagnosticCodes.UnexpectedToken, this.currentToken!);
         }
     }
 
     paramDef(): ParameterDefinition {
+        this.expect(TokenType.KW_PARAM);
         const name = this.expectIdentifier();
         this.expect(TokenType.SYNTAX_COLON);
         const type = this.expectType();
@@ -439,11 +521,17 @@ export class Parser extends DiagnosticsMixin implements Rules {
     }
 
     stateDef(): StateDefinition {
+        const on = this.expect(TokenType.KW_STATE);
         const name = this.expectIdentifier();
         const type = this.accept(TokenType.SYNTAX_COLON) ? this.expectType() : undefined;
         const $default = this.accept(TokenType.SYNTAX_EQUAL) ? this.expectExpression() : undefined;
 
-        this.expect(TokenType.SYNTAX_SEMI);
+        const semi = this.expect(TokenType.SYNTAX_SEMI);
+
+        if (!$default) {
+            this.focusTokenRange(on!, semi ?? type?.tokens?.at(-1) ?? name.tokens?.at(-1) ?? on!);
+            this.error(DiagnosticCodes.NoStateInitialValue);
+        }
 
         return {
             kind: ASTNodeKind.StateDefinition,
@@ -454,6 +542,7 @@ export class Parser extends DiagnosticsMixin implements Rules {
     }
 
     listenerDef(): ListenerDefinition {
+        this.expect(TokenType.KW_ON);
         const event = this.expectIdentifier();
 
         let parameters = [] as Parameter[];
@@ -472,6 +561,7 @@ export class Parser extends DiagnosticsMixin implements Rules {
     }
     
     typeDef(): TypeDefinition {
+        this.expect(TokenType.KW_TYPE);
         const name = this.expectTypeIdentifier();
         this.expect(TokenType.SYNTAX_LPAREN);
         const parameters = this.repeat('parameter', TokenType.SYNTAX_RPAREN, TokenType.SYNTAX_COMMA);
@@ -658,14 +748,19 @@ export class Parser extends DiagnosticsMixin implements Rules {
                 const op = mapping[this.currentToken!.type]!;
                 firstOp ??= op;
                 const rhs = this.expectExpression(lowerRule);
+
+                const lhs: Expression = expr;
                 expr = {
                     kind: ASTNodeKind.BinaryOp,
                     op,
-                    lhs: expr,
+                    lhs,
                     rhs,
                     tokens: this.tokens.slice(firstTokenIndex, this.head + 1),
                     trivia: this.consumeTrivia(),
                 };
+                lhs.parent = expr;
+                rhs.parent = expr;
+
                 if (precedenceConflictDiagnostic && op !== firstOp && !alreadyReported) {
                     this.focus(expr);
                     this.error(precedenceConflictDiagnostic);
@@ -733,24 +828,28 @@ export class Parser extends DiagnosticsMixin implements Rules {
                 // Intentionally not saving trivia here.
                 switch (this.currentToken!.type) {
                     case TokenType.SYNTAX_DOT:
+                        const obj: Expression = expr;
                         // Dereference
                         expr = {
                             kind: ASTNodeKind.Dereference,
-                            obj: expr,
+                            obj,
                             member: this.expectIdentifier(),
                             tokens: this.tokens.slice(firstTokenIndex, this.head + 1),
                             trivia: this.consumeTrivia(),
                         };
+                        obj.parent = expr;
                         break;
                     case TokenType.SYNTAX_LPAREN:
                         // Invoke
+                        const fn: Expression = expr;
                         expr = {
                             kind: ASTNodeKind.Invoke,
-                            fn: expr,
+                            fn,
                             args: this.repeat('expression', TokenType.SYNTAX_RPAREN, TokenType.SYNTAX_COMMA),
                             tokens: this.tokens.slice(firstTokenIndex, this.head + 1),
                             trivia: this.consumeTrivia(),
                         };
+                        fn.parent = expr;
                         break;
                 }
                 this.saveTrivia();
@@ -893,11 +992,13 @@ export class Parser extends DiagnosticsMixin implements Rules {
                 };
                 if (this.accept(TokenType.OP_LT)) {
                     // parameterized type
-                    return {
+                    const genericType: GenericType = {
                         kind: ASTNodeKind.GenericType,
                         name: typeId,
                         typeArguments: this.repeat('type', TokenType.OP_GT, TokenType.SYNTAX_COMMA),
                     };
+                    typeId.parent = genericType;
+                    return genericType;
                 }
                 else {
                     return typeId;
