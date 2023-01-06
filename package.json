@@ -1,6 +1,6 @@
 {
   "name": "@necode-org/mike",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "author": {
     "name": "Trevor Paley",
     "url": "https://github.com/TheUnlocked"
@@ -15,12 +15,10 @@
   "license": "MIT",
   "scripts": {
     "prepublishOnly": "do not use `npm publish`, use `npm run publish` instead.",
-    "prepack": "npm run clean && npm run antlr4ts && tsc && node ./prepack.mjs",
+    "prepack": "npm run clean && tsc && node ./prepack.mjs",
     "pack": "npm pack ./dist",
     "publish": "npm run test && npm run prepack && cd ./dist && npm publish",
-    "prepare": "npm run antlr4ts",
-    "clean": "rimraf src/grammar/generated dist",
-    "antlr4ts": "antlr4ts -visitor src/grammar/MiKe.g4 -o src/grammar/generated",
+    "clean": "rimraf dist",
     "typecheck": "tsc --noEmit",
     "test": "mocha",
     "test:watch": "mocha --watch",

@@ -3,11 +3,11 @@ import { AnyNode, ASTNodeKind, isExpression } from '../src/ast/Ast';
 import { Parser } from '../src/parser/parser';
 import scaffoldTests from './scaffolding';
 
-scaffoldTests('types', ({ mike, filename, diagnosticsManager }) => {
+scaffoldTests('types', ({ mike, diagnosticsManager }) => {
     mike.setEvents([
         { name: 'test', required: false, argumentTypes: [parseType('(Queue<boolean>) => unit')] }
     ]);
-    mike.validate(filename);
+    mike.validate();
 
     function fetchType(node: AnyNode) {
         if (isExpression(node)) {

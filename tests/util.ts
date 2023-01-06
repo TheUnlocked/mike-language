@@ -84,12 +84,12 @@ export function getTestData(filename: string, contents: string): TestData {
     mike.init();
     
     try {
-        mike.loadScript(filename, contents);
+        mike.loadScript(contents);
 
         const imports = [] as TestImport[];
         const assertions = [] as TestAssertion[];
 
-        const comments = mike.getComments(filename) ?? [];
+        const comments = mike.getComments() ?? [];
         for (let i = 0; i < comments.length; i++) {
             const comment = comments[i];
             if (comment.content.includes('expect')) {
@@ -184,14 +184,14 @@ export async function compileMiKeToJavascriptText(source: string, options?: {
         mike.addLibrary(lib);
     }
     mike.init();
-    mike.loadScript('.', source);
+    mike.loadScript(source);
 
     mike.setTarget(JavascriptTarget);
     for (const impl of options?.impls ?? []) {
         mike.addLibraryImplementation(impl);
     }
 
-    const output = mike.tryValidateAndEmit('.');
+    const output = mike.tryValidateAndEmit();
     if (!output) {
         expect.fail(`Failed to compile:\n\t${diagnostics.getDiagnostics().map(x => x.toString()).join('\n\t')}`);
     }
@@ -213,14 +213,14 @@ export async function compileMiKeToJavascriptWithoutExternals(source: string, op
         { name: 'test', required: false, argumentTypes: [] }
     ]);
     mike.init();
-    mike.loadScript('.', source);
+    mike.loadScript(source);
 
     mike.setTarget(JavascriptTarget);
     for (const impl of options?.impls ?? []) {
         mike.addLibraryImplementation(impl);
     }
 
-    const output = mike.tryValidateAndEmit('.');
+    const output = mike.tryValidateAndEmit();
     if (!output) {
         expect.fail(`Failed to compile:\n\t${diagnostics.getDiagnostics().map(x => x.toString()).join('\n\t')}`);
     }

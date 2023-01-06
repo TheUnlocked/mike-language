@@ -21,7 +21,7 @@ export default class MiKe {
     private libraries: LibraryInterface[] = [stdlib];
     private libraryImplementations!: Partial<LibraryImplementation>[];
     private events: EventRegistration[] = [];
-    private files = new Map<string, Program>();
+    private parser!: Parser;
 
     private _symbolTable!: SymbolTable;
     get symbolTable() { return this._symbolTable }
@@ -34,6 +34,10 @@ export default class MiKe {
     private _target!: TargetFactory;
     get target() { return this._target }
     private set target(value) { this._target = value; }
+
+    private _root!: Program;
+    get root() { return this._root }
+    private set root(value) { this._root = value; }
 
     failSeverity = Severity.Warning;
 
@@ -109,37 +113,35 @@ export default class MiKe {
         this.validator.setDiagnostics(this.diagnostics);
     }
 
-    loadScript(filename: string, script: string) {
+    loadScript(script: string) {
         if (!this.initialized) {
             throw new Error('You must call Mike.init before loading a script.')
         }
 
-        const parser = new Parser();
-        parser.setDiagnostics(this.diagnostics);
-        parser.loadSource(script);
-        const ast = parser.parse();
+        this.parser = new Parser();
+        this.parser.setDiagnostics(this.diagnostics);
+        this.parser.loadSource(script);
+        this.reload();
+    }
+
+    editScript(pos: number, length: number, insert: string) {
+        this.parser.editSource(pos, length, insert);
+        this.reload();
+    }
+
+    private reload() {
+        this.root = this.parser.parse();
 
         this.typechecker.notifyChange();
         this.typechecker.loadTypes(
-            ast.definitions.filter((x): x is TypeDefinition => x.kind === ASTNodeKind.TypeDefinition)
+            this.root.definitions.filter((x): x is TypeDefinition => x.kind === ASTNodeKind.TypeDefinition)
         );
-        
-        this.files.set(filename, ast);
     }
 
-    getRootNames() {
-        return [...this.files.keys()];
-    }
-
-    getRoot(filename: string) {
-        return this.files.get(filename);
-    }
-
-    getComments(filename: string): readonly Comment[] | undefined {
-        const root = this.files.get(filename);
-        if (root) {
+    getComments(): readonly Comment[] | undefined {
+        if (this.root) {
             const comments: Comment[] = [];
-            visit(root, node => {
+            visit(this.root, node => {
                 if (node.kind === ASTNodeKind.Comment) {
                     comments.push(node);
                     return true;
@@ -155,12 +157,11 @@ export default class MiKe {
             .every(x => x.severity < this.failSeverity);
     }
 
-    validate(filename: string) {
-        const ast = this.files.get(filename);
-        if (!ast) {
+    validate() {
+        if (!this.root) {
             return false;
         }
-        this.validator.validate(ast);
+        this.validator.validate(this.root);
         return this.passedValidation();
     }
 
@@ -194,19 +195,18 @@ export default class MiKe {
         return megaImpl;
     }
 
-    tryValidateAndEmit(filename: string): ArrayBuffer | undefined {
+    tryValidateAndEmit(): ArrayBuffer | undefined {
         if (!this.target) {
             throw new Error('No target set. Set a target with MiKe.setTarget before attempting to compile.');
         }
-        const ast = this.files.get(filename);
-        if (!ast) {
+        if (!this.root) {
             return;
         }
-        this.validator.validate(ast);
+        this.validator.validate(this.root);
         if (!this.passedValidation()) {
             return;
         }
         const impl = this.collectLibraries();
-        return this.target.create(this.typechecker, impl).generate(this.files.get(filename)!);
+        return this.target.create(this.typechecker, impl).generate(this.root);
     }
 }

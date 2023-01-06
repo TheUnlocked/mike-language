@@ -32,7 +32,7 @@ export default function scaffoldTests(
                         isEmpty
                     } = testData;
 
-                    const rootNode = mike.getRoot(filename)!;
+                    const rootNode = mike.root;
 
                     const createAdditionalContext = getCreateAdditionalContext(testData);
                     

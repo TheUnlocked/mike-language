@@ -3,11 +3,11 @@ import { Parser } from '../src/parser/parser';
 import { intType } from '../src/types/Primitives';
 import scaffoldTests from './scaffolding';
 
-scaffoldTests('diagnostics', ({ mike, filename, diagnosticsManager }) => {
+scaffoldTests('diagnostics', ({ mike, diagnosticsManager }) => {
     mike.setEvents([
         { name: 'test', required: true, argumentTypes: [intType] }
     ]);
-    mike.validate(filename);
+    mike.validate();
 
     function fetchType(node: AnyNode) {
         if (isExpression(node)) {
