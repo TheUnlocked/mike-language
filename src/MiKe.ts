@@ -5,9 +5,8 @@ import { createMiKeDiagnosticsManager } from './diagnostics/DiagnosticCodes';
 import { DiagnosticsManager, DiagnosticsReporter, Severity } from './diagnostics/Diagnostics';
 import { LibraryImplementation, LibraryInterface } from './library/Library';
 import stdlib from './library/stdlib';
-import { StringLexer } from './parser/lexer';
 import { Parser } from './parser/parser';
-import { Binder } from './semantics/Binder';
+import { SymbolTable } from './semantics/SymbolTable';
 import { Scope } from './semantics/Scope';
 import { Typechecker } from './semantics/Typechecker';
 import Validator, { EventRegistration } from './semantics/Validator';
@@ -24,9 +23,9 @@ export default class MiKe {
     private events: EventRegistration[] = [];
     private files = new Map<string, Program>();
 
-    private _binder!: Binder;
-    get binder() { return this._binder }
-    private set binder(value) { this._binder = value; }
+    private _symbolTable!: SymbolTable;
+    get symbolTable() { return this._symbolTable }
+    private set symbolTable(value) { this._symbolTable = value; }
 
     private _typechecker!: Typechecker;
     get typechecker() { return this._typechecker }
@@ -40,8 +39,8 @@ export default class MiKe {
 
     addLibrary(library: LibraryInterface) {
         this.libraries.push(library);
-        if (this.binder) {
-            this.initBinder();
+        if (this.symbolTable) {
+            this.initSymbolTable();
         }
     }
 
@@ -77,23 +76,23 @@ export default class MiKe {
             this.setDiagnosticsManager(createMiKeDiagnosticsManager());
         }
 
-        this.initBinder();
+        this.initSymbolTable();
         this.initialized = true;
     }
 
-    private initBinder() {
+    private initSymbolTable() {
         const topLevelScope = new Scope(
             () => undefined,
             this.libraries
                 .flatMap(lib => lib.values)
                 .map(({ name, type }) => [name, { kind: ASTNodeKind.OutOfTree, name, type }])
         );
-        this.binder = new Binder(topLevelScope);
+        this.symbolTable = new SymbolTable(topLevelScope);
         this.initTypechecker();
     }
 
     private initTypechecker() {
-        this.typechecker = new Typechecker(this.libraries.flatMap(lib => lib.types), this.binder);
+        this.typechecker = new Typechecker(this.libraries.flatMap(lib => lib.types), this.symbolTable);
         this.typechecker.setDiagnostics(this.diagnostics);
         this.initValidator();
     }
@@ -119,8 +118,6 @@ export default class MiKe {
         parser.setDiagnostics(this.diagnostics);
         parser.loadSource(script);
         const ast = parser.parse();
-
-        this.binder.bind(ast);
 
         this.typechecker.notifyChange();
         this.typechecker.loadTypes(

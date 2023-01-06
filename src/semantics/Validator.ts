@@ -30,7 +30,7 @@ export default class Validator extends DiagnosticsMixin {
         if (this.testSetValidated(ast)) {
             return;
         }
-        const scope = this.typechecker.binder.getScope(ast);
+        const scope = this.typechecker.symbolTable.getScope(ast);
         for (const duplicate of scope.duplicateBindings) {
             const ident = getVariableDefinitionIdentifier(duplicate);
             this.focus(ident);
@@ -188,7 +188,7 @@ export default class Validator extends DiagnosticsMixin {
         if (this.testSetValidated(ast)) {
             return;
         }
-        for (const duplicate of this.typechecker.binder.getScope(ast).duplicateBindings) {
+        for (const duplicate of this.typechecker.symbolTable.getScope(ast).duplicateBindings) {
             const ident = getVariableDefinitionIdentifier(duplicate);
             this.focus(ident);
             this.error(DiagnosticCodes.VariableDefinedMultipleTimes, ident.name);
@@ -253,7 +253,7 @@ export default class Validator extends DiagnosticsMixin {
     }
 
     private validateAssignVar(ast: AssignVar) {
-        const varDef = this.typechecker.binder.getVariableDefinition(ast.variable);
+        const varDef = this.typechecker.symbolTable.getVariableDefinition(ast.variable);
         if (!varDef) {
             this.focus(ast.variable);
             this.error(DiagnosticCodes.UnknownIdentifier, ast.variable.name);
@@ -266,8 +266,8 @@ export default class Validator extends DiagnosticsMixin {
         }
         else if (varDef.kind === ASTNodeKind.LetStatement) {
             const block = varDef.parent!;
-            const defPos = this.typechecker.binder.getPositionInParent(varDef, block);
-            const varPos = this.typechecker.binder.getStatementPositionInBlock(ast, block);
+            const defPos = this.typechecker.symbolTable.getPositionInParent(varDef);
+            const varPos = this.typechecker.symbolTable.getStatementPositionInBlock(ast, block);
             if (varPos === undefined || varPos <= defPos) {
                 this.focus(ast.variable);
                 this.error(DiagnosticCodes.NotYetDefined, ast.variable.name);

@@ -531,7 +531,7 @@ export default class JavascriptTarget implements Target {
 
     @boundMethod
     private visitIdentifier(ast: Identifier) {
-        if (this.typechecker.binder.getVariableDefinition(ast)?.kind === ASTNodeKind.OutOfTree) {
+        if (this.typechecker.symbolTable.getVariableDefinition(ast)?.kind === ASTNodeKind.OutOfTree) {
             const valueImpl = this.impl.values[ast.name](this.getBuiltinVariableName);
             if (valueImpl) {
                 return this.defineBuiltin(ast.name, () => valueImpl.emit);

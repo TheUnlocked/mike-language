@@ -7,7 +7,7 @@ import { CanIfDestructAttribute, TypeAttributeKind } from '../types/Attribute';
 import { booleanType, floatType, intType, primitiveTypes, stringType } from '../types/Primitives';
 import { TypeInfo } from '../types/TypeInfo';
 import { KnownType, FunctionType, IncompleteType, MapLike, SequenceLike, SimpleType, TypeKind, TOXIC, ToxicType, matchesSequenceLike, matchesMapLike, TypeVariable, replaceTypeVariables, optionOf } from '../types/KnownType';
-import { Binder } from './Binder';
+import { SymbolTable } from './SymbolTable';
 import { withCache } from '../utils/cache';
 
 export class Typechecker extends DiagnosticsMixin {
@@ -15,7 +15,7 @@ export class Typechecker extends DiagnosticsMixin {
 
     private types!: Map<string, TypeInfo>;
 
-    constructor(private readonly stdlibTypes: readonly TypeInfo[], public readonly binder: Binder) {
+    constructor(private readonly stdlibTypes: readonly TypeInfo[], public readonly symbolTable: SymbolTable) {
         super();
         this.notifyChange();
     }
@@ -588,7 +588,7 @@ export class Typechecker extends DiagnosticsMixin {
             if (parent.kind === ASTNodeKind.AssignField) {
                 return this.fetchMemberType(parent.obj, parent.member);
             }
-            const varDef = this.binder.getVariableDefinition(ast);
+            const varDef = this.symbolTable.getVariableDefinition(ast);
             if (varDef) {
                 return this.fetchVariableDefinitionType(varDef);
             }
@@ -603,24 +603,24 @@ export class Typechecker extends DiagnosticsMixin {
         // Caching of the variable node is automatically handled by fetchType.
         return withCache(ast.identifier, this.typeCache, () => {
             this.focus(ast);
-            const varDef = this.binder.getVariableDefinition(ast.identifier);
+            const varDef = this.symbolTable.getVariableDefinition(ast.identifier);
             if (varDef) {
                 if (varDef.kind === ASTNodeKind.LetStatement) {
                     // This is a local, so we need to make sure it has been assigned.
                     const block = varDef.parent!;
-                    const defPos = this.binder.getPositionInParent(varDef, block);
-                    const varPos = this.binder.getExpressionPositionInBlock(ast, block);
+                    const defPos = this.symbolTable.getPositionInParent(varDef);
+                    const varPos = this.symbolTable.getExpressionPositionInBlock(ast, block);
                     if (varPos === undefined || varPos <= defPos) {
                         this.error(DiagnosticCodes.NotYetDefined, ast.identifier.name);
                     }
                     else {
-                        const assignmentPos = this.binder.getFirstAssignmentPositionInBlock(ast.identifier.name, block);
+                        const assignmentPos = this.symbolTable.getFirstAssignmentPositionInBlock(ast.identifier.name, block);
                         if (assignmentPos === undefined || varPos <= assignmentPos) {
                             this.error(DiagnosticCodes.NotYetInitialized, ast.identifier.name);
                         }
                     }
                 }
-                const statement = this.binder.getParentStatement(ast);
+                const statement = this.symbolTable.getParentStatement(ast);
                 if (statement.kind === ASTNodeKind.StateDefinition &&
                     ![ASTNodeKind.OutOfTree, ASTNodeKind.TypeDefinition].includes(varDef.kind)
                 ) {
@@ -764,7 +764,8 @@ export class Typechecker extends DiagnosticsMixin {
             case ASTNodeKind.AssignField:
                 return this.fetchTypeFromIdentifier(parent.member);
             case ASTNodeKind.Invoke: {
-                const position = this.binder.getPositionInParent(ast, parent);
+                // - 1 since the first child will be the function itself
+                const position = this.symbolTable.getPositionInParent(ast) - 1;
                 if (position === -1) {
                     return;
                 }
@@ -788,7 +789,7 @@ export class Typechecker extends DiagnosticsMixin {
                 const mapType = this.fetchTargetType(parent.parent!);
                 if (mapType) {
                     if (matchesMapLike(mapType, { _type: true, kind: TypeKind.MapLike })) {
-                        const positionInPair = this.binder.getPositionInParent(ast, parent);
+                        const positionInPair = ast === parent.key ? 0 : 1;
                         return mapType.typeArguments[positionInPair];
                     }
                     return TOXIC;
