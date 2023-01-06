@@ -61,13 +61,13 @@ export default class Validator extends DiagnosticsMixin {
                     this.validateTypeDefinition(child);
                     break;
                 case ASTNodeKind.ListenerDefinition:
-                    requiredEventNames.delete(child.event);
-                    if (registeredListenerEventNames.has(child.event)) {
+                    requiredEventNames.delete(child.event.name);
+                    if (registeredListenerEventNames.has(child.event.name)) {
                         this.focus(child);
-                        this.error(DiagnosticCodes.ListenerDefinedMultipleTimes, child.event);
+                        this.error(DiagnosticCodes.ListenerDefinedMultipleTimes, child.event.name);
                     }
                     else {
-                        registeredListenerEventNames.add(child.event);
+                        registeredListenerEventNames.add(child.event.name);
                     }
                     this.validateListenerDefinition(child);
                     break;
@@ -159,10 +159,10 @@ export default class Validator extends DiagnosticsMixin {
             return;
         }
 
-        const event = this.options.events.find(evt => evt.name === ast.event);
+        const event = this.options.events.find(evt => evt.name === ast.event.name);
         if (!event) {
-            this.focus(ast);
-            this.error(DiagnosticCodes.UnknownEvent, ast.event);
+            this.focus(ast.event);
+            this.error(DiagnosticCodes.UnknownEvent, ast.event.name);
         }
 
         ast.parameters.forEach((param, i) => {
@@ -177,7 +177,7 @@ export default class Validator extends DiagnosticsMixin {
                 }
                 else if (i === event.argumentTypes.length) {
                     this.focus(param);
-                    this.error(DiagnosticCodes.TooManyListenerParameters, ast.event);
+                    this.error(DiagnosticCodes.TooManyListenerParameters, ast.event.name);
                 }
             }
         });

@@ -566,7 +566,7 @@ export class Parser extends DiagnosticsMixin implements Rules {
 
         return {
             kind: ASTNodeKind.ListenerDefinition,
-            event: event.name,
+            event,
             parameters,
             body,
         };
