@@ -15,29 +15,6 @@ export class Binder {
 
     }
 
-    getParent(node: Expression): Exclude<Expression, MapLiteral> | Pair | Statement | IfCase | StateDefinition;
-    getParent(node: Statement): Block;
-    getParent(node: StatementOrBlock): Block | IfCase | IfElseChain | ListenerDefinition;
-    getParent(node: TopLevelDefinition): Program;
-    getParent(node: Program): undefined;
-    getParent(node: Pair): MapLiteral;
-    getParent(node: IfCase): IfElseChain;
-    getParent(node: Parameter): ListenerDefinition | TypeDefinition;
-    getParent(node: Comment): Program;
-    getParent(node: Type): GenericType | FunctionType | Parameter | LetStatement | ParameterDefinition | StateDefinition;
-    getParent(node: Identifier): Variable | Dereference | LetStatement | AssignVar | AssignField | ParameterDefinition | Parameter | StateDefinition | IfCase;
-    // Combo overloads (can be removed if https://github.com/microsoft/TypeScript/issues/14107 gets resolved)
-    getParent(node: Expression | Identifier): Exclude<Expression, MapLiteral> | Pair | Statement | IfCase | StateDefinition | LetStatement | AssignVar | AssignField | ParameterDefinition | Parameter;
-    getParent(node: Expression | Pair | IfCase): Expression | Statement | Pair | IfCase | StateDefinition;
-    getParent(node: Expression | Statement | Pair | IfCase): Expression | Statement | Pair | IfCase | StateDefinition | Block;
-    getParent(node: Expression | Statement | Pair | Identifier): Expression | Statement | IfCase | StateDefinition | Pair | Block | Variable | LetStatement | AssignVar | AssignField | ParameterDefinition | IfCase;
-    getParent(node: Statement | ListenerDefinition): Block | Program;
-    // Fallback
-    getParent(node: AnyNode): AnyNode;
-    getParent(node: AnyNode) {
-        return node.parent;
-    }
-
     getPositionInParent(child: Expression, parent: UnaryOp | Dereference | ExpressionStatement | LetStatement | AssignVar | StateDefinition): 0;
     getPositionInParent(child: Identifier, parent: Variable | Dereference | LetStatement | AssignVar | AssignField | ParameterDefinition | Parameter | StateDefinition | IfCase): 0;
     getPositionInParent(child: Expression, parent: BinaryOp | AssignField | Pair): 0 | 1;
@@ -75,25 +52,27 @@ export class Binder {
 
     getScope(node: Program | Block | Variable | Identifier) {
         if (node.kind === ASTNodeKind.Variable || node.kind === ASTNodeKind.Identifier) {
-            let parent = this.getParent(node) as Expression | Pair | Statement | IfCase | ParameterDefinition | StateDefinition | LetStatement | AssignVar | AssignField | Parameter | Block;
+            let parent: Expression | Pair | Statement | IfCase | ParameterDefinition | StateDefinition | LetStatement | AssignVar | AssignField | Parameter | Block
+                = node.parent!;
+            
             if (parent.kind === ASTNodeKind.Parameter) {
-                const listenerOrTypeDef = this.getParent(parent);
+                const listenerOrTypeDef = parent.parent!;
                 if (listenerOrTypeDef.kind === ASTNodeKind.ListenerDefinition) {
                     return this.symbolTable.get(listenerOrTypeDef.body)!;
                 }
                 return this.symbolTable.get(listenerOrTypeDef)!;
             }
             if (parent.kind === ASTNodeKind.ParameterDefinition || parent.kind === ASTNodeKind.StateDefinition) {
-                return this.symbolTable.get(this.getParent(parent))!;
+                return this.symbolTable.get(parent.parent!)!;
             }
             if (parent.kind === ASTNodeKind.IfCase) {
                 parent = parent.body;
             }
             while (isExpression(parent) || isStatement(parent) || parent.kind === ASTNodeKind.Pair || parent.kind === ASTNodeKind.IfCase) {
-                parent = this.getParent(parent);
+                parent = parent.parent!;
             }
             if (parent.kind === ASTNodeKind.StateDefinition) {
-                return this.symbolTable.get(this.getParent(parent))!;
+                return this.symbolTable.get(parent.parent!)!;
             }
             node = parent;
         }
@@ -109,14 +88,14 @@ export class Binder {
         if (!scope) {
             scope = new Scope(() => {
                 if (node.kind === ASTNodeKind.Block) {
-                    const parent = this.getParent(node);
+                    const parent = node.parent!;
                     if (parent.kind === ASTNodeKind.Block) {
                         return this.getScope(parent);
                     }
                     if (parent.kind === ASTNodeKind.IfCase) {
-                        return this.getScope(this.getParent(this.getParent(parent)));
+                        return this.getScope(parent.parent!.parent!);
                     }
-                    return this.getScope(this.getParent(parent));
+                    return this.getScope(parent.parent!);
                 }
                 return this.topLevelScope;
             });
@@ -149,7 +128,7 @@ export class Binder {
     getStatementPositionInBlock(ast: Statement, targetBlock: Block) {
         let child = ast as StatementOrBlock;
         while (true) {
-            const parent = this.getParent(child);
+            const parent = child.parent!;
             switch (parent.kind) {
                 default: expectNever(parent);
                 case ASTNodeKind.Block:
@@ -162,7 +141,7 @@ export class Binder {
                     child = parent;
                     break;
                 case ASTNodeKind.IfCase:
-                    child = this.getParent(parent);
+                    child = parent.parent!;
                     break;
                 case ASTNodeKind.ListenerDefinition:
                     return;
@@ -171,9 +150,9 @@ export class Binder {
     }
 
     getParentStatement(expr: Expression): Statement | StateDefinition {
-        let parent: Expression | Statement | IfCase | StateDefinition | Pair = this.getParent(expr);
+        let parent: Expression | Statement | IfCase | StateDefinition | Pair = expr.parent!;
         while (isExpression(parent) || parent.kind === ASTNodeKind.Pair || parent.kind === ASTNodeKind.IfCase) {
-            parent = this.getParent(parent);
+            parent = parent.parent!;
         }
         return parent;
     }

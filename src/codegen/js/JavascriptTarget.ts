@@ -491,7 +491,7 @@ export default class JavascriptTarget implements Target {
     }
 
     private visitDereference(ast: Dereference) {
-        const parent = this.typechecker.binder.getParent(ast);
+        const parent = ast.parent!;
         if (parent.kind !== ASTNodeKind.Invoke) {
             const memberType = this.typechecker.fetchTypeFromIdentifier(ast.member);
             if (memberType.kind === TypeKind.Function) {

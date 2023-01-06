@@ -57,7 +57,6 @@ export default function scaffoldTests(
                         before(async () => {
                             context = {
                                 ...await createContextFromImports(imports, sourceFilesDir),
-                                parent: (node: AnyNode) => mike.binder.getParent(node),
                             }
                         });
 

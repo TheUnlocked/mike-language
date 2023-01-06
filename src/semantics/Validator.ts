@@ -265,7 +265,7 @@ export default class Validator extends DiagnosticsMixin {
             this.error(DiagnosticCodes.CannotAssignToReadonlyVariable, ast.variable.name);
         }
         else if (varDef.kind === ASTNodeKind.LetStatement) {
-            const block = this.typechecker.binder.getParent(varDef);
+            const block = varDef.parent!;
             const defPos = this.typechecker.binder.getPositionInParent(varDef, block);
             const varPos = this.typechecker.binder.getStatementPositionInBlock(ast, block);
             if (varPos === undefined || varPos <= defPos) {

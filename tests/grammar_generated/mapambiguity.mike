@@ -8,7 +8,7 @@ on test() {
 
     }
 
-    //  v expect $.kind == ASTNodeKind.Identifier, parent($).kind == ASTNodeKind.Variable
+    //  v expect $.kind == ASTNodeKind.Identifier, $.parent.kind == ASTNodeKind.Variable
     //    v expect $.kind == ASTNodeKind.Block
     //       v expect $.kind == ASTNodeKind.Block
     if Foo{} {

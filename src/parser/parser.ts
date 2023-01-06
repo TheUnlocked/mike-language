@@ -1,4 +1,4 @@
-import { AnyNode, ASTNodeKind, Block, DUMMY_IDENTIFIER, Expression, GenericType, getChildren, Identifier, IfCase, InfixOperator, ListenerDefinition, Pair, Parameter, ParameterDefinition, PrefixOperator, Program, StateDefinition, StatementOrBlock, TopLevelDefinition, Trivia, Type, TypeDefinition, TypeIdentifier } from '../ast';
+import { AnyNode, ASTNodeKind, Block, DUMMY_IDENTIFIER, Expression, GenericType, getChildren, Identifier, IfCase, InfixOperator, Invoke, ListenerDefinition, Pair, Parameter, ParameterDefinition, PrefixOperator, Program, StateDefinition, StatementOrBlock, TopLevelDefinition, Trivia, Type, TypeDefinition, TypeIdentifier } from '../ast';
 import { DiagnosticCodes, DiagnosticsMixin, DiagnosticsReporter } from '../diagnostics';
 import { Mutable } from '../utils';
 import { hasFlag } from '../utils/flags';
@@ -364,7 +364,9 @@ export class Parser extends DiagnosticsMixin implements Rules {
         node.trivia = this.consumeTrivia();
 
         // Assign children
-        getChildren(node).forEach((x: Mutable<AnyNode>) => x.parent = node);
+        for (const child of getChildren(node) as Mutable<AnyNode>[]) {
+            child.parent = node;
+        }
 
         // Memoize own tokens, and the first token even if not an own token.
         for (const token of node.tokens) {
@@ -861,9 +863,11 @@ export class Parser extends DiagnosticsMixin implements Rules {
                             args,
                             tokens: this.tokens.slice(firstTokenIndex, this.head + 1),
                             trivia: this.consumeTrivia(),
-                        };
+                        } as Invoke;
                         fn.parent = expr;
-                        args.forEach((x: Mutable<Expression>) => x.parent = expr);
+                        for (const arg of args as Mutable<Expression>[]) {
+                            arg.parent = expr;
+                        }
                         break;
                 }
                 this.saveTrivia();

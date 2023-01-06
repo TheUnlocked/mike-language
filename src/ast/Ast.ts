@@ -79,7 +79,7 @@ export interface Comment extends ASTNode {
 export type Trivia = Comment;
 
 interface ExpressionNode extends ASTNode {
-
+    readonly parent?: Exclude<Expression, MapLiteral> | Pair | Statement | IfCase | StateDefinition;
 }
 
 export interface Invoke extends ExpressionNode {
@@ -112,9 +112,11 @@ export interface Variable extends ExpressionNode {
     readonly identifier: Identifier;
 }
 
-export interface Identifier extends ExpressionNode {
+export interface Identifier extends ASTNode {
     readonly kind: ASTNodeKind.Identifier;
     readonly name: string;
+
+    readonly parent?: Variable | Dereference | LetStatement | AssignVar | AssignField | ParameterDefinition | Parameter | StateDefinition | IfCase;
 }
 
 export interface FloatLiteral extends ExpressionNode {
@@ -147,6 +149,8 @@ export interface Pair extends ASTNode {
     readonly kind: ASTNodeKind.Pair;
     readonly key: Expression;
     readonly value: Expression;
+
+    readonly parent?: MapLiteral;
 }
 
 export interface MapLiteral extends ExpressionNode {
@@ -184,7 +188,7 @@ export function isExpression(node: AnyNode): node is Expression {
 }
 
 interface StatementNode extends ASTNode {
-
+    readonly parent?: Block;
 }
 
 export interface ExpressionStatement extends StatementNode {
@@ -212,11 +216,13 @@ export interface AssignField extends StatementNode {
     readonly value: Expression;
 }
 
-export interface IfCase extends StatementNode {
+export interface IfCase extends ASTNode {
     readonly kind: ASTNodeKind.IfCase;
-    readonly condition: Expression,
-    readonly deconstruct?: Identifier, 
-    readonly body: Block
+    readonly condition: Expression;
+    readonly deconstruct?: Identifier;
+    readonly body: Block;
+
+    readonly parent?: IfElseChain;
 }
 
 export interface IfElseChain extends StatementNode {
@@ -252,6 +258,8 @@ export function isStatement(node: AnyNode): node is Statement {
 export interface Block extends ASTNode {
     readonly kind: ASTNodeKind.Block;
     readonly statements: readonly StatementOrBlock[];
+
+    readonly parent?: Block | IfCase | IfElseChain | ListenerDefinition;
 }
 
 export type StatementOrBlock
@@ -259,37 +267,30 @@ export type StatementOrBlock
     | Block
     ;
 
-export interface ParameterDefinition extends ASTNode {
-    readonly kind: ASTNodeKind.ParameterDefinition;
-    readonly name: Identifier;
-    readonly type: Type;
-}
-
-export interface StateDefinition extends ASTNode {
-    readonly kind: ASTNodeKind.StateDefinition;
-    readonly name: Identifier;
-    readonly type?: Type;
-    readonly default?: Expression;
-}
-
 export interface Parameter extends ASTNode {
     readonly kind: ASTNodeKind.Parameter;
     readonly name: Identifier;
     readonly type: Type;
+
+    readonly parent?: ListenerDefinition | TypeDefinition;
 }
 
-export interface TypeIdentifier extends ASTNode {
+interface TypeNode extends ASTNode {
+    readonly parent?: GenericType | FunctionType | Parameter | LetStatement | ParameterDefinition | StateDefinition;
+}
+
+export interface TypeIdentifier extends TypeNode {
     readonly kind: ASTNodeKind.TypeIdentifier;
     readonly name: string;
 }
 
-export interface GenericType extends ASTNode {
+export interface GenericType extends TypeNode {
     readonly kind: ASTNodeKind.GenericType;
     readonly name: TypeIdentifier;
     readonly typeArguments: readonly Type[];
 }
 
-export interface FunctionType extends ASTNode {
+export interface FunctionType extends TypeNode {
     readonly kind: ASTNodeKind.FunctionType;
     readonly parameters: readonly Type[];
     readonly returnType: Type;
@@ -301,17 +302,34 @@ export type Type
     | FunctionType
     ;
 
-export interface ListenerDefinition extends ASTNode {
+interface TopLevelDefinitionNode extends ASTNode {
+    readonly parent?: Program;
+}
+
+export interface ListenerDefinition extends TopLevelDefinitionNode {
     readonly kind: ASTNodeKind.ListenerDefinition;
     readonly event: string;
     readonly parameters: readonly Parameter[];
     readonly body: Block;
 }
 
-export interface TypeDefinition extends ASTNode {
+export interface TypeDefinition extends TopLevelDefinitionNode {
     readonly kind: ASTNodeKind.TypeDefinition;
     readonly name: TypeIdentifier;
     readonly parameters: readonly Parameter[];
+}
+
+export interface ParameterDefinition extends TopLevelDefinitionNode {
+    readonly kind: ASTNodeKind.ParameterDefinition;
+    readonly name: Identifier;
+    readonly type: Type;
+}
+
+export interface StateDefinition extends TopLevelDefinitionNode {
+    readonly kind: ASTNodeKind.StateDefinition;
+    readonly name: Identifier;
+    readonly type?: Type;
+    readonly default?: Expression;
 }
 
 export type TopLevelDefinition
@@ -323,6 +341,8 @@ export type TopLevelDefinition
 export interface Program extends ASTNode {
     readonly kind: ASTNodeKind.Program;
     readonly definitions: readonly TopLevelDefinition[];
+
+    readonly parent?: undefined;
 }
 
 export interface ExternalVariableDefinition {

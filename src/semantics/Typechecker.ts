@@ -581,7 +581,7 @@ export class Typechecker extends DiagnosticsMixin {
 
     fetchTypeFromIdentifier(ast: Identifier): KnownType {
         return withCache(ast, this.typeCache, () => {
-            const parent = this.binder.getParent(ast);
+            const parent = ast.parent!;
             if (parent.kind === ASTNodeKind.Dereference) {
                 return this.fetchType(parent);
             }
@@ -607,7 +607,7 @@ export class Typechecker extends DiagnosticsMixin {
             if (varDef) {
                 if (varDef.kind === ASTNodeKind.LetStatement) {
                     // This is a local, so we need to make sure it has been assigned.
-                    const block = this.binder.getParent(varDef);
+                    const block = varDef.parent!;
                     const defPos = this.binder.getPositionInParent(varDef, block);
                     const varPos = this.binder.getExpressionPositionInBlock(ast, block);
                     if (varPos === undefined || varPos <= defPos) {
@@ -753,7 +753,7 @@ export class Typechecker extends DiagnosticsMixin {
     }
 
     private fetchTargetType(ast: Expression): KnownType | undefined {
-        const parent = this.binder.getParent(ast);
+        const parent = ast.parent!;
         
         switch (parent.kind) {
             case ASTNodeKind.LetStatement:
@@ -785,7 +785,7 @@ export class Typechecker extends DiagnosticsMixin {
                 return;
             }
             case ASTNodeKind.Pair: {
-                const mapType = this.fetchTargetType(this.binder.getParent(parent));
+                const mapType = this.fetchTargetType(parent.parent!);
                 if (mapType) {
                     if (matchesMapLike(mapType, { _type: true, kind: TypeKind.MapLike })) {
                         const positionInPair = this.binder.getPositionInParent(ast, parent);

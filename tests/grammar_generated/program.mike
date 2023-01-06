@@ -21,7 +21,7 @@ state messages = Queue["abc"];
 //  v expect $.kind == ASTNodeKind.ListenerDefinition
 //                 v expect $.kind == ASTNodeKind.Parameter
     on send(message: string) {
-        // v expect parent($).kind == ASTNodeKind.Variable
+        // v expect $.parent.kind == ASTNodeKind.Variable
         //       v expect $.kind == ASTNodeKind.Identifier
         //              v expect $.kind == ASTNodeKind.Invoke, $.fn.kind == ASTNodeKind.Dereference
         messages.enqueue(message);
