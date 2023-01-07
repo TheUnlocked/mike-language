@@ -36,6 +36,9 @@ interface Rules {
     type(): Type | undefined;
 }
 
+// Public API since the main interface is internal
+interface Rules {}
+
 /** @internal */
 type ExpressionRuleNames = keyof { [R in keyof Rules as Expression extends ReturnType<Rules[R]> ? R : never]: 1 };
 
