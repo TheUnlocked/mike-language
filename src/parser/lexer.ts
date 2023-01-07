@@ -1,3 +1,4 @@
+import { Position, Range } from '../ast';
 import { DiagnosticCodes, DiagnosticsMixin } from '../diagnostics';
 import { EditChain } from './EditChain';
 
@@ -93,15 +94,8 @@ export interface Token {
     /** The byte position directly after the token */
     readonly end: number;
     
-    /** The line of the first character in the token */
-    readonly startLine: number;
-    /** The column of the first character in the token */
-    readonly startCol: number;
-
-    /** The line of the character directly after the token */
-    readonly endLine: number;
-    /** The column of the character directly after the token */
-    readonly endCol: number;
+    /** The span from the first character to directly after the last character */
+    readonly range: Range;
 
     /** @internal */
     _edits: EditChain<Mutation>;
@@ -298,10 +292,13 @@ export class StringLexer extends DiagnosticsMixin implements ILexer {
             get start() { commit(); return start; },
             get end() { commit(); return this.start + length; },
 
-            get startLine() { commit(); return startLine; },
-            get startCol() { commit(); return startCol; },
-            get endLine() { commit(); return endLine; },
-            get endCol() { commit(); return endCol; },
+            get range() {
+                commit();
+                return {
+                    start: { line: startLine, col: startCol },
+                    end: { line: endLine, col: endCol },
+                };
+            },
 
             _edits: this.edits,
         };
@@ -603,14 +600,14 @@ export class StringLexer extends DiagnosticsMixin implements ILexer {
         const byteDelta = insert.length - removalLength;
 
         // using endLine is okay because lines are always terminanted with a newline token
-        const linesRemoved = lastToken.endLine - firstToken.startLine;
+        const linesRemoved = lastToken.range.end.line - firstToken.range.start.line;
         const linesAdded = countLines(insert);
         const lineDelta = linesAdded - linesRemoved;
         /** The column directly after the inserted content */
         const endColumn =
             lineDelta === 0
                 // If the edit doesn't include any newlines, add the byte delta to the starting column 
-                ? lastToken.endCol + byteDelta
+                ? lastToken.range.end.col + byteDelta
                 : insert.length - insert.lastIndexOf('\n') - 1;
 
         // Push onto the edit change so that tokens can update their position
@@ -619,9 +616,9 @@ export class StringLexer extends DiagnosticsMixin implements ILexer {
             byteOffset: byteDelta,
 
             // The line to change column numbers on is one off if the last token ends in a newline.
-            linePos: lastToken.endLine - (lastToken.endCol === 1 ? 1 : 0),
+            linePos: lastToken.range.end.line - (lastToken.range.end.col === 1 ? 1 : 0),
             lineOffset: lineDelta,
-            colOffset: endColumn - lastToken.endCol,
+            colOffset: endColumn - lastToken.range.end.col,
         });
         // console.log({ insert, linesAdded, linesRemoved, byteDelta, startCol: firstToken.startCol, endCol: lastToken.endCol })
         // console.log(this.edits.edit);
@@ -633,7 +630,12 @@ export class StringLexer extends DiagnosticsMixin implements ILexer {
         // Only " was inserted but it changes how the rest of the input lexes.
         const subLexer = new StringLexer(
             insert + this.input.slice(removalEnd),
-            { byteOffset: firstToken.start, line: firstToken.startLine, col: firstToken.startCol, edits: this.edits },
+            {
+                byteOffset: firstToken.start,
+                line: firstToken.range.start.line,
+                col: firstToken.range.start.col,
+                edits: this.edits,
+            },
         );
         subLexer.setDiagnostics(this.diagnostics);
         

@@ -2,13 +2,13 @@ import { expectNever } from '../utils/types';
 import { AnyNode, ASTNodeKind, Identifier, VariableDefinition, TypeIdentifier } from './Ast';
 
 export interface Position {
-    line: number;
-    col: number;
+    readonly line: number;
+    readonly col: number;
 }
 
 export interface Range {
-    start: Position;
-    end: Position;
+    readonly start: Position;
+    readonly end: Position;
 }
 
 const OUT_OF_TREE_POSITION: Position = { line: 0, col: 0 };
@@ -21,10 +21,7 @@ export const DUMMY_IDENTIFIER: Identifier = {
 
 export function getNodePosition(ast: AnyNode): Position {
     if (ast.tokens && ast.tokens.length > 0) {
-        return {
-            line: ast.tokens[0].startLine,
-            col: ast.tokens[0].startCol,
-        };
+        return ast.tokens[0].range.start;
     }
     return OUT_OF_TREE_POSITION;
 }
@@ -32,14 +29,8 @@ export function getNodePosition(ast: AnyNode): Position {
 export function getNodeSourceRange(ast: AnyNode): Range {
     if (ast.tokens && ast.tokens.length > 0) {
         return {
-            start: {
-                line: ast.tokens[0].startLine,
-                col: ast.tokens[0].startCol,
-            },
-            end: {
-                line: ast.tokens.at(-1)!.endLine,
-                col: ast.tokens.at(-1)!.endCol,
-            },
+            start: ast.tokens[0].range.start,
+            end: ast.tokens.at(-1)!.range.end,
         };
     }
     return OUT_OF_TREE_RANGE;
@@ -131,6 +122,20 @@ export function getChildren(ast: AnyNode): readonly AnyNode[] {
     return getNonTriviaChildren(ast).concat(ast.trivia ?? []);
 }
 
+export function intersectsRange(r1: Range, r2: Range) {
+    if (positionEquals(r1.start, r2.start)) {
+        return true;
+    }
+    if (isAfter(r2.start, r1.start)) {
+        // r1 starts before r2
+        return isAfter(r1.end, r2.start);
+    }
+    else {
+        // r2 starts before r1
+        return isAfter(r2.end, r1.start);
+    }
+}
+
 export function inRange({ start, end }: Range, position: Position) {
     if (position.line >= start.line && position.line <= end.line) {
         if (position.line === start.line) {
@@ -155,6 +160,10 @@ export function isAfter(position: Position, comparedTo: Position) {
         return true;
     }
     return false;
+}
+
+export function positionEquals(p1: Position, p2: Position) {
+    return p1.line === p2.line && p1.col === p2.col;
 }
 
 export function getLastPosition(str: string): Position {

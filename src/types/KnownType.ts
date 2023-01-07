@@ -163,13 +163,20 @@ export function stringifyType(type: AnyType): string {
 export const TOXIC = { kind: TypeKind.Toxic } as ToxicType;
 export const ANY_TYPE = TOXIC;
 
-export function optionOf(t: KnownType): KnownType {
+export function simpleTypeOf<A extends ReadonlyTupleOf<KnownType, number> = readonly []>(
+    name: string,
+    typeArguments?: A,
+): SimpleType<A['length']> {
     return {
         _type: true,
         kind: TypeKind.Simple,
-        name: 'option',
-        typeArguments: [t]
+        name,
+        typeArguments: typeArguments as ReadonlyTupleOf<KnownType, A['length']> ?? [],
     };
+}
+
+export function optionOf(t: KnownType) {
+    return simpleTypeOf("option", [t] as const);
 }
 
 export function functionOf(parameters: readonly KnownType[], returnType: KnownType): FunctionType {

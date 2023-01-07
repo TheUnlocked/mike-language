@@ -10,6 +10,7 @@ import { DiagnosticsReporter } from './Diagnostics';
 const DUMMY_REPORTER: DiagnosticsReporter = {
     focus: () => {},
     report: () => {},
+    // clear: () => {},
 };
 
 export class DiagnosticsMixin {

@@ -1,4 +1,3 @@
-state curr = 0;
 state ring: Map<User, RingItem> = {};
 state head: option<RingItem> = none;
 
@@ -9,7 +8,7 @@ type RingItem (
 );
 
 on join(user: User) {
-    if head |item| {
+    if head |headItem| {
         // With three users, adding a fourth
         // 0 -> 1 -> 2 -> 0
         //    => 0 -> 1 -> 2
@@ -22,11 +21,20 @@ on join(user: User) {
         //    => 0 -> 1
         //    => 0 -> 1 -> 0
 
-        unlink(item.prev, item.user);
-        link(item.prev, user);
-        link(user, item.user);
-        ring.set(user, RingItem(user, item.prev, item.user));
-        debug user, "joined between", item.prev, "and", item.user;
+        let beforeHead = headItem.prev;
+
+        unlink(beforeHead, headItem.user);
+        link(beforeHead, user);
+        link(user, headItem.user);
+        ring.set(user, RingItem(user, beforeHead, headItem.user));
+        if ring.get(beforeHead) |prevItem| {
+            prevItem.next = user;
+        }
+        else {
+            debug "BUG: previous user", beforeHead, "should have been in the ring but isn't";
+        }
+        headItem.prev = user;
+        debug user, "joined between", beforeHead, "and", headItem.user;
     }
     else {
         // ring is empty
@@ -45,6 +53,7 @@ on leave(user: User) {
                 // One user
                 unlink(item.user, item.user);
                 head = none;
+                debug user, "left, and the ring is now empty";
             }
             else {
                 // With three users, removing user 1
@@ -61,7 +70,7 @@ on leave(user: User) {
 
                 if ring.get(item.next) |nextItem| {
                     nextItem.prev = item.prev;
-                    if item == headItem {
+                    if item.user == headItem.user {
                         // Update the head pointer if the user that left was the head user
                         head = some(nextItem);
                     }

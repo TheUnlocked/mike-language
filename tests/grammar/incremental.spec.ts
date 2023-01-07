@@ -1,6 +1,7 @@
 import { expect, use } from 'chai';
 import { Parser } from '../../src/parser/parser';
 import chaiExclude from 'chai-exclude';
+import { createMiKeDiagnosticsManager } from '../../src/diagnostics';
 
 use(chaiExclude);
 
@@ -11,23 +12,32 @@ function testIncremental(title: string) {
 
         it(title, () => {
             // Edit before initial parse
+            const d1 = createMiKeDiagnosticsManager();
             const p1 = new Parser();
+            p1.setDiagnostics(d1.getReporter('mike'));
             p1.loadSource(original);
             p1.editSource(part1.length, remove.length, insert);
             
             // Edit after initial parse
+            const d2 = createMiKeDiagnosticsManager();
             const p2 = new Parser();
+            p2.setDiagnostics(d1.getReporter('mike'));
             p2.loadSource(original);
             p2.parse();
             p2.editSource(part1.length, remove.length, insert);
             
             // No edit
+            const d3 = createMiKeDiagnosticsManager();
             const p3 = new Parser();
+            p3.setDiagnostics(d1.getReporter('mike'));
             p3.loadSource(modified);
             const reference = p3.parse();
     
             expect(p1.parse()).excludingEvery(['_edits']).to.deep.equal(reference);
             expect(p2.parse()).excludingEvery(['_edits']).to.deep.equal(reference);
+
+            // expect(d1.getDiagnostics()).to.deep.equal(d3.getDiagnostics());
+            // expect(d2.getDiagnostics()).to.deep.equal(d3.getDiagnostics());
         });
 
     };

@@ -155,7 +155,7 @@ export class Parser extends DiagnosticsMixin implements Rules {
     private focusHere() {
         const token = this.tokens[this.head - 1];
         const pos = token
-            ? { line: token.endLine, col: token.endCol }
+            ? token.range.end
             : { line: 1, col: 1 }
         this.focus({
             start: pos,
@@ -164,16 +164,13 @@ export class Parser extends DiagnosticsMixin implements Rules {
     }
 
     private focusToken(token: Token) {
-        this.focus({
-            start: { line: token.startLine, col: token.startCol },
-            end: { line: token.endLine, col: token.endCol },
-        });
+        this.focus(token.range);
     }
 
     private focusTokenRange(first: Token, last: Token) {
         this.focus({
-            start: { line: first.startLine, col: first.startCol },
-            end: { line: last.endLine, col: last.endCol },
+            start: first.range.start,
+            end: last.range.end,
         });
     }
 

@@ -1,5 +1,5 @@
 import { AnyNode } from '../ast/Ast';
-import { getNodeSourceRange, Range, stringifyRange } from '../ast/AstUtils';
+import { getNodeSourceRange, intersectsRange, Range, stringifyRange } from '../ast/AstUtils';
 
 export enum Severity {
     Info = 1,
@@ -50,6 +50,7 @@ export class Diagnostic {
 export interface DiagnosticsReporter {
     report(id: number, ...args: string[]): void;
     focus(node: AnyNode | Range | undefined): void;
+    // clear(range?: Range): void;
 }
 
 export class DiagnosticsManager {
@@ -92,30 +93,50 @@ export class DiagnosticsManager {
         diagnostic.specializedMessages.push({ when, message });
     }
 
-    private report(namespace: string, id: number, args: string[]) {
-        const diagnostic = this.diagnosticTypes.get(this.getQualifiedId(namespace, id));
+    private report(namespace: string, id: number, args: string[]): Diagnostic {
+        const info = this.diagnosticTypes.get(this.getQualifiedId(namespace, id));
 
-        if (!diagnostic) {
-            this.diagnostics.push(
-                new Diagnostic(namespace, id, Severity.Error, this.currentRange, 'Unknown Diagnostic', args)
+        let diagnostic: Diagnostic;
+        if (!info) {
+            diagnostic = new Diagnostic(
+                namespace,
+                id,
+                Severity.Error,
+                this.currentRange,
+                'Unknown Diagnostic',
+                args,
             );
-            return;
+        }
+        else {
+            const specialMessage = info.specializedMessages?.find(x => x.when(...args));
+            if (specialMessage) {
+                diagnostic = new Diagnostic(
+                    namespace,
+                    id,
+                    info.severity,
+                    this.currentRange,
+                    specialMessage.message,
+                    args,
+                );
+            }
+            else {
+                diagnostic = new Diagnostic(
+                    namespace,
+                    id,
+                    info.severity,
+                    this.currentRange,
+                    info.description,
+                    args,
+                );
+            }
         }
 
-        const specialMessage = diagnostic.specializedMessages?.find(x => x.when(...args));
-        if (specialMessage) {
-            this.diagnostics.push(
-                new Diagnostic(namespace, id, diagnostic.severity, this.currentRange, specialMessage.message, args)
-            );
-            return;
-        }
-
-        this.diagnostics.push(
-            new Diagnostic(namespace, id, diagnostic.severity, this.currentRange, diagnostic.description, args)
-        );
+        this.diagnostics.push(diagnostic);
+        return diagnostic;
     }
 
     getReporter(namespace: string): DiagnosticsReporter {
+        const ownDiagnostics = new Set<Diagnostic>;
         const focus: DiagnosticsReporter['focus'] = nodeOrRange => {
             if (nodeOrRange && 'kind' in nodeOrRange) {
                 this.currentRange = getNodeSourceRange(nodeOrRange);
@@ -124,12 +145,27 @@ export class DiagnosticsManager {
                 this.currentRange = nodeOrRange;
             }
         };
+        // const clear: DiagnosticsReporter['clear'] = range => {
+        //     if (!range) {
+        //         this.diagnostics = this.diagnostics.filter(d => !ownDiagnostics.has(d));
+        //     }
+        //     else {
+        //         this.diagnostics = this.diagnostics.filter(
+        //             d => !(ownDiagnostics.has(d) && d.range && intersectsRange(range, d.range))
+        //         );
+        //     }
+        // };
         return {
             report: (id, ...args) => {
-                this.report(namespace, id, args);
+                ownDiagnostics.add(this.report(namespace, id, args));
             },
             focus,
+            // clear,
         };
+    }
+
+    clear() {
+        this.diagnostics = [];
     }
 
     private getQualifiedId(namespace: string, id: number) {

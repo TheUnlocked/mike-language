@@ -6,7 +6,7 @@ import { DiagnosticsMixin } from '../diagnostics/DiagnosticsMixin';
 import { CanIfDestructAttribute, TypeAttributeKind } from '../types/Attribute';
 import { booleanType, floatType, intType, primitiveTypes, stringType } from '../types/Primitives';
 import { TypeInfo } from '../types/TypeInfo';
-import { KnownType, FunctionType, IncompleteType, MapLike, SequenceLike, SimpleType, TypeKind, TOXIC, ToxicType, matchesSequenceLike, matchesMapLike, TypeVariable, replaceTypeVariables, optionOf } from '../types/KnownType';
+import { KnownType, FunctionType, IncompleteType, MapLike, SequenceLike, SimpleType, TypeKind, TOXIC, ToxicType, matchesSequenceLike, matchesMapLike, TypeVariable, replaceTypeVariables, optionOf, simpleTypeOf, functionOf } from '../types/KnownType';
 import { SymbolTable } from './SymbolTable';
 import { withCache } from '../utils/cache';
 
@@ -475,36 +475,23 @@ export class Typechecker extends DiagnosticsMixin {
             let result: KnownType;
             switch (ast.kind) {
                 case ASTNodeKind.TypeIdentifier:
-                    result = {
-                        _type: true,
-                        kind: TypeKind.Simple,
-                        name: ast.name,
-                        typeArguments: [],
-                    } as SimpleType;
+                    result = simpleTypeOf(ast.name);
                     if (!this.fetchTypeInfoFromSimpleTypeWithDiagnostics(result, ast)) {
                         result = TOXIC;
                     }
                     break;
                 case ASTNodeKind.GenericType: {
-                    result = {
-                        _type: true,
-                        kind: TypeKind.Simple,
-                        name: ast.name.name,
-                        typeArguments: ast.typeArguments.map(this.fetchTypeOfTypeNode),
-                    } as SimpleType;
+                    result = simpleTypeOf(ast.name.name, ast.typeArguments.map(this.fetchTypeOfTypeNode));
                     if (!this.fetchTypeInfoFromSimpleTypeWithDiagnostics(result, ast)) {
                         result = TOXIC;
                     }
                     break;
                 }
                 case ASTNodeKind.FunctionType:
-                    result = {
-                        _type: true,
-                        kind: TypeKind.Function,
-                        typeParameters: [],
-                        parameters: ast.parameters.map(this.fetchTypeOfTypeNode),
-                        returnType: this.fetchTypeOfTypeNode(ast.returnType),
-                    };
+                    result = functionOf(
+                        ast.parameters.map(this.fetchTypeOfTypeNode),
+                        this.fetchTypeOfTypeNode(ast.returnType),
+                    );
                     break;
             }
             return result;
@@ -533,18 +520,10 @@ export class Typechecker extends DiagnosticsMixin {
                     }
                     return TOXIC;
                 case ASTNodeKind.TypeDefinition:
-                    return {
-                        _type: true,
-                        kind: TypeKind.Function,
-                        typeParameters: [],
-                        parameters: ast.parameters.map(x => this.fetchTypeOfTypeNode(x.type)),
-                        returnType: {
-                            _type: true,
-                            kind: TypeKind.Simple,
-                            name: ast.name.name,
-                            typeArguments: []
-                        },
-                    };
+                    return functionOf(
+                        ast.parameters.map(x => this.fetchTypeOfTypeNode(x.type)),
+                        simpleTypeOf(ast.name.name),
+                    );
                 case ASTNodeKind.IfCase: {
                     const conditionType = this.fetchType(ast.condition);
                     if (conditionType.kind === TypeKind.Simple) {
@@ -655,12 +634,7 @@ export class Typechecker extends DiagnosticsMixin {
                     this.focus(ast.type);
                     this.error(DiagnosticCodes.TypeIsNotSequenceLike, ast.type.name);
                 }
-                return {
-                    _type: true,
-                    kind: TypeKind.Simple,
-                    name: ast.type.name,
-                    typeArguments: [eltType]
-                };
+                return simpleTypeOf(ast.type.name, [eltType]);
             }
 
             targetType = this.fetchSequenceLiteralTargetType({
@@ -709,12 +683,7 @@ export class Typechecker extends DiagnosticsMixin {
                         this.focus(ast.type);
                         this.error(DiagnosticCodes.TypeIsNotMapLike, ast.type.name);
                     }
-                    return {
-                        _type: true,
-                        kind: TypeKind.Simple,
-                        name: ast.type.name,
-                        typeArguments: [keyType, valType]
-                    };
+                    return simpleTypeOf(ast.type.name, [keyType, valType]);
                 }
             }
             
