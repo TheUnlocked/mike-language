@@ -61,12 +61,16 @@ export function isLiteral(token: Token) {
     return token.type >= 1000 && token.type < 2000;
 }
 
-export function isSyntax(token: Token) {
+export function isOperator(token: Token) {
     return token.type >= 2000 && token.type < 3000;
 }
 
-export function isKeyword(token: Token) {
+export function isSyntax(token: Token) {
     return token.type >= 3000 && token.type < 4000;
+}
+
+export function isKeyword(token: Token) {
+    return token.type >= 4000 && token.type < 5000;
 }
 
 export interface Mutation {
