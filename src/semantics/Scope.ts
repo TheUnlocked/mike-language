@@ -25,4 +25,20 @@ export class Scope {
     get duplicateBindings() {
         return this._duplicateBindings;
     }
+
+    get ownNames() {
+        return [...this.bindings.keys()];
+    }
+
+    get names() {
+        return [...this.getAllNamesIter()];
+    }
+
+    private *getAllNamesIter(): Iterable<string> {
+        yield* this.bindings.keys();
+        const parent = this.getParent();
+        if (parent) {
+            yield* parent.getAllNamesIter();
+        }
+    }
 }

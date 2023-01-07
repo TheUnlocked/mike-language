@@ -180,6 +180,7 @@ export function isExpression(node: AnyNode): node is Expression {
         || node.kind === ASTNodeKind.Dereference
         || node.kind === ASTNodeKind.Variable
         || node.kind === ASTNodeKind.FloatLiteral
+        || node.kind === ASTNodeKind.IntLiteral
         || node.kind === ASTNodeKind.BoolLiteral
         || node.kind === ASTNodeKind.StringLiteral
         || node.kind === ASTNodeKind.SequenceLiteral
