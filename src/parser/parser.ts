@@ -1,4 +1,4 @@
-import { AnyNode, ASTNodeKind, Block, DUMMY_IDENTIFIER, Expression, GenericType, getChildren, Identifier, IfCase, InfixOperator, Invoke, ListenerDefinition, Pair, Parameter, ParameterDefinition, PrefixOperator, Program, StateDefinition, StatementOrBlock, TopLevelDefinition, Trivia, Type, TypeDefinition, TypeIdentifier } from '../ast';
+import { AnyNode, ASTNodeKind, Block, DUMMY_IDENTIFIER, Expression, GenericType, getChildren, Identifier, IfCase, InfixOperator, Invoke, ListenerDefinition, Pair, Parameter, ParameterDefinition, PrefixOperator, Program, StateDefinition, StatementOrBlock, TopLevelDefinition, Trivia, Type, TypeDefinition, TypeIdentifier, Variable } from '../ast';
 import { DiagnosticCodes, DiagnosticsMixin, DiagnosticsReporter } from '../diagnostics';
 import { Mutable } from '../utils';
 import { hasFlag } from '../utils/flags';
@@ -42,35 +42,38 @@ interface Rules {}
 /** @internal */
 type ExpressionRuleNames = keyof { [R in keyof Rules as Expression extends ReturnType<Rules[R]> ? R : never]: 1 };
 
-function NO_IDENT(): Identifier {
+function NO_IDENT(): Mutable<Identifier> {
     return {
         kind: ASTNodeKind.Identifier,
         name: '',
     };
 }
 
-function NO_TYPE_IDENT(): TypeIdentifier {
+function NO_TYPE_IDENT(): Mutable<TypeIdentifier> {
     return {
         kind: ASTNodeKind.TypeIdentifier,
         name: '',
     };
 }
 
-function NO_TYPE(): Type {
+function NO_TYPE(): Mutable<Type> {
     return {
         kind: ASTNodeKind.TypeIdentifier,
         name: '',
     };
 }
 
-function NO_EXPR(): Expression {
-    return {
+function NO_EXPR(): Mutable<Expression> {
+    const identifier = NO_IDENT();
+    const expr = {
         kind: ASTNodeKind.Variable,
-        identifier: NO_IDENT(),
-    };
+        identifier,
+    } as Variable;
+    identifier.parent = expr;
+    return expr;
 }
 
-function NO_BLOCK(): Block {
+function NO_BLOCK(): Mutable<Block> {
     return {
         kind: ASTNodeKind.Block,
         statements: [],
