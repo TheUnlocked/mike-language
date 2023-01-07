@@ -36,6 +36,7 @@ interface Rules {
     type(): Type | undefined;
 }
 
+/** @internal */
 type ExpressionRuleNames = keyof { [R in keyof Rules as Expression extends ReturnType<Rules[R]> ? R : never]: 1 };
 
 function NO_IDENT(): Identifier {
@@ -490,6 +491,7 @@ export class Parser extends DiagnosticsMixin implements Rules {
         return this.visit('program');
     }
 
+    /** @internal */
     program(): Program {
         return {
             kind: ASTNodeKind.Program,
@@ -497,6 +499,7 @@ export class Parser extends DiagnosticsMixin implements Rules {
         };
     }
 
+    /** @internal */
     topLevelDef(): TopLevelDefinition | undefined {
         switch (this.peek()?.type) {
             case TokenType.KW_PARAM:
@@ -516,6 +519,7 @@ export class Parser extends DiagnosticsMixin implements Rules {
         }
     }
 
+    /** @internal */
     paramDef(): ParameterDefinition {
         this.expect(TokenType.KW_PARAM);
         const name = this.expectIdentifier();
@@ -529,6 +533,7 @@ export class Parser extends DiagnosticsMixin implements Rules {
         };
     }
 
+    /** @internal */
     stateDef(): StateDefinition {
         const on = this.expect(TokenType.KW_STATE);
         const name = this.expectIdentifier();
@@ -550,6 +555,7 @@ export class Parser extends DiagnosticsMixin implements Rules {
         };
     }
 
+    /** @internal */
     listenerDef(): ListenerDefinition {
         this.expect(TokenType.KW_ON);
         const event = this.expect(TokenType.LIT_IDENT);
@@ -570,6 +576,7 @@ export class Parser extends DiagnosticsMixin implements Rules {
         };
     }
     
+    /** @internal */
     typeDef(): TypeDefinition {
         this.expect(TokenType.KW_TYPE);
         const name = this.expectTypeIdentifier();
@@ -584,6 +591,7 @@ export class Parser extends DiagnosticsMixin implements Rules {
         };
     }
 
+    /** @internal */
     parameter(): Parameter | undefined {
         const name = this.visit('identifier');
         if (name) {
@@ -596,6 +604,7 @@ export class Parser extends DiagnosticsMixin implements Rules {
         }
     }
 
+    /** @internal */
     block(): Block | undefined {
         if (this.accept(TokenType.SYNTAX_LBRACE)) {
             return {
@@ -605,6 +614,7 @@ export class Parser extends DiagnosticsMixin implements Rules {
         }
     }
 
+    /** @internal */
     statement(): StatementOrBlock | undefined {
         this.save();
 
@@ -711,6 +721,7 @@ export class Parser extends DiagnosticsMixin implements Rules {
         }
     }
 
+    /** @internal */
     ifCase(): IfCase | undefined {
         if (this.accept(TokenType.KW_IF)) {
 
@@ -734,10 +745,12 @@ export class Parser extends DiagnosticsMixin implements Rules {
         }
     }
 
+    /** @internal */
     expression(): Expression | undefined {
         return this.visit('logical');
     }
 
+    /** @internal */
     binaryOp(
         lowerRule: ExpressionRuleNames,
         mapping: { [Type in TokenType]?: InfixOperator },
@@ -784,6 +797,7 @@ export class Parser extends DiagnosticsMixin implements Rules {
         return expr;
     }
 
+    /** @internal */
     logical(): Expression | undefined {
         return this.binaryOp('comparison', {
             [TokenType.OP_AND]: InfixOperator.And,
@@ -791,6 +805,7 @@ export class Parser extends DiagnosticsMixin implements Rules {
         }, DiagnosticCodes.MixedAndOr);
     }
     
+    /** @internal */
     comparison(): Expression | undefined {
         return this.binaryOp('addsub', {
             [TokenType.OP_EQ]: InfixOperator.Equals,
@@ -802,6 +817,7 @@ export class Parser extends DiagnosticsMixin implements Rules {
         });
     }
 
+    /** @internal */
     addsub(): Expression | undefined {
         return this.binaryOp('muldiv', {
             [TokenType.OP_ADD]: InfixOperator.Add,
@@ -809,6 +825,7 @@ export class Parser extends DiagnosticsMixin implements Rules {
         });
     }
 
+    /** @internal */
     muldiv(): Expression | undefined {
         return this.binaryOp('unary', {
             [TokenType.OP_MUL]: InfixOperator.Multiply,
@@ -816,6 +833,7 @@ export class Parser extends DiagnosticsMixin implements Rules {
         });
     }
 
+    /** @internal */
     unary(): Expression | undefined {
         if (this.oneOf(TokenType.OP_SUB, TokenType.OP_NOT)) {
             return {
@@ -827,6 +845,7 @@ export class Parser extends DiagnosticsMixin implements Rules {
         return this.visit('derefInvoke');
     }
 
+    /** @internal */
     derefInvoke(): Expression | undefined {
         // Because we're not using visit, we need to handle adding source info ourselves
         const firstTokenIndex = this.head + 1;
@@ -875,6 +894,7 @@ export class Parser extends DiagnosticsMixin implements Rules {
         return expr;
     }
 
+    /** @internal */
     atom(): Expression | undefined {
         this.save();
         switch (this.next()?.type) {
@@ -952,6 +972,7 @@ export class Parser extends DiagnosticsMixin implements Rules {
         this.rollback();
     }
 
+    /** @internal */
     seqLiteral(): Expression | undefined {
         const type = this.visit('typeIdentifier');
         if (this.accept(TokenType.SYNTAX_LSQUARE)) {
@@ -963,6 +984,7 @@ export class Parser extends DiagnosticsMixin implements Rules {
         }
     }
 
+    /** @internal */
     mapLiteral(): Expression | undefined {
         const type = this.visit('typeIdentifier');
         if (this.accept(TokenType.SYNTAX_LBRACE)) {
@@ -974,6 +996,7 @@ export class Parser extends DiagnosticsMixin implements Rules {
         }
     }
 
+    /** @internal */
     mapPair(): Pair | undefined {
         const key = this.visit('expression');
         if (key) {
@@ -986,6 +1009,7 @@ export class Parser extends DiagnosticsMixin implements Rules {
         }
     }
 
+    /** @internal */
     type(): Type | undefined {
         if (this.oneOf(TokenType.SYNTAX_LPAREN, TokenType.LIT_IDENT)) {
             if (this.currentToken!.type === TokenType.SYNTAX_LPAREN) {
@@ -1023,6 +1047,7 @@ export class Parser extends DiagnosticsMixin implements Rules {
         }
     }
 
+    /** @internal */
     identifier(): Identifier | undefined {
         const token = this.accept(TokenType.LIT_IDENT);
 
@@ -1034,6 +1059,7 @@ export class Parser extends DiagnosticsMixin implements Rules {
         }
     }
 
+    /** @internal */
     typeIdentifier(): TypeIdentifier | undefined {
         const token = this.accept(TokenType.LIT_IDENT);
 
