@@ -552,7 +552,7 @@ export class Parser extends DiagnosticsMixin implements Rules {
 
     listenerDef(): ListenerDefinition {
         this.expect(TokenType.KW_ON);
-        const event = this.expectIdentifier();
+        const event = this.expect(TokenType.LIT_IDENT);
 
         let parameters = [] as Parameter[];
         if (this.expect(TokenType.SYNTAX_LPAREN)) {
@@ -563,7 +563,8 @@ export class Parser extends DiagnosticsMixin implements Rules {
 
         return {
             kind: ASTNodeKind.ListenerDefinition,
-            event,
+            event: event?.content ?? '',
+            eventToken: event,
             parameters,
             body,
         };

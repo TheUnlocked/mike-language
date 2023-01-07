@@ -302,7 +302,7 @@ export default class JavascriptTarget implements Target {
         const stateObject = `{${joinBy(',', stateNames, this.getPublicPrivateObjectBinding)}}`;
 
         return `{${seq(',',
-            `event:${JSON.stringify(ast.event.name)}`,
+            `event:${JSON.stringify(ast.event)}`,
             `callback:({${seq(',',
                 `params:{${joinBy(',', paramNames, this.getPublicPrivateObjectBinding)}}`,
                 `state:${stateObject}`,

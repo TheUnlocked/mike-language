@@ -20,8 +20,13 @@ export class DiagnosticsMixin {
         this.diagnostics = diagnostics;
     }
 
-    protected focus(node: AnyNode | Range | undefined) {
-        this.diagnostics.focus(node);
+    protected focus(node: AnyNode | Range | { range: Range } | undefined) {
+        if (node && 'range' in node) {
+            this.diagnostics.focus(node.range);
+        }
+        else {
+            this.diagnostics.focus(node);
+        }
     }
 
     protected error<D extends DiagnosticCodes>(code: D, ...args: InterpolatedStringArgumentList<string | number | Token | AnyType, DiagnosticDescription<D>>): void {

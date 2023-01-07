@@ -308,7 +308,8 @@ interface TopLevelDefinitionNode extends ASTNode {
 
 export interface ListenerDefinition extends TopLevelDefinitionNode {
     readonly kind: ASTNodeKind.ListenerDefinition;
-    readonly event: Identifier;
+    readonly event: string;
+    readonly eventToken?: Token;
     readonly parameters: readonly Parameter[];
     readonly body: Block;
 }

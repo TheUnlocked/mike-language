@@ -61,13 +61,13 @@ export default class Validator extends DiagnosticsMixin {
                     this.validateTypeDefinition(child);
                     break;
                 case ASTNodeKind.ListenerDefinition:
-                    requiredEventNames.delete(child.event.name);
-                    if (registeredListenerEventNames.has(child.event.name)) {
+                    requiredEventNames.delete(child.event);
+                    if (registeredListenerEventNames.has(child.event)) {
                         this.focus(child);
-                        this.error(DiagnosticCodes.ListenerDefinedMultipleTimes, child.event.name);
+                        this.error(DiagnosticCodes.ListenerDefinedMultipleTimes, child.event);
                     }
                     else {
-                        registeredListenerEventNames.add(child.event.name);
+                        registeredListenerEventNames.add(child.event);
                     }
                     this.validateListenerDefinition(child);
                     break;
@@ -159,10 +159,10 @@ export default class Validator extends DiagnosticsMixin {
             return;
         }
 
-        const event = this.options.events.find(evt => evt.name === ast.event.name);
+        const event = this.options.events.find(evt => evt.name === ast.event);
         if (!event) {
-            this.focus(ast.event);
-            this.error(DiagnosticCodes.UnknownEvent, ast.event.name);
+            this.focus(ast.eventToken);
+            this.error(DiagnosticCodes.UnknownEvent, ast.event);
         }
 
         ast.parameters.forEach((param, i) => {
@@ -177,7 +177,7 @@ export default class Validator extends DiagnosticsMixin {
                 }
                 else if (i === event.argumentTypes.length) {
                     this.focus(param);
-                    this.error(DiagnosticCodes.TooManyListenerParameters, ast.event.name);
+                    this.error(DiagnosticCodes.TooManyListenerParameters, ast.event);
                 }
             }
         });
