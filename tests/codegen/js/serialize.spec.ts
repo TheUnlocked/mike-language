@@ -1,5 +1,5 @@
 import { expect } from 'chai';
-import { compileMiKeToJavascript as compile, compileMiKeToJavascriptWithoutExternals as compileToFn, getDebugFragments } from '../../util';
+import { compileMiKeToJavascriptWithoutExternals as compileToFn } from '../../util';
 
 export default () => describe('serialization', () => {
 

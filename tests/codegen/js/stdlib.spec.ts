@@ -1,6 +1,10 @@
 import { expect } from 'chai';
 import { compileMiKeToJavascriptWithoutExternals as compile, compileMiKeToJavascript as compileDefault, getDebugFragments, getStateAfterRunning } from '../../util';
-import { none, some } from './util';
+
+interface Exposed {
+    some<T>(x: T): unknown;
+    none: unknown;
+}
 
 export default () => describe('stdlib', () => {
 
@@ -9,40 +13,40 @@ export default () => describe('stdlib', () => {
         describe('Array', () => {
 
             it('get', async () => {
-                const result = getDebugFragments(await compile(`
+                const result = getDebugFragments(await compile<Exposed>(`
                     on test() {
                         let arr = Array[1, 2, 3];
                         debug arr.get(0), arr.get(2), arr.get(-1), arr.get(3);
                     }
-                `));
+                `, { exposeNames: ['some', 'none'] }));
                 expect(result).deep.equals([
-                    some(1n),
-                    some(3n),
-                    none,
-                    none,
+                    result.some(1n),
+                    result.some(3n),
+                    result.none,
+                    result.none,
                 ]);
             });
 
             it('set', async () => {
-                const result = getDebugFragments(await compile(`
+                const result = getDebugFragments(await compile<Exposed>(`
                     on test() {
                         let arr = Array[1, 2, 3];
                         debug arr.set(1, 9), arr.set(-1, 2), arr.set(3, 0);
                         debug arr.get(0), arr.get(1), arr.get(-1);
                     }
-                `));
+                `, { exposeNames: ['some', 'none'] }));
                 expect(result).deep.equals([
                     true,
                     false,
                     false,
-                    some(1n),
-                    some(9n),
-                    none,
+                    result.some(1n),
+                    result.some(9n),
+                    result.none,
                 ]);
             });
 
             it('length', async () => {
-                const result = getDebugFragments(await compile(`
+                const result = getDebugFragments(await compile<Exposed>(`
                     on test() {
                         let arr1: Array<int> = [];
                         let arr2 = Array[1, 2, 3];
@@ -51,7 +55,7 @@ export default () => describe('stdlib', () => {
                         arr2.set(3, 1);
                         debug arr2.length;
                     }
-                `));
+                `, { exposeNames: ['some', 'none'] }));
                 expect(result).deep.equals([
                     0n,
                     3n,
@@ -96,23 +100,23 @@ export default () => describe('stdlib', () => {
         describe('Queue', () => {
 
             it('pop', async () => {
-                const result = getDebugFragments(await compile(`
+                const result = getDebugFragments(await compile<Exposed>(`
                     on test() {
                         let q = Queue[3, 2, 1];
                         debug q.pop(), q.pop(), q.pop(), q.pop(), q.pop();
                     }
-                `));
+                `, { exposeNames: ['some', 'none'] }));
                 expect(result).deep.equals([
-                    some(3n),
-                    some(2n),
-                    some(1n),
-                    none,
-                    none,
+                    result.some(3n),
+                    result.some(2n),
+                    result.some(1n),
+                    result.none,
+                    result.none,
                 ]);
             });
 
             it('peek', async () => {
-                const result = getDebugFragments(await compile(`
+                const result = getDebugFragments(await compile<Exposed>(`
                     on test() {
                         let q = Queue[3, 2, 1];
                         debug q.peek();
@@ -122,34 +126,34 @@ export default () => describe('stdlib', () => {
                         q.pop();
                         debug q.peek();
                     }
-                `));
+                `, { exposeNames: ['some', 'none'] }));
                 expect(result).deep.equals([
-                    some(3n),
-                    some(1n),
-                    none,
+                    result.some(3n),
+                    result.some(1n),
+                    result.none,
                 ]);
             });
 
             it('enqueue', async () => {
-                const result = getDebugFragments(await compile(`
+                const result = getDebugFragments(await compile<Exposed>(`
                     on test() {
                         let q: Queue<string> = ['a'];
                         q.enqueue('b');
                         q.enqueue('c');
                         debug q.peek(), q.pop(), q.peek(), q.pop(), q.pop();
                     }
-                `));
+                `, { exposeNames: ['some', 'none'] }));
                 expect(result).deep.equals([
-                    some('a'),
-                    some('a'),
-                    some('b'),
-                    some('b'),
-                    some('c'),
+                    result.some('a'),
+                    result.some('a'),
+                    result.some('b'),
+                    result.some('b'),
+                    result.some('c'),
                 ]);
             });
 
             it('length', async () => {
-                const result = getDebugFragments(await compile(`
+                const result = getDebugFragments(await compile<Exposed>(`
                     on test() {
                         let q: Queue<int> = [0];
                         debug q.length;
@@ -163,7 +167,7 @@ export default () => describe('stdlib', () => {
                         q.pop();
                         debug q.length;
                     }
-                `));
+                `, { exposeNames: ['some', 'none'] }));
                 expect(result).deep.equals([
                     1n,
                     2n,
@@ -212,23 +216,23 @@ export default () => describe('stdlib', () => {
         describe('Stack', () => {
 
             it('pop', async () => {
-                const result = getDebugFragments(await compile(`
+                const result = getDebugFragments(await compile<Exposed>(`
                     on test() {
                         let s = Stack[1, 2, 3];
                         debug s.pop(), s.pop(), s.pop(), s.pop(), s.pop();
                     }
-                `));
+                `, { exposeNames: ['some', 'none'] }));
                 expect(result).deep.equals([
-                    some(3n),
-                    some(2n),
-                    some(1n),
-                    none,
-                    none,
+                    result.some(3n),
+                    result.some(2n),
+                    result.some(1n),
+                    result.none,
+                    result.none,
                 ]);
             });
 
             it('peek', async () => {
-                const result = getDebugFragments(await compile(`
+                const result = getDebugFragments(await compile<Exposed>(`
                     on test() {
                         let s = Stack[1, 2, 3];
                         debug s.peek();
@@ -238,34 +242,34 @@ export default () => describe('stdlib', () => {
                         s.pop();
                         debug s.peek();
                     }
-                `));
+                `, { exposeNames: ['some', 'none'] }));
                 expect(result).deep.equals([
-                    some(3n),
-                    some(1n),
-                    none,
+                    result.some(3n),
+                    result.some(1n),
+                    result.none,
                 ]);
             });
 
             it('push', async () => {
-                const result = getDebugFragments(await compile(`
+                const result = getDebugFragments(await compile<Exposed>(`
                     on test() {
                         let s: Stack<string> = ['a'];
                         s.push('b');
                         s.push('c');
                         debug s.peek(), s.pop(), s.peek(), s.pop(), s.pop();
                     }
-                `));
+                `, { exposeNames: ['some', 'none'] }));
                 expect(result).deep.equals([
-                    some('c'),
-                    some('c'),
-                    some('b'),
-                    some('b'),
-                    some('a'),
+                    result.some('c'),
+                    result.some('c'),
+                    result.some('b'),
+                    result.some('b'),
+                    result.some('a'),
                 ]);
             });
 
             it('length', async () => {
-                const result = getDebugFragments(await compile(`
+                const result = getDebugFragments(await compile<Exposed>(`
                     on test() {
                         let s: Stack<int> = [0];
                         debug s.length;
@@ -279,7 +283,7 @@ export default () => describe('stdlib', () => {
                         s.pop();
                         debug s.length;
                     }
-                `));
+                `, { exposeNames: ['some', 'none'] }));
                 expect(result).deep.equals([
                     1n,
                     2n,
@@ -328,12 +332,12 @@ export default () => describe('stdlib', () => {
         describe('Set', () => {
 
             it('has', async () => {
-                const result = getDebugFragments(await compile(`
+                const result = getDebugFragments(await compile<Exposed>(`
                     on test() {
                         let s = Set[1, 2, 3];
                         debug s.has(1), s.has(0), s.has(3);
                     }
-                `));
+                `, { exposeNames: ['some', 'none'] }));
                 expect(result).deep.equals([
                     true,
                     false,
@@ -342,7 +346,7 @@ export default () => describe('stdlib', () => {
             });
 
             it('add', async () => {
-                const result = getDebugFragments(await compile(`
+                const result = getDebugFragments(await compile<Exposed>(`
                     on test() {
                         let s = Set[1];
                         debug s.has(5);
@@ -351,7 +355,7 @@ export default () => describe('stdlib', () => {
                         s.add(10);
                         debug s.has(10), s.has(5), s.has(1), s.has(6);
                     }
-                `));
+                `, { exposeNames: ['some', 'none'] }));
                 expect(result).deep.equals([
                     false,
                     true,
@@ -364,13 +368,13 @@ export default () => describe('stdlib', () => {
             });
 
             it('remove', async () => {
-                const result = getDebugFragments(await compile(`
+                const result = getDebugFragments(await compile<Exposed>(`
                     on test() {
                         let s = Set[1, 2];
                         debug s.remove(1), s.remove(0);
                         debug s.has(1), s.has(0), s.has(2);
                     }
-                `));
+                `, { exposeNames: ['some', 'none'] }));
                 expect(result).deep.equals([
                     true,
                     false,
@@ -381,7 +385,7 @@ export default () => describe('stdlib', () => {
             });
 
             it('length', async () => {
-                const result = getDebugFragments(await compile(`
+                const result = getDebugFragments(await compile<Exposed>(`
                     on test() {
                         let s: Set<int> = [1];
                         debug s.length;
@@ -392,7 +396,7 @@ export default () => describe('stdlib', () => {
                         s.remove(1);
                         debug s.length;
                     }
-                `));
+                `, { exposeNames: ['some', 'none'] }));
                 expect(result).deep.equals([
                     1n,
                     1n,
@@ -440,12 +444,12 @@ export default () => describe('stdlib', () => {
         describe('QueueSet', () => {
 
             it('has', async () => {
-                const result = getDebugFragments(await compile(`
+                const result = getDebugFragments(await compile<Exposed>(`
                     on test() {
                         let q = QueueSet[1, 2, 3];
                         debug q.has(1), q.has(0), q.has(3);
                     }
-                `));
+                `, { exposeNames: ['some', 'none'] }));
                 expect(result).deep.equals([
                     true,
                     false,
@@ -454,23 +458,23 @@ export default () => describe('stdlib', () => {
             });
 
             it('pop', async () => {
-                const result = getDebugFragments(await compile(`
+                const result = getDebugFragments(await compile<Exposed>(`
                     on test() {
                         let q = QueueSet[3, 2, 1];
                         debug q.pop(), q.pop(), q.pop(), q.pop(), q.pop();
                     }
-                `));
+                `, { exposeNames: ['some', 'none'] }));
                 expect(result).deep.equals([
-                    some(3n),
-                    some(2n),
-                    some(1n),
-                    none,
-                    none,
+                    result.some(3n),
+                    result.some(2n),
+                    result.some(1n),
+                    result.none,
+                    result.none,
                 ]);
             });
 
             it('enqueue', async () => {
-                const result = getDebugFragments(await compile(`
+                const result = getDebugFragments(await compile<Exposed>(`
                     on test() {
                         let q: QueueSet<string> = ['a'];
                         q.enqueue('b');
@@ -479,24 +483,24 @@ export default () => describe('stdlib', () => {
                         q.enqueue('a');
                         debug q.pop(), q.pop(), q.pop(), q.pop();
                     }
-                `));
+                `, { exposeNames: ['some', 'none'] }));
                 expect(result).deep.equals([
-                    some('a'),
-                    some('b'),
-                    some('c'),
-                    none,
+                    result.some('a'),
+                    result.some('b'),
+                    result.some('c'),
+                    result.none,
                 ]);
             });
 
             it('remove', async () => {
-                const result = getDebugFragments(await compile(`
+                const result = getDebugFragments(await compile<Exposed>(`
                     on test() {
                         let q = QueueSet[1, 2];
                         debug q.remove(1), q.remove(1), q.remove(3);
                         q.enqueue(3);
                         debug q.remove(3);
                     }
-                `));
+                `, { exposeNames: ['some', 'none'] }));
                 expect(result).deep.equals([
                     true,
                     false,
@@ -506,7 +510,7 @@ export default () => describe('stdlib', () => {
             });
 
             it('peek', async () => {
-                const result = getDebugFragments(await compile(`
+                const result = getDebugFragments(await compile<Exposed>(`
                     on test() {
                         let q = QueueSet[3, 2, 1];
                         debug q.peek();
@@ -521,18 +525,18 @@ export default () => describe('stdlib', () => {
                         q.pop();
                         debug q.peek();
                     }
-                `));
+                `, { exposeNames: ['some', 'none'] }));
                 expect(result).deep.equals([
-                    some(3n),
-                    some(3n),
-                    some(2n),
-                    some(3n),
-                    none,
+                    result.some(3n),
+                    result.some(3n),
+                    result.some(2n),
+                    result.some(3n),
+                    result.none,
                 ]);
             });
 
             it('length', async () => {
-                const result = getDebugFragments(await compile(`
+                const result = getDebugFragments(await compile<Exposed>(`
                     on test() {
                         let s: QueueSet<int> = [1];
                         debug s.length;
@@ -544,7 +548,7 @@ export default () => describe('stdlib', () => {
                         s.remove(2);
                         debug s.length;
                     }
-                `));
+                `, { exposeNames: ['some', 'none'] }));
                 expect(result).deep.equals([
                     1n,
                     1n,
@@ -593,12 +597,12 @@ export default () => describe('stdlib', () => {
         describe('Map', () => {
 
             it('has', async () => {
-                const result = getDebugFragments(await compile(`
+                const result = getDebugFragments(await compile<Exposed>(`
                     on test() {
                         let m = Map{ 'a': 1, 'b': 2 };
                         debug m.has('a'), m.has('b'), m.has('c');
                     }
-                `));
+                `, { exposeNames: ['some', 'none'] }));
                 expect(result).deep.equals([
                     true,
                     true,
@@ -607,21 +611,21 @@ export default () => describe('stdlib', () => {
             });
 
             it('get', async () => {
-                const result = getDebugFragments(await compile(`
+                const result = getDebugFragments(await compile<Exposed>(`
                     on test() {
                         let m = Map{ 'a': 1, 'b': 2 };
                         debug m.get('a'), m.get('b'), m.get('c');
                     }
-                `));
+                `, { exposeNames: ['some', 'none'] }));
                 expect(result).deep.equals([
-                    some(1n),
-                    some(2n),
-                    none,
+                    result.some(1n),
+                    result.some(2n),
+                    result.none,
                 ]);
             });
 
             it('put', async () => {
-                const result = getDebugFragments(await compile(`
+                const result = getDebugFragments(await compile<Exposed>(`
                     on test() {
                         let m = Map{ 'a': 1, 'b': 2 };
                         m.set('c', 3);
@@ -630,23 +634,23 @@ export default () => describe('stdlib', () => {
                         m.set('c', 11);
                         debug m.get('c'), m.get('b');
                     }
-                `));
+                `, { exposeNames: ['some', 'none'] }));
                 expect(result).deep.equals([
-                    some(3n),
-                    some(11n),
-                    some(10n),
+                    result.some(3n),
+                    result.some(11n),
+                    result.some(10n),
                 ]);
             });
 
             it('remove', async () => {
-                const result = getDebugFragments(await compile(`
+                const result = getDebugFragments(await compile<Exposed>(`
                     on test() {
                         let m = Map{ 'a': 1, 'b': 2 };
                         debug m.remove('a'), m.remove('a');
                         m.set('c', 3);
                         debug m.remove('d'), m.remove('c');
                     }
-                `));
+                `, { exposeNames: ['some', 'none'] }));
                 expect(result).deep.equals([
                     true,
                     false,
@@ -656,7 +660,7 @@ export default () => describe('stdlib', () => {
             });
 
             it('length', async () => {
-                const result = getDebugFragments(await compile(`
+                const result = getDebugFragments(await compile<Exposed>(`
                     on test() {
                         let m: Map<string, int> = { 'a': 1 };
                         debug m.length;
@@ -667,7 +671,7 @@ export default () => describe('stdlib', () => {
                         m.remove('a');
                         debug m.length;
                     }
-                `));
+                `, { exposeNames: ['some', 'none'] }));
                 expect(result).deep.equals([
                     1n,
                     2n,
@@ -715,11 +719,11 @@ export default () => describe('stdlib', () => {
         describe('option', () => {
 
             it('hasValue', async () => {
-                const result = getDebugFragments(await compile(`
+                const result = getDebugFragments(await compile<Exposed>(`
                     on test() {
                         debug some(1).hasValue, none.hasValue;
                     }
-                `));
+                `, { exposeNames: ['some', 'none'] }));
                 expect(result).deep.equals([
                     true,
                     false,
@@ -727,13 +731,13 @@ export default () => describe('stdlib', () => {
             });
 
             it('getOrDefault', async () => {
-                const result = getDebugFragments(await compile(`
+                const result = getDebugFragments(await compile<Exposed>(`
                     on test() {
                         debug some(1).getOrDefault(10), none.getOrDefault(10);
                         let f = some(1).getOrDefault;
                         debug f(10);
                     }
-                `));
+                `, { exposeNames: ['some', 'none'] }));
                 expect(result).deep.equals([
                     1n,
                     10n,
@@ -742,39 +746,39 @@ export default () => describe('stdlib', () => {
             });
 
             it('condition', async () => {
-                const result = getDebugFragments(await compile(`
+                const result = getDebugFragments(await compile<Exposed>(`
                     on test() {
                         if some(1) {
                             debug 1;
                         }
                     }
-                `));
+                `, { exposeNames: ['some', 'none'] }));
                 expect(result).deep.equals([
                     1n,
                 ]);
             });
 
             it('destructure', async () => {
-                const result = getDebugFragments(await compile(`
+                const result = getDebugFragments(await compile<Exposed>(`
                     on test() {
                         if some(1) |x| {
                             debug x;
                         }
                     }
-                `));
+                `, { exposeNames: ['some', 'none'] }));
                 expect(result).deep.equals([
                     1n,
                 ]);
             });
 
             it('nesting', async () => {
-                const result = getDebugFragments(await compile(`
+                const result = getDebugFragments(await compile<Exposed>(`
                     on test() {
                         if some(none) |x| {
                             debug x.hasValue;
                         }
                     }
-                `));
+                `, { exposeNames: ['some', 'none'] }));
                 expect(result).deep.equals([
                     false,
                 ]);
@@ -819,7 +823,7 @@ export default () => describe('stdlib', () => {
     describe('values', () => {
 
         it('none', async () => {
-            const result = getDebugFragments(await compile(`
+            const result = getDebugFragments(await compile<Exposed>(`
                 on test() {
                     debug none;
                     debug none.hasValue;
@@ -827,15 +831,15 @@ export default () => describe('stdlib', () => {
                         debug x;
                     }
                 }
-            `));
+            `, { exposeNames: ['some', 'none'] }));
             expect(result).deep.equals([
-                none,
+                result.none,
                 false,
             ]);
         });
 
         it('some', async () => {
-            const result = getDebugFragments(await compile(`
+            const result = getDebugFragments(await compile<Exposed>(`
                 on test() {
                     debug some(1);
                     debug some(false).hasValue;
@@ -843,38 +847,38 @@ export default () => describe('stdlib', () => {
                         debug x;
                     }
                 }
-            `));
+            `, { exposeNames: ['some', 'none'] }));
             expect(result).deep.equals([
-                some(1n),
+                result.some(1n),
                 true,
                 'abc',
             ]);
         });
 
         it('toInt', async () => {
-            const result = getDebugFragments(await compile(`
+            const result = getDebugFragments(await compile<Exposed>(`
                 on test() {
                     debug toInt(1.0), toInt(0.0), toInt(-1.0), toInt(1.2), toInt(1e400), toInt(0.0/0.0);
                 }
-            `));
+            `, { exposeNames: ['some', 'none'] }));
             
             expect(result).deep.equals([
-                some(1n),
-                some(0n),
-                some(-1n),
-                none,
-                none,
-                none,
+                result.some(1n),
+                result.some(0n),
+                result.some(-1n),
+                result.none,
+                result.none,
+                result.none,
             ]);
         });
 
         it('toFloat', async () => {
-            const result = getDebugFragments(await compile(`
+            const result = getDebugFragments(await compile<Exposed>(`
                 on test() {
                     debug toFloat(1), toFloat(0), toFloat(-1), toFloat(${Number.MAX_SAFE_INTEGER} + 2)
                         , toFloat(${String(10n**400n)}), toFloat(-${String(10n**400n)});
                 }
-            `));
+            `, { exposeNames: ['some', 'none'] }));
             
             expect(result).deep.equals([
                 1,

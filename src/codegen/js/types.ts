@@ -33,13 +33,15 @@ export interface MiKeProgramExternals extends Record<string, any> {
     debug(...args: any[]): void;
 }
 
-export type MiKeProgramWithoutExternals = (externals: MiKeProgramExternals) => MiKeProgram;
+export type MiKeProgramWithoutExternals<Exposed extends {} = {}>
+    = (externals: MiKeProgramExternals) => MiKeProgram<Exposed>;
 
-export interface MiKeProgram {
+export interface MiKeProgram<Exposed extends {} = {}> {
     listeners: { event: string, callback: (state: EventData) => ListenerResult }[];
     serialize: (state: StateRecord) => string;
     createInitialState(): StateRecord;
     deserialize: (serializedState: string) => StateRecord;
     params: { name: string, type: ParameterType }[];
     createParams(callbacks: CreateParamsFunctions): ParamRecord;
+    exposed: Exposed;
 }

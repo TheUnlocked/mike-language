@@ -3,7 +3,7 @@ import MiKe from '../src/MiKe';
 import { createMiKeDiagnosticsManager } from '../src/diagnostics/DiagnosticCodes';
 import { DiagnosticsManager } from '../src/diagnostics/Diagnostics';
 import { CreateParamsFunctions, EventData, MiKeProgram, MiKeProgramWithoutExternals, StateRecord } from '../src/codegen/js/types';
-import JavascriptTarget from '../src/codegen/js/JavascriptTarget';
+import JavascriptTarget, { createJavascriptTarget } from '../src/codegen/js/JavascriptTarget';
 import { loadModule } from '@brillout/load-module';
 import path from 'path';
 import { LibraryInterface } from '../src/library/Library';
@@ -199,10 +199,11 @@ export async function compileMiKeToJavascriptText(source: string, options?: {
     return new TextDecoder().decode(output);
 }
 
-export async function compileMiKeToJavascriptWithoutExternals(source: string, options?: {
+export async function compileMiKeToJavascriptWithoutExternals<Exposed extends {} = {}>(source: string, options?: {
     libs?: LibraryInterface[];
     impls?: JsLibraryImplementation[];
-}): Promise<MiKeProgramWithoutExternals> {
+    exposeNames?: (keyof Exposed extends string ? keyof Exposed : never)[];
+}): Promise<MiKeProgramWithoutExternals<Exposed>> {
     const diagnostics = createMiKeDiagnosticsManager();
     const mike = new MiKe();
     mike.setDiagnosticsManager(diagnostics);
@@ -215,7 +216,7 @@ export async function compileMiKeToJavascriptWithoutExternals(source: string, op
     mike.init();
     mike.loadScript(source);
 
-    mike.setTarget(JavascriptTarget);
+    mike.setTarget(createJavascriptTarget(options?.exposeNames));
     for (const impl of options?.impls ?? []) {
         mike.addLibraryImplementation(impl);
     }
@@ -242,12 +243,12 @@ export async function compileMiKeToJavascript(source: string, options?: {
     });
 }
 
-export function getDebugFragments(
-    programFn: MiKeProgramWithoutExternals,
+export function getDebugFragments<Exposed extends {} = {}>(
+    programFn: MiKeProgramWithoutExternals<Exposed>,
     createParamsFns?: Partial<CreateParamsFunctions>,
     state?: StateRecord,
-) {
-    const debugFragments = [] as any[];
+): unknown[] & Exposed {
+    const debugFragments = [] as unknown[];
 
     const program = programFn({ debug: debugFragments.push.bind(debugFragments) });
     program.listeners.find(x => x.event === 'test')!.callback({
@@ -265,7 +266,7 @@ export function getDebugFragments(
         state: state ?? program.createInitialState(),
     });
     
-    return debugFragments;
+    return Object.assign(debugFragments, program.exposed);
 }
 
 export function createOptionFieldParamFunctions(fns: Partial<CreateParamsFunctions<[]>>) {
