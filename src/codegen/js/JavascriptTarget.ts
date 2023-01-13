@@ -412,7 +412,7 @@ export default class JavascriptTarget implements Target {
 
     private visitIfElseChain(ast: IfElseChain) {
         const $else = ast.else ? `else${this.visitBlock(ast.else)}` : '';
-        return joinBy(',', ast.cases, ($case, idx) => {
+        return joinBy('', ast.cases, ($case, idx) => {
             const keyword = idx === 0 ? 'if' : 'else if';
             const conditionType = this.typechecker.fetchType($case.condition);
             if (conditionType.kind !== TypeKind.Simple) {
