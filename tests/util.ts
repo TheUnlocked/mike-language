@@ -2,7 +2,7 @@ import { expect } from 'chai';
 import MiKe from '../src/MiKe';
 import { createMiKeDiagnosticsManager } from '../src/diagnostics/DiagnosticCodes';
 import { DiagnosticsManager } from '../src/diagnostics/Diagnostics';
-import { EventData, MiKeProgram, MiKeProgramWithoutExternals } from '../src/codegen/js/types';
+import { CreateParamsFunctions, EventData, MiKeProgram, MiKeProgramWithoutExternals, StateRecord } from '../src/codegen/js/types';
 import JavascriptTarget from '../src/codegen/js/JavascriptTarget';
 import { loadModule } from '@brillout/load-module';
 import path from 'path';
@@ -242,23 +242,47 @@ export async function compileMiKeToJavascript(source: string, options?: {
     });
 }
 
-export function getDebugFragments(programFn: MiKeProgramWithoutExternals, evtData?: Partial<EventData>) {
+export function getDebugFragments(
+    programFn: MiKeProgramWithoutExternals,
+    createParamsFns?: Partial<CreateParamsFunctions>,
+    state?: StateRecord,
+) {
     const debugFragments = [] as any[];
 
     const program = programFn({ debug: debugFragments.push.bind(debugFragments) });
-    program.listeners.find(x => x.event === 'test')!.callback(Object.assign({
+    program.listeners.find(x => x.event === 'test')!.callback({
         args: [],
-        params: {},
-        state: Object.fromEntries(program.state.map(st => [st.name, st.default])),
-    } as EventData, evtData));
+        params: createParamsFns
+            ? program.createParams(Object.assign({
+                getIntParam(name) { throw new Error(`Expected value for parameter ${name}`) },
+                getFloatParam(name) { throw new Error(`Expected value for parameter ${name}`) },
+                getStringParam(name) { throw new Error(`Expected value for parameter ${name}`) },
+                getBooleanParam(name) { throw new Error(`Expected value for parameter ${name}`) },
+                getOptionParam(name) { throw new Error(`Expected value for parameter ${name}`) },
+                getCustomParam(name) { throw new Error(`Expected value for parameter ${name}`) },
+            } satisfies CreateParamsFunctions, createParamsFns))
+            : {},
+        state: state ?? program.createInitialState(),
+    });
     
     return debugFragments;
+}
+
+export function createOptionFieldParamFunctions(fns: Partial<CreateParamsFunctions<[]>>) {
+    return Object.assign({
+        getIntParam() { throw new Error(`Expected value for option field parameter`) },
+        getFloatParam() { throw new Error(`Expected value for option field parameter`) },
+        getStringParam() { throw new Error(`Expected value for option field parameter`) },
+        getBooleanParam() { throw new Error(`Expected value for option field parameter`) },
+        getOptionParam() { throw new Error(`Expected value for option field parameter`) },
+        getCustomParam() { throw new Error(`Expected value for option field parameter`) },
+    } satisfies CreateParamsFunctions<[]>, fns);
 }
 
 export function getStateAfterRunning(program: MiKeProgram, evtData?: Partial<EventData>) {
     return program.listeners.find(x => x.event === 'test')!.callback(Object.assign({
         args: [],
         params: {},
-        state: Object.fromEntries(program.state.map(st => [st.name, st.default])),
+        state: program.createInitialState(),
     } as EventData, evtData));
 }

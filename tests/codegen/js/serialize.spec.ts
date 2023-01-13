@@ -18,7 +18,7 @@ export default () => describe('serialization', () => {
         const state = program.listeners.find(x => x.event === 'test')!.callback({
             args: [],
             params: {},
-            state: Object.fromEntries(program.state.map(st => [st.name, st.default])),
+            state: program.createInitialState(),
         }).state;
         
         expect(JSON.parse(program.serialize(state))).deep.equals({

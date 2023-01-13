@@ -20,6 +20,10 @@ interface StateTypeInfo {
 
 const MAGIC_VARIABLES = new Set(['globalThis']);
 
+function isCompilerReserved(name: string) {
+    return MAGIC_VARIABLES.has(name) || isReserved(name, 'next', true) || name.startsWith('$');
+}
+
 @staticContract<TargetFactory>()
 export default class JavascriptTarget implements Target {
 
@@ -49,7 +53,7 @@ export default class JavascriptTarget implements Target {
         let safeName = this.identifierMappings.get(name);
         if (!safeName) {
             safeName = name;
-            while (this.usedNames.has(safeName) || isReserved(safeName, 'next', true) || safeName === 'globalThis') {
+            while (this.usedNames.has(safeName) || isCompilerReserved(safeName)) {
                 safeName = `_${safeName}`;
             }
             this.identifierMappings.set(name, safeName);
@@ -59,7 +63,7 @@ export default class JavascriptTarget implements Target {
     }
 
     private defineBuiltin(name: string, lazyCode: () => string): string {
-        if (MAGIC_VARIABLES.has(name)) {
+        if (isCompilerReserved(name)) {
             return this.getSafeName(name);
         }
         name = this.getSafeName(name);
@@ -85,16 +89,71 @@ export default class JavascriptTarget implements Target {
         const externalsName = this.builtin_externals;
 
         const userCode = `${joinBy('', typeDefs, this.visitTypeDefinition)}return{${seq(',',
-            `params:[${joinBy(',', params, this.visitParameterDefinition)}]`,
-            `state:[${joinBy(',', state, this.visitStateDefinition)}]`,
+            `createInitialState:()=>({${joinBy(',', state, this.visitStateDefinition)}})`,
             `listeners:[${joinBy(',', listeners, def => this.visitListenerDefinition(def, params, state))}]`,
             `serialize:${this.generateSerializer(stateTypeInfo)}`,
             `deserialize:${this.generateDeserializer(stateTypeInfo)}`,
+            `params:[${joinBy(',', params, this.visitParameterDefinition)}]`,
+            `createParams:${this.generateCreateParams(params)}`,
         )}}`;
 
         return `export default ${externalsName}=>{${
             joinBy('', this.builtins, ([name, code]) => `const ${name}=${code};`)
         }${userCode}}`;
+    }
+
+    @boundMethod
+    private generateCreateParams(params: ParameterDefinition[]) {
+        const getIntParam = 'getIntParam';
+        const getFloatParam = 'getFloatParam';
+        const getStringParam = 'getStringParam';
+        const getBooleanParam = 'getBooleanParam';
+        const getOptionParam = 'getOptionParam';
+        const getCustomParam = 'getCustomParam';
+
+        const visitOptionValue = (type: ParameterType): string => {
+            switch (type.variant) {
+                case 'int':
+                    return `$.${getIntParam}()`;
+                case 'float':
+                    return `$.${getFloatParam}()`;
+                case 'string':
+                    return `$.${getStringParam}()`;
+                case 'boolean':
+                    return `$.${getBooleanParam}()`;
+                case 'option':
+                    const some = this.getBuiltinVariableName('some');
+                    const none = this.getBuiltinVariableName('none');
+                    return `($=>$?${some}(${visitOptionValue(type.type)}):${none})($.${getOptionParam}())`;
+                case 'custom':
+                    return `$.${getCustomParam}(${type.name})`;
+            }
+        };
+
+        const visitParameter = (param: ParameterDefinition) => {
+            const paramName = this.getPublicIdentifierString(param.name);
+            const type = this.toParameterType(this.typechecker.fetchVariableDefinitionType(param));
+
+            switch (type.variant) {
+                case 'int':
+                    return `${paramName}:$.${getIntParam}(${paramName})`;
+                case 'float':
+                    return `${paramName}:$.${getFloatParam}(${paramName})`;
+                case 'string':
+                    return `${paramName}:$.${getStringParam}(${paramName})`;
+                case 'boolean':
+                    return `${paramName}:$.${getBooleanParam}(${paramName})`;
+                case 'option':
+                    const some = this.getBuiltinVariableName('some');
+                    const none = this.getBuiltinVariableName('none');
+                    const value = visitOptionValue(type.type);
+                    return `${paramName}:($=>$?${some}(${value}):${none})($.${getOptionParam}(${paramName}))`;
+                case 'custom':
+                    return `${paramName}:$.${getCustomParam}(${type.name}, ${paramName})`;
+            }
+        };
+
+        return `$=>({${joinBy(',', params, visitParameter)}})`;
     }
 
     @boundMethod
@@ -107,7 +166,7 @@ export default class JavascriptTarget implements Target {
 
     @boundMethod
     private visitStateDefinition(ast: StateDefinition) {
-        return `{name:${this.getPublicIdentifierString(ast.name)},default:${this.visitExpression(ast.default!)}}`;
+        return `${this.getPublicIdentifierString(ast.name)}: ${this.visitExpression(ast.default!)}`;
     }
 
     private toParameterType(type: KnownType): ParameterType {

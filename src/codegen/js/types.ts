@@ -7,14 +7,26 @@ export type ParameterType
     | { variant: 'custom', name: string }
     ;
 
+export interface CreateParamsFunctions<Args extends any[] = [name: string]> {
+    getIntParam(...args: Args): BigInt;
+    getFloatParam(...args: Args): number;
+    getStringParam(...args: Args): string;
+    getBooleanParam(...args: Args): boolean;
+    getOptionParam(...args: Args): CreateParamsFunctions<[]> | undefined;
+    getCustomParam(...args: [...args: Args, typeName: string]): unknown;
+}
+
+export type StateRecord = { [stateName: string]: unknown };
+export type ParamRecord = { [stateName: string]: unknown };
+
 export interface EventData {
-    params: { [paramName: string]: any };
-    state: { [stateName: string]: any };
-    args: any[];
+    params: ParamRecord;
+    state: StateRecord;
+    args: unknown[];
 }
 
 export interface ListenerResult {
-    state: { [stateName: string]: any };
+    state: StateRecord;
 }
 
 export interface MiKeProgramExternals extends Record<string, any> {
@@ -24,9 +36,10 @@ export interface MiKeProgramExternals extends Record<string, any> {
 export type MiKeProgramWithoutExternals = (externals: MiKeProgramExternals) => MiKeProgram;
 
 export interface MiKeProgram {
-    params: { name: string, type: ParameterType }[];
-    state: { name: string, default: any }[];
     listeners: { event: string, callback: (state: EventData) => ListenerResult }[];
-    serialize: (state: { [stateName: string]: any }) => string;
-    deserialize: (serializedState: string) => { [stateName: string]: any };
+    serialize: (state: StateRecord) => string;
+    createInitialState(): StateRecord;
+    deserialize: (serializedState: string) => StateRecord;
+    params: { name: string, type: ParameterType }[];
+    createParams(callbacks: CreateParamsFunctions): ParamRecord;
 }
