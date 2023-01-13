@@ -1,4 +1,5 @@
 import { expect } from 'chai';
+import { TypeAttributeKind } from '../../../src/types/Attribute';
 import { compileMiKeToJavascript as compile, compileMiKeToJavascriptWithoutExternals as compileToFn, createOptionFieldParamFunctions, getDebugFragments } from '../../util';
 
 export default () => describe('parameters', () => {
@@ -113,6 +114,39 @@ export default () => describe('parameters', () => {
             });
             
             expect(result).deep.equals([4n]);
+        });
+
+        it('custom', async () => {
+            const result = getDebugFragments(await compileToFn(`
+                param a: Custom;
+                param b: Custom;
+    
+                on test() {
+                    debug a, b;
+                }
+            `, {
+                libs: [{
+                    types: [{
+                        name: 'Custom',
+                        numParameters: 0,
+                        quantify: () => ({
+                            attributes: [{ kind: TypeAttributeKind.IsLegalParameter }],
+                            members: {},
+                        }),
+                    }],
+                    values: [],
+                }],
+                impls: [{
+                    types: {
+                        'Custom': () => ({ serialize: 'x=>x', deserialize: 'x=>x' })
+                    },
+                    values: {},
+                }]
+            }), {
+                getCustomParam: (name, type) => type === 'Custom' ? ({ a: 1, b: "a" })[name]! : null,
+            });
+            
+            expect(result).deep.equals([1, "a"]);
         });
 
     });

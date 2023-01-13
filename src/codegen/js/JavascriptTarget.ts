@@ -126,7 +126,7 @@ export default class JavascriptTarget implements Target {
                     const none = this.getBuiltinVariableName('none');
                     return `($=>$?${some}(${visitOptionValue(type.type)}):${none})($.${getOptionParam}())`;
                 case 'custom':
-                    return `$.${getCustomParam}(${type.name})`;
+                    return `$.${getCustomParam}(${JSON.stringify(type.name)})`;
             }
         };
 
@@ -149,7 +149,7 @@ export default class JavascriptTarget implements Target {
                     const value = visitOptionValue(type.type);
                     return `${paramName}:($=>$?${some}(${value}):${none})($.${getOptionParam}(${paramName}))`;
                 case 'custom':
-                    return `${paramName}:$.${getCustomParam}(${type.name}, ${paramName})`;
+                    return `${paramName}:$.${getCustomParam}(${paramName}, ${JSON.stringify(type.name)})`;
             }
         };
 
