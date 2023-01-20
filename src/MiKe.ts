@@ -136,6 +136,8 @@ export default class MiKe {
         this.typechecker.loadTypes(
             this.root.definitions.filter((x): x is TypeDefinition => x.kind === ASTNodeKind.TypeDefinition)
         );
+
+        this.symbolTable.bind(this.root);
     }
 
     getComments(): readonly Comment[] | undefined {

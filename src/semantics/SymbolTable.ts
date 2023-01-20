@@ -151,7 +151,7 @@ export class SymbolTable {
         return parent;
     }
 
-    private bind(node: AnyNode): void {
+    bind(node: AnyNode): void {
         if (this.visited.has(node)) {
             // This subtree is already bound
             return;
