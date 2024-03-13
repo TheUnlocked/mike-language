@@ -1,7 +1,8 @@
-import { AnyNode, ASTNodeKind, Block, DUMMY_IDENTIFIER, Expression, GenericType, getChildren, Identifier, IfCase, InfixOperator, Invoke, ListenerDefinition, Pair, Parameter, ParameterDefinition, PrefixOperator, Program, StateDefinition, StatementOrBlock, TopLevelDefinition, Trivia, Type, TypeDefinition, TypeIdentifier, Variable } from '../ast';
+import { AnyNode, ASTNodeKind, Block, DUMMY_IDENTIFIER, Expression, GenericType, getChildren, Identifier, IfCase, InfixOperator, Invoke, isAfter, ListenerDefinition, Pair, Parameter, ParameterDefinition, PrefixOperator, Program, StateDefinition, StatementOrBlock, TopLevelDefinition, Trivia, Type, TypeDefinition, TypeIdentifier, Variable } from '../ast';
 import { DiagnosticCodes, DiagnosticsMixin, DiagnosticsReporter } from '../diagnostics';
 import { Mutable } from '../utils';
 import { hasFlag } from '../utils/flags';
+import { TrackingReporter } from './TrackingReporter';
 import { isTrivia, StringLexer, Token, TokenType } from './lexer';
 
 /** @internal */
@@ -112,7 +113,7 @@ export class Parser extends DiagnosticsMixin implements Rules {
         const backTokenPart = this.tokens[lastToken].content.slice(bytePos + length - this.tokens[lastToken].start);
         const fullInsertion = frontTokenPart + insert + backTokenPart;
 
-        const { removedTokens } = this.lexer.mutate(firstToken, tokenSpanLength, fullInsertion);
+        const { insertedTokens, removedTokens } = this.lexer.mutate(firstToken, tokenSpanLength, fullInsertion);
 
         // Cache invalidation
         for (const token of removedTokens) {
@@ -129,11 +130,18 @@ export class Parser extends DiagnosticsMixin implements Rules {
             }
         }
 
-        this.tokens = this.lexer.tokens;
+        const lastRemovedTokenIdx = this.tokens.indexOf(removedTokens.at(-1)!);
+        this.tokens =
+            this.tokens.slice(0, firstToken)
+                .concat(insertedTokens)
+                .concat(lastRemovedTokenIdx === -1 ? [] : this.tokens.slice(lastRemovedTokenIdx + 1));
     }
+    
+    private _diagnostics = new TrackingReporter(this.diagnostics);
 
-    setDiagnostics(diagnostics: DiagnosticsReporter) {
-        super.setDiagnostics(diagnostics);
+    override setDiagnostics(diagnostics: DiagnosticsReporter) {
+        this._diagnostics.setBaseReporter(diagnostics);
+        this.diagnostics = this._diagnostics;
         this.lexer?.setDiagnostics(diagnostics);
     }
 
@@ -322,7 +330,7 @@ export class Parser extends DiagnosticsMixin implements Rules {
         const token = this.accept(tokenType)
         if (!token) {
             this.focusHere();
-            this.error(DiagnosticCodes.ExpectedTokenNotPresent, TokenType[tokenType]) as undefined;
+            this.error(DiagnosticCodes.ExpectedTokenNotPresent, TokenType[tokenType]);
         }
         return token;
     }

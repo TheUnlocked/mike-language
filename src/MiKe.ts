@@ -125,6 +125,7 @@ export default class MiKe {
     }
 
     editScript(pos: number, length: number, insert: string) {
+        this.diagnosticsManager.clear();
         this.parser.editSource(pos, length, insert);
         this.reload();
     }

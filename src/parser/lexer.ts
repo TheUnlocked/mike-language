@@ -1,5 +1,8 @@
-import { Position, Range } from '../ast';
-import { DiagnosticCodes, DiagnosticsMixin } from '../diagnostics';
+import { Range, isAfter, isAfterOrEquals, positionEquals } from '../ast';
+import { BasicDiagnosticsReporter, DiagnosticCodes, DiagnosticDescription, DiagnosticsMixin, DiagnosticsReporter } from '../diagnostics';
+import { AnyType } from '../types';
+import { InterpolatedStringArgumentList } from '../utils';
+import { TrackingReporter } from './TrackingReporter';
 import { EditChain } from './EditChain';
 
 export enum TokenType {
@@ -235,7 +238,7 @@ export class StringLexer extends DiagnosticsMixin implements ILexer {
 
     private edits: EditChain<Mutation>;
 
-    tokens: Token[] = [];
+    private tokens: Token[] = [];
 
     constructor(private input: string, initialParams = {
         byteOffset: 0,
@@ -248,6 +251,13 @@ export class StringLexer extends DiagnosticsMixin implements ILexer {
         this.line = initialParams.line;
         this.col = initialParams.col;
         this.edits = initialParams.edits;
+    }
+
+    private _diagnostics = new TrackingReporter(this.diagnostics);
+
+    override setDiagnostics(diagnostics: DiagnosticsReporter): void {
+        this._diagnostics.setBaseReporter(diagnostics);
+        this.diagnostics = this._diagnostics;
     }
 
     private peek() {
@@ -310,7 +320,10 @@ export class StringLexer extends DiagnosticsMixin implements ILexer {
         return token;
     }
 
-    protected error(code: DiagnosticCodes, ...args: any) {
+    protected error<D extends DiagnosticCodes>(
+        code: D,
+        ...args: InterpolatedStringArgumentList<string | number | Token | AnyType, DiagnosticDescription<D>>
+    ) {
         this.focus({
             start: { line: this.startLine, col: this.startCol },
             end: { line: this.line, col: this.col },
@@ -398,7 +411,7 @@ export class StringLexer extends DiagnosticsMixin implements ILexer {
         while (!this.isComplete) {
             this.readToken();
         }
-        return this.tokens;
+        return [...this.tokens];
     }
 
     private readNextToken() {
@@ -583,9 +596,24 @@ export class StringLexer extends DiagnosticsMixin implements ILexer {
             };
         }
         if (this.tokens.length === 0) {
-            // Special case for non-empty input but unread tokens
+            // Special case for non-empty input but there are unread tokens (i.e. original lexing hasn't finished yet)
+            const baseReporter = this._diagnostics.baseReporter;
+            this.setDiagnostics(new BasicDiagnosticsReporter(() => {}));
             this.readAllTokens();
+            this.setDiagnostics(baseReporter);
             return this.mutate(firstTokenIndex, numTokens, insert);
+        }
+
+        const oldReports = this._diagnostics.reports;
+        this._diagnostics.clearReports();
+
+        // Insert all our diagnostics from before the altered token
+        for (const report of oldReports) {
+            if (isAfter(report.range!.end, this.tokens[firstTokenIndex].range.start)) {
+                break;
+            }
+            this.diagnostics.focus(report.range);
+            this.diagnostics.report(...report.reportArgs);
         }
 
         // Even in the case of appending, we still need to re-lex the last token since it may have changed.
@@ -684,6 +712,14 @@ export class StringLexer extends DiagnosticsMixin implements ILexer {
                 this.input = this.input.slice(0, removalStart)
                     + insert
                     + this.input.slice(removedTokens.at(-1)!.end);
+
+                // Add any diagnostics from the existing tokens
+                for (const report of oldReports) {
+                    if (isAfterOrEquals(report.range!.start, token.range.start)) {
+                        this.diagnostics.focus(report.range);
+                        this.diagnostics.report(...report.reportArgs);
+                    }
+                }
 
                 return {
                     insertedTokens,

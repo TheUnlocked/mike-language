@@ -1,5 +1,5 @@
 import { AnyNode } from '../ast/Ast';
-import { getNodeSourceRange, intersectsRange, Range, stringifyRange } from '../ast/AstUtils';
+import { getNodeSourceRange, Range, stringifyRange } from '../ast/AstUtils';
 
 export enum Severity {
     Info = 1,
@@ -25,7 +25,7 @@ export class Diagnostic {
         public readonly id: number,
         public readonly severity: Severity,
         public readonly range: Range | undefined,
-        private readonly description: string,
+        private readonly _description: string,
         private readonly args: string[],
     ) {}
 
@@ -34,7 +34,7 @@ export class Diagnostic {
     }
 
     getDescription() {
-        return this.description.replace(/{([0-9]+)}/g, (match, key) => this.args[+key] ?? match);
+        return this._description.replace(/{([0-9]+)}/g, (match, key) => this.args[+key] ?? match);
     }
 
     toString() {
@@ -48,9 +48,31 @@ export class Diagnostic {
 }
 
 export interface DiagnosticsReporter {
-    report(id: number, ...args: string[]): void;
+    report(id: number, ...args: string[]): Range | undefined;
     focus(node: AnyNode | Range | undefined): void;
     // clear(range?: Range): void;
+}
+
+export class BasicDiagnosticsReporter implements DiagnosticsReporter {
+    private currentRange: Range | undefined;
+
+    constructor(private onReport: (id: number, ...args: string[]) => void) {
+
+    }
+
+    focus(nodeOrRange: Range | AnyNode | undefined): void {
+        if (nodeOrRange && 'kind' in nodeOrRange) {
+            this.currentRange = getNodeSourceRange(nodeOrRange);
+        }
+        else {
+            this.currentRange = nodeOrRange;
+        }
+    }
+
+    report(id: number, ...args: string[]): Range | undefined {
+        this.onReport(id, ...args);
+        return this.currentRange;
+    }
 }
 
 export class DiagnosticsManager {
@@ -136,32 +158,7 @@ export class DiagnosticsManager {
     }
 
     getReporter(namespace: string): DiagnosticsReporter {
-        const ownDiagnostics = new Set<Diagnostic>;
-        const focus: DiagnosticsReporter['focus'] = nodeOrRange => {
-            if (nodeOrRange && 'kind' in nodeOrRange) {
-                this.currentRange = getNodeSourceRange(nodeOrRange);
-            }
-            else {
-                this.currentRange = nodeOrRange;
-            }
-        };
-        // const clear: DiagnosticsReporter['clear'] = range => {
-        //     if (!range) {
-        //         this.diagnostics = this.diagnostics.filter(d => !ownDiagnostics.has(d));
-        //     }
-        //     else {
-        //         this.diagnostics = this.diagnostics.filter(
-        //             d => !(ownDiagnostics.has(d) && d.range && intersectsRange(range, d.range))
-        //         );
-        //     }
-        // };
-        return {
-            report: (id, ...args) => {
-                ownDiagnostics.add(this.report(namespace, id, args));
-            },
-            focus,
-            // clear,
-        };
+        return new BasicDiagnosticsReporter((id, ...args) => this.report(namespace, id, args));
     }
 
     clear() {

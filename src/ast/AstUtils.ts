@@ -152,11 +152,31 @@ export function inRange({ start, end }: Range, position: Position) {
     return false;
 }
 
+/**
+ * @param position 
+ * @param comparedTo 
+ * @returns `true` if `position` is after `comparedTo`
+ */
 export function isAfter(position: Position, comparedTo: Position) {
     if (position.line > comparedTo.line) {
         return true;
     }
     if (position.line === comparedTo.line && position.col > comparedTo.col) {
+        return true;
+    }
+    return false;
+}
+
+/**
+ * @param position 
+ * @param comparedTo 
+ * @returns `true` if `position` is after or the same as `comparedTo`
+ */
+export function isAfterOrEquals(position: Position, comparedTo: Position) {
+    if (position.line > comparedTo.line) {
+        return true;
+    }
+    if (position.line === comparedTo.line && position.col >= comparedTo.col) {
         return true;
     }
     return false;

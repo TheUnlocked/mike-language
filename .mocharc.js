@@ -9,6 +9,6 @@ module.exports = {
         "tests/**",
     ],
     "reporter-option": [
-        "maxDiffSize=32768"
+        // "maxDiffSize=32768"
     ],
 };

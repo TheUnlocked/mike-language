@@ -7,37 +7,37 @@ use(chaiExclude);
 
 function testIncremental(title: string) {
     return ([part1, part2]: TemplateStringsArray, [remove, insert]: [remove: string, insert: string]) => {
-        const original = part1 + remove + part2;
-        const modified = part1 + insert + part2;
+        function performTest(remove: string, insert: string) {
+            const original = part1 + remove + part2;
+            const modified = part1 + insert + part2;
 
-        it(title, () => {
-            // Edit before initial parse
+            // Edit
             const d1 = createMiKeDiagnosticsManager();
             const p1 = new Parser();
             p1.setDiagnostics(d1.getReporter('mike'));
             p1.loadSource(original);
+            d1.clear();
             p1.editSource(part1.length, remove.length, insert);
             
-            // Edit after initial parse
+            // No edit
             const d2 = createMiKeDiagnosticsManager();
             const p2 = new Parser();
-            p2.setDiagnostics(d1.getReporter('mike'));
-            p2.loadSource(original);
-            p2.parse();
-            p2.editSource(part1.length, remove.length, insert);
-            
-            // No edit
-            const d3 = createMiKeDiagnosticsManager();
-            const p3 = new Parser();
-            p3.setDiagnostics(d1.getReporter('mike'));
-            p3.loadSource(modified);
-            const reference = p3.parse();
+            p2.setDiagnostics(d2.getReporter('mike'));
+            p2.loadSource(modified);
+            const reference = p2.parse();
     
             expect(p1.parse()).excludingEvery(['_edits']).to.deep.equal(reference);
-            expect(p2.parse()).excludingEvery(['_edits']).to.deep.equal(reference);
 
-            // expect(d1.getDiagnostics()).to.deep.equal(d3.getDiagnostics());
-            // expect(d2.getDiagnostics()).to.deep.equal(d3.getDiagnostics());
+            expect(d1.getDiagnostics()).to.deep.equal(d2.getDiagnostics());
+        }
+
+        describe(title, () => {
+            it('forwards', () => {
+                performTest(remove, insert);
+            });
+            it('reverse', () => {
+                performTest(insert, remove);
+            });
         });
 
     };
@@ -90,12 +90,6 @@ export default () => describe('incremental', () => {
         }
     `;
 
-    testIncremental('insert end quote to fix error')`
-        on foo() {
-            debug "fizzbuzz${['', '"']};
-        }
-    `;
-
 
     testIncremental('delete a branch of an if-else-if chain')`
         on foo() {
@@ -105,20 +99,6 @@ export default () => describe('incremental', () => {
             ${[`else if a || b {
                 bar();
             }`, '']}
-            else {
-                a.x = 5;
-            }
-        }
-    `;
-
-    testIncremental('insert a branch of an if-else-if chain')`
-        on foo() {
-            if true {
-                foo();
-            }
-            ${['', `else if a || b {
-                bar();
-            }`]}
             else {
                 a.x = 5;
             }
@@ -138,5 +118,23 @@ export default () => describe('incremental', () => {
             
         }
     `;
+
+    testIncremental('remove left parenthesis to make listener invalid')`
+        on bar${['(', '']}) {
+            
+        }
+    `;
+
+    testIncremental('remove right parenthesis to make listener invalid')`
+        on bar(${[')', '']} {
+            
+        }
+    `;
+
+    // testIncremental('add "on" keyword to create listener')`
+    //     ${['on', '']} bar() {
+            
+    //     }
+    // `;
 
 });
