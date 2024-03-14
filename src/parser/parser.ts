@@ -2,7 +2,6 @@ import { AnyNode, ASTNodeKind, Block, DUMMY_IDENTIFIER, Expression, GenericType,
 import { DiagnosticCodes, DiagnosticsMixin, DiagnosticsReporter } from '../diagnostics';
 import { Mutable } from '../utils';
 import { hasFlag } from '../utils/flags';
-import { TrackingReporter } from './TrackingReporter';
 import { isTrivia, StringLexer, Token, TokenType } from './lexer';
 
 /** @internal */
@@ -157,12 +156,9 @@ export class Parser extends DiagnosticsMixin implements Rules {
                 .concat(insertedTokens)
                 .concat(lastRemovedTokenIdx === -1 ? [] : this.tokens.slice(lastRemovedTokenIdx + 1));
     }
-    
-    private _diagnostics = new TrackingReporter(this.diagnostics);
 
     override setDiagnostics(diagnostics: DiagnosticsReporter) {
-        this._diagnostics.setBaseReporter(diagnostics);
-        this.diagnostics = this._diagnostics;
+        super.setDiagnostics(diagnostics);
         this.lexer?.setDiagnostics(diagnostics);
     }
 

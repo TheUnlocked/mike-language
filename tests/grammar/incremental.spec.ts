@@ -149,4 +149,10 @@ export default () => describe('incremental', () => {
         }
     `;
 
+    testIncremental('shift diagnostic forwards')`
+        on foo() {
+            let x = ${['1', '15']}; 10e;
+        }
+    `;
+
 });

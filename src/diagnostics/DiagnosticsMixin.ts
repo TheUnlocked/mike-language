@@ -9,7 +9,7 @@ import { DiagnosticsReporter } from './Diagnostics';
 
 const DUMMY_REPORTER: DiagnosticsReporter = {
     focus: () => {},
-    report: () => undefined,
+    report: () => {},
     // clear: () => {},
 };
 
@@ -20,7 +20,7 @@ export class DiagnosticsMixin {
         this.diagnostics = diagnostics;
     }
 
-    protected focus(node: AnyNode | Range | { range: Range } | undefined) {
+    protected focus(node: AnyNode | Range | { range: Range }) {
         if (node && 'range' in node) {
             this.diagnostics.focus(node.range);
         }

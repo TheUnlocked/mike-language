@@ -161,7 +161,7 @@ export default class Validator extends DiagnosticsMixin {
 
         const event = this.options.events.find(evt => evt.name === ast.event);
         if (!event) {
-            this.focus(ast.eventToken);
+            this.focus(ast.eventToken ?? ast);
             this.error(DiagnosticCodes.UnknownEvent, ast.event);
         }
 

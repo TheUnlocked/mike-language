@@ -533,7 +533,7 @@ export class Typechecker extends DiagnosticsMixin {
                         if (deconstructAttr?.destructInto) {
                             return deconstructAttr.destructInto;
                         }
-                        this.focus(ast.deconstruct);
+                        this.focus(ast.deconstruct!);
                         this.error(DiagnosticCodes.TypeCannotBeDestructured, conditionType);
                     }
                     return TOXIC;

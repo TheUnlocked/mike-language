@@ -24,7 +24,7 @@ export class Diagnostic {
         public readonly namespace: string,
         public readonly id: number,
         public readonly severity: Severity,
-        public readonly range: Range | undefined,
+        public readonly range: Range,
         private readonly description: string,
         private readonly args: string[],
     ) {}
@@ -48,8 +48,8 @@ export class Diagnostic {
 }
 
 export interface DiagnosticsReporter {
-    report(id: number, ...args: string[]): Range | undefined;
-    focus(node: AnyNode | Range | undefined): void;
+    report(id: number, ...args: string[]): void;
+    focus(node: AnyNode | Range): void;
     // clear(range?: Range): void;
 }
 

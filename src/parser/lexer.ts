@@ -1,8 +1,8 @@
-import { Range, isAfter, isAfterOrEquals, positionEquals } from '../ast';
-import { BasicDiagnosticsReporter, DiagnosticCodes, DiagnosticDescription, DiagnosticsMixin, DiagnosticsReporter } from '../diagnostics';
+import { Range, isAfter, isAfterOrEquals } from '../ast';
+import { BasicDiagnosticsReporter, DiagnosticCodes, DiagnosticDescription, DiagnosticsMixin } from '../diagnostics';
 import { AnyType } from '../types';
 import { InterpolatedStringArgumentList } from '../utils';
-import { TrackingReporter } from './TrackingReporter';
+import { TrackedDiagnosticsMixin } from './TrackingReporter';
 import { EditChain } from './EditChain';
 
 export enum TokenType {
@@ -226,7 +226,7 @@ function countLines(str: string) {
     return ct;
 }
 
-export class StringLexer extends DiagnosticsMixin implements ILexer {
+export class StringLexer extends TrackedDiagnosticsMixin implements ILexer {
     private tailPtr = 0;
     private headPtr = 0;
     private byteOffset: number;
@@ -253,25 +253,32 @@ export class StringLexer extends DiagnosticsMixin implements ILexer {
         this.edits = initialParams.edits;
     }
 
-    private _diagnostics = new TrackingReporter(this.diagnostics);
-
-    override setDiagnostics(diagnostics: DiagnosticsReporter): void {
-        this._diagnostics.setBaseReporter(diagnostics);
-        this.diagnostics = this._diagnostics;
-    }
-
     private peek() {
         return this.input[this.headPtr];
     }
 
     private token(type: TokenType): Token {
+        return Object.assign(
+            this.makeDynamicRange({
+                start: { line: this.startLine, col: this.startCol },
+                end: { line: this.line, col: this.col },
+            }),
+            {
+                _token: true,
+                type,
+                content: this.input.slice(this.tailPtr, this.headPtr),
+            } as const,
+        );
+    }
+
+    private makeDynamicRange(initial: Range) {
         const length = this.headPtr - this.tailPtr;
         let start = this.tailPtr + this.byteOffset;
 
-        let startLine = this.startLine;
-        let startCol = this.startCol;
-        let endLine = this.line;
-        let endCol = this.col;
+        let startLine = initial.start.line;
+        let startCol = initial.start.col;
+        let endLine = initial.end.line;
+        let endCol = initial.end.col;
 
         function applyEdit(mutation: Mutation) {
             if (start >= mutation.bytePos) {
@@ -295,14 +302,10 @@ export class StringLexer extends DiagnosticsMixin implements ILexer {
         // Mutations can adjust the position, so we need to rectify it.
         // We use an EditChain to apply position updates lazily when properties are accessed.
         function commit() {
-            token._edits = token._edits.apply(applyEdit);
+            rangeContainer._edits = rangeContainer._edits.apply(applyEdit);
         }
 
-        const token: Token = {
-            _token: true,
-            type,
-            content: this.input.slice(this.tailPtr, this.headPtr),
-
+        const rangeContainer = {
             get start() { commit(); return start; },
             get end() { commit(); return this.start + length; },
 
@@ -317,17 +320,17 @@ export class StringLexer extends DiagnosticsMixin implements ILexer {
             _edits: this.edits,
         };
 
-        return token;
+        return rangeContainer;
     }
 
     protected error<D extends DiagnosticCodes>(
         code: D,
         ...args: InterpolatedStringArgumentList<string | number | Token | AnyType, DiagnosticDescription<D>>
     ) {
-        this.focus({
+        this.focus(this.makeDynamicRange({
             start: { line: this.startLine, col: this.startCol },
             end: { line: this.line, col: this.col },
-        });
+        }));
         super.error(code, ...args);
     }
 
@@ -597,19 +600,19 @@ export class StringLexer extends DiagnosticsMixin implements ILexer {
         }
         if (this.tokens.length === 0) {
             // Special case for non-empty input but there are unread tokens (i.e. original lexing hasn't finished yet)
-            const baseReporter = this._diagnostics.baseReporter;
+            const baseReporter = this.internalDiagnosticsReporter;
             this.setDiagnostics(new BasicDiagnosticsReporter(() => {}));
             this.readAllTokens();
             this.setDiagnostics(baseReporter);
             return this.mutate(firstTokenIndex, numTokens, insert);
         }
 
-        const oldReports = this._diagnostics.reports;
-        this._diagnostics.clearReports();
+        const oldReports = this.diagnosticsReports;
+        this.clearDiagnosticsReports();
 
         // Insert all our diagnostics from before the altered token
         for (const report of oldReports) {
-            if (isAfter(report.range!.end, this.tokens[firstTokenIndex].range.start)) {
+            if (isAfter(report.range.end, this.tokens[firstTokenIndex].range.start)) {
                 break;
             }
             this.diagnostics.focus(report.range);
@@ -718,7 +721,7 @@ export class StringLexer extends DiagnosticsMixin implements ILexer {
 
                 // Add any diagnostics from the existing tokens
                 for (const report of oldReports) {
-                    if (isAfterOrEquals(report.range!.start, token.range.start)) {
+                    if (isAfterOrEquals(report.range.start, token.range.start)) {
                         this.diagnostics.focus(report.range);
                         this.diagnostics.report(...report.reportArgs);
                     }
