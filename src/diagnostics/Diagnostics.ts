@@ -54,13 +54,13 @@ export interface DiagnosticsReporter {
 }
 
 export class BasicDiagnosticsReporter implements DiagnosticsReporter {
-    private currentRange: Range | undefined;
+    private currentRange: Range = { start: { line: 0, col: 0 }, end: { line: 0, col: 0 } };
 
-    constructor(private onReport: (id: number, ...args: string[]) => void) {
+    constructor(private onReport: (id: number, args: string[], range: Range) => void) {
 
     }
 
-    focus(nodeOrRange: Range | AnyNode | undefined): void {
+    focus(nodeOrRange: Range | AnyNode): void {
         if (nodeOrRange && 'kind' in nodeOrRange) {
             this.currentRange = getNodeSourceRange(nodeOrRange);
         }
@@ -69,15 +69,13 @@ export class BasicDiagnosticsReporter implements DiagnosticsReporter {
         }
     }
 
-    report(id: number, ...args: string[]): Range | undefined {
-        this.onReport(id, ...args);
+    report(id: number, ...args: string[]): Range {
+        this.onReport(id, args, this.currentRange);
         return this.currentRange;
     }
 }
 
 export class DiagnosticsManager {
-    private currentRange?: Range;
-
     private diagnosticTypes = new Map<string, MutableDiagnosticInfo>();
 
     private diagnostics = [] as Diagnostic[];
@@ -115,7 +113,7 @@ export class DiagnosticsManager {
         diagnostic.specializedMessages.push({ when, message });
     }
 
-    private report(namespace: string, id: number, args: string[]): Diagnostic {
+    private report(namespace: string, id: number, args: string[], range: Range): Diagnostic {
         const info = this.diagnosticTypes.get(this.getQualifiedId(namespace, id));
 
         let diagnostic: Diagnostic;
@@ -124,7 +122,7 @@ export class DiagnosticsManager {
                 namespace,
                 id,
                 Severity.Error,
-                this.currentRange,
+                range,
                 'Unknown Diagnostic',
                 args,
             );
@@ -136,7 +134,7 @@ export class DiagnosticsManager {
                     namespace,
                     id,
                     info.severity,
-                    this.currentRange,
+                    range,
                     specialMessage.message,
                     args,
                 );
@@ -146,7 +144,7 @@ export class DiagnosticsManager {
                     namespace,
                     id,
                     info.severity,
-                    this.currentRange,
+                    range,
                     info.description,
                     args,
                 );
@@ -158,7 +156,7 @@ export class DiagnosticsManager {
     }
 
     getReporter(namespace: string): DiagnosticsReporter {
-        return new BasicDiagnosticsReporter((id, ...args) => this.report(namespace, id, args));
+        return new BasicDiagnosticsReporter((id, args, range) => this.report(namespace, id, args, range));
     }
 
     clear() {
