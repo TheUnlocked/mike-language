@@ -1,0 +1,8 @@
+// import { DiagnosticCodes } from '../../src/diagnostics/DiagnosticCodes'
+
+on test() {
+    //  v expect diagnostics ~ has ~ id == DiagnosticCodes.IdentifierCannotStartWithDigit
+    let 123abc = 1;
+}
+
+// assert diagnostics.length == 1
