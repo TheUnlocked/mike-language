@@ -25,7 +25,7 @@ export class Diagnostic {
         public readonly id: number,
         public readonly severity: Severity,
         public readonly range: Range | undefined,
-        private readonly _description: string,
+        private readonly description: string,
         private readonly args: string[],
     ) {}
 
@@ -34,7 +34,7 @@ export class Diagnostic {
     }
 
     getDescription() {
-        return this._description.replace(/{([0-9]+)}/g, (match, key) => this.args[+key] ?? match);
+        return this.description.replace(/{([0-9]+)}/g, (match, key) => this.args[+key] ?? match);
     }
 
     toString() {

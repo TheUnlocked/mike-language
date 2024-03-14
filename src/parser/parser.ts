@@ -104,16 +104,33 @@ export class Parser extends DiagnosticsMixin implements Rules {
             return;
         }
 
-        const firstToken = this.findTokenIndexAtBytePos(bytePos);
-        const lastToken = this.findTokenIndexAtBytePos(bytePos + length, firstToken);
-        const tokenSpanLength = lastToken - firstToken;
+        let firstTokenIdx = this.findTokenIndexAtBytePos(bytePos);
+        const lastTokenIdx = this.findTokenIndexAtBytePos(bytePos + length, firstTokenIdx);
+
+        // How far the edit is into the first/last token (e.g. myVal|ue would have value 5)
+        let distanceIntoFirstToken = bytePos - this.tokens[firstTokenIdx].start;
+        const distanceIntoLastToken = bytePos + length - this.tokens[lastTokenIdx].start;
+
+        if (firstTokenIdx > 0 && distanceIntoFirstToken === 0) {
+            // We need to shift back a token since the inserted text might alter the previous token.
+            // For example:
+            //     let siz[e] = 5;
+            // If we just grab the token at the insertion index, our final token list will look like (omitting whitespace):
+            // ['let', 'siz', 'e', '=', '5', ';']
+            // Rather than:
+            // ['let', 'size', '=', '5', ';']
+            firstTokenIdx -= 1;
+            distanceIntoFirstToken = this.tokens[firstTokenIdx].content.length;
+        }
 
         // The inserted text fed to the lexer needs to include the parts of the tokens which will be re-lexed
-        const frontTokenPart = this.tokens[firstToken].content.slice(0, bytePos - this.tokens[firstToken].start);
-        const backTokenPart = this.tokens[lastToken].content.slice(bytePos + length - this.tokens[lastToken].start);
+        const frontTokenPart = this.tokens[firstTokenIdx].content.slice(0, distanceIntoFirstToken);
+        const backTokenPart = this.tokens[lastTokenIdx].content.slice(distanceIntoLastToken);
         const fullInsertion = frontTokenPart + insert + backTokenPart;
 
-        const { insertedTokens, removedTokens } = this.lexer.mutate(firstToken, tokenSpanLength, fullInsertion);
+        const numTokens = lastTokenIdx - firstTokenIdx + 1;
+
+        const { insertedTokens, removedTokens } = this.lexer.mutate(firstTokenIdx, numTokens, fullInsertion);
 
         // Cache invalidation
         for (const token of removedTokens) {
@@ -132,7 +149,7 @@ export class Parser extends DiagnosticsMixin implements Rules {
 
         const lastRemovedTokenIdx = this.tokens.indexOf(removedTokens.at(-1)!);
         this.tokens =
-            this.tokens.slice(0, firstToken)
+            this.tokens.slice(0, firstTokenIdx)
                 .concat(insertedTokens)
                 .concat(lastRemovedTokenIdx === -1 ? [] : this.tokens.slice(lastRemovedTokenIdx + 1));
     }

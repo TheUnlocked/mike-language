@@ -131,10 +131,22 @@ export default () => describe('incremental', () => {
         }
     `;
 
-    // testIncremental('add "on" keyword to create listener')`
-    //     ${['on', '']} bar() {
+    testIncremental('add "on" keyword to create listener')`
+        ${['on', '']} foo() {
             
-    //     }
-    // `;
+        }
+    `;
+
+    testIncremental('add whitespace before listener')`
+        ${['', ' ']}on foo() {
+            
+        }
+    `;
+
+    testIncremental('append characters to identifier')`
+        on foo() {
+            let x${['', 'yz']} = 1;
+        }
+    `;
 
 });

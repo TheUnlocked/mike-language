@@ -621,9 +621,13 @@ export class StringLexer extends DiagnosticsMixin implements ILexer {
         /** The first token which is mutated/removed */
         const firstToken = this.tokens[firstTokenIndex] ?? this.tokens.at(-1);
         /** The last token which is mutated/removed */
-        const lastToken = this.tokens[firstTokenIndex + numTokens] ?? this.tokens.at(-1);
+        const lastToken = this.tokens[firstTokenIndex + numTokens - 1] ?? this.tokens.at(-1);
         /** The start byte position of the first token which is mutated/removed */
         const removalStart = firstToken.start;
+        /** The start line position of the first token which is mutated/removed */
+        const removalStartLine = firstToken.range.start.line;
+        /** The start column position of the first token which is mutated/removed */
+        const removalStartCol = firstToken.range.start.col;
         /** The end byte position of the last token which is mutated/removed */
         const removalEnd = lastToken.end;
         /** The byte length of the span of tokens which are mutated/removed */
@@ -631,24 +635,22 @@ export class StringLexer extends DiagnosticsMixin implements ILexer {
         /** The change in byte length */
         const byteDelta = insert.length - removalLength;
 
-        // using endLine is okay because lines are always terminanted with a newline token
+        // using end.line is okay because lines are always terminanted with a newline token
         const linesRemoved = lastToken.range.end.line - firstToken.range.start.line;
         const linesAdded = countLines(insert);
         const lineDelta = linesAdded - linesRemoved;
         /** The column directly after the inserted content */
         const endColumn =
-            lineDelta === 0
+            linesAdded === 0
                 // If the edit doesn't include any newlines, add the byte delta to the starting column 
                 ? lastToken.range.end.col + byteDelta
-                : insert.length - insert.lastIndexOf('\n') - 1;
+                : insert.length - insert.lastIndexOf('\n');
 
         // Push onto the edit change so that tokens can update their position
         this.edits = this.edits.push({
-            bytePos: removalStart + insert.length,
+            bytePos: removalStart,
             byteOffset: byteDelta,
-
-            // The line to change column numbers on is one off if the last token ends in a newline.
-            linePos: lastToken.range.end.line - (lastToken.range.end.col === 1 ? 1 : 0),
+            linePos: lastToken.range.end.line,
             lineOffset: lineDelta,
             colOffset: endColumn - lastToken.range.end.col,
         });
@@ -660,12 +662,13 @@ export class StringLexer extends DiagnosticsMixin implements ILexer {
         //  Before: foo(1, 2);
         //  After:  foo("1, 2);
         // Only " was inserted but it changes how the rest of the input lexes.
+        // We need to make sure to only use positions that were saved before the location edit was pushed.
         const subLexer = new StringLexer(
             insert + this.input.slice(removalEnd),
             {
-                byteOffset: firstToken.start,
-                line: firstToken.range.start.line,
-                col: firstToken.range.start.col,
+                byteOffset: removalStart,
+                line: removalStartLine,
+                col: removalStartCol,
                 edits: this.edits,
             },
         );
