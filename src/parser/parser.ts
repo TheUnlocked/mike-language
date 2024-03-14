@@ -88,12 +88,16 @@ enum ParseFlags {
     CLEAR_ON_SURROUNDED = DISABLE_TYPED_MAP,
 }
 
+function sanitizeSource(source: string) {
+    return source.replaceAll('\r', '');
+}
+
 export class Parser extends DiagnosticsMixin implements Rules {
     private tokens!: Token[];
     private lexer?: StringLexer;
 
     loadSource(source: string) {
-        this.lexer = new StringLexer(source);
+        this.lexer = new StringLexer(sanitizeSource(source));
         this.lexer.setDiagnostics(this.diagnostics);
         this.tokens = this.lexer.readAllTokens();
     }
@@ -126,7 +130,7 @@ export class Parser extends DiagnosticsMixin implements Rules {
         // The inserted text fed to the lexer needs to include the parts of the tokens which will be re-lexed
         const frontTokenPart = this.tokens[firstTokenIdx].content.slice(0, distanceIntoFirstToken);
         const backTokenPart = this.tokens[lastTokenIdx].content.slice(distanceIntoLastToken);
-        const fullInsertion = frontTokenPart + insert + backTokenPart;
+        const fullInsertion = frontTokenPart + sanitizeSource(insert) + backTokenPart;
 
         const numTokens = lastTokenIdx - firstTokenIdx + 1;
 
