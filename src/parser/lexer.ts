@@ -644,10 +644,12 @@ export class StringLexer extends TrackedDiagnosticsMixin implements ILexer {
         const lineDelta = linesAdded - linesRemoved;
         /** The column directly after the inserted content */
         const endColumn =
-            linesAdded === 0
+            linesAdded !== 0
                 // If the edit doesn't include any newlines, add the byte delta to the starting column 
-                ? lastToken.range.end.col + byteDelta
-                : insert.length - insert.lastIndexOf('\n');
+                ? insert.length - insert.lastIndexOf('\n')
+            : linesRemoved !== 0
+                ? firstToken.range.start.col + insert.length
+                : lastToken.range.end.col + byteDelta;
 
         // Push onto the edit change so that tokens can update their position
         this.edits = this.edits.push({

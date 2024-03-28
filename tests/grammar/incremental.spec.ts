@@ -16,6 +16,7 @@ function testIncremental(title: string) {
             const p1 = new Parser();
             p1.setDiagnostics(d1.getReporter('mike'));
             p1.loadSource(original);
+            p1.parse();
             d1.clear();
             p1.editSource(part1.length, remove.length, insert);
             
@@ -149,9 +150,49 @@ export default () => describe('incremental', () => {
         }
     `;
 
-    testIncremental('shift diagnostic forwards')`
+    testIncremental('make change in the presence of parser diagnostic earlier in file')`
         on foo() {
-            let x = ${['1', '15']}; 10e;
+            x
+        }
+
+        on bar() {
+            let x = ${['1', '15']};
+        }
+    `;
+
+    testIncremental('make change in the presence of parser diagnostic later in file')`
+        on foo() {
+            let x = ${['1', '15']};
+        }
+
+        on bar() {
+            x
+        }
+    `;
+
+    testIncremental('make change which would shift lexer diagnostic to another column')`
+        on foo() {
+            let x = ${['1', '15']}; @
+        }
+    `;
+
+    testIncremental('make change which would shift lexer diagnostic to another line')`
+        on foo() {
+            let x = ${['1', `"
+            "`]}; @
+        }
+    `;
+
+    testIncremental('make change which would shift parser diagnostic to another column')`
+        on foo() {
+            let x = ${['1', '15']}; x123
+        }
+    `;
+
+    testIncremental('make change which would shift parser diagnostic to another line')`
+        on foo() {
+            let x = ${['1', `
+                1`]}; x123
         }
     `;
 
