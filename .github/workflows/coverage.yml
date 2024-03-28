@@ -1,0 +1,20 @@
+on: [push]
+
+jobs:
+    coverage:
+      runs-on: ubuntu-latest
+      name: Coverage
+      steps:
+        - name: Checkout
+          uses: actions/checkout@v4
+        - name: Setup Node.js environment
+          uses: actions/setup-node@v4
+          with:
+            node-version: 20
+            cache: 'npm'
+        - run: npm ci
+        - run: npm run coverage
+        - uses: actions/upload-artifact@v4
+          with:
+            name: coverage
+            path: coverage/
