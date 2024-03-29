@@ -1,26 +1,20 @@
 import { AnyNode, Range, getNodeSourceRange } from "../ast";
-import { BasicDiagnosticsReporter, DiagnosticsMixin, DiagnosticsReporter } from "../diagnostics";
+import { DiagnosticsMixin, DiagnosticsReporter } from "../diagnostics";
 
 export class TrackingReportInfo {
-    constructor(public reportArgs: [number, ...string[]], private target: AnyNode | Range | { range: Range }) {
+    constructor(public reportArgs: [number, ...string[]], private getRange: () => Range) {
 
     }
 
     get range() {
-        if ('kind' in this.target) {
-            return getNodeSourceRange(this.target);
-        }
-        else if ('range' in this.target) {
-            return this.target.range;
-        }
-        return this.target;
+        return this.getRange();
     }
 }
 
-class TrackingReporter implements DiagnosticsReporter {
+export class TrackingReporter implements DiagnosticsReporter {
 
     private _reports = [] as TrackingReportInfo[];
-    private target!: AnyNode | Range | { range: Range };
+    private currentRangeGetter!: () => Range;
 
     constructor(private _baseReporter: DiagnosticsReporter) {
 
@@ -44,40 +38,42 @@ class TrackingReporter implements DiagnosticsReporter {
 
     report(id: number, ...args: string[]) {
         const range = this._baseReporter.report(id, ...args);
-        this._reports.push(new TrackingReportInfo([id, ...args], this.target));
+        this._reports.push(new TrackingReportInfo([id, ...args], this.currentRangeGetter));
         return range;
     }
 
-    focus(node: AnyNode | Range | { range: Range }) {
-        this.baseReporter.focus('range' in node ? node.range : node);
-        this.target = node;
+    focus(getRange: () => Range) {
+        this.baseReporter.focus(getRange);
+        this.currentRangeGetter = getRange;
     }
 
 }
 
 export abstract class TrackedDiagnosticsMixin extends DiagnosticsMixin {
 
-    private _diagnostics = new TrackingReporter(this.diagnostics);
-
-    override setDiagnostics(diagnostics: DiagnosticsReporter): void {
-        this._diagnostics.setBaseReporter(diagnostics);
-        this.diagnostics = this._diagnostics;
+    constructor() {
+        super();
+        this.diagnostics = new TrackingReporter(this.diagnostics);
     }
 
-    protected override focus(node: Range | AnyNode | { range: Range }): void {
-        this._diagnostics.focus(node);
+    override setDiagnostics(diagnostics: DiagnosticsReporter): void {
+        (this.diagnostics as TrackingReporter).setBaseReporter(diagnostics);
+    }
+
+    protected override focus(node: (() => Range) | { range: Range } | AnyNode): void {
+        super.focus(node);
     }
 
     protected get internalDiagnosticsReporter() {
-        return this._diagnostics.baseReporter;
+        return (this.diagnostics as TrackingReporter).baseReporter;
     }
 
     protected get diagnosticsReports() {
-        return this._diagnostics.reports;
+        return (this.diagnostics as TrackingReporter).reports;
     }
 
     protected clearDiagnosticsReports() {
-        this._diagnostics.clearReports();
+        (this.diagnostics as TrackingReporter).clearReports();
     }
 
 }

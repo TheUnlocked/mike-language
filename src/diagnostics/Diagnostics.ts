@@ -49,7 +49,7 @@ export class Diagnostic {
 
 export interface DiagnosticsReporter {
     report(id: number, ...args: string[]): void;
-    focus(node: AnyNode | Range): void;
+    focus(getRange: () => Range): void;
     // clear(range?: Range): void;
 }
 
@@ -60,13 +60,8 @@ export class BasicDiagnosticsReporter implements DiagnosticsReporter {
 
     }
 
-    focus(nodeOrRange: Range | AnyNode): void {
-        if (nodeOrRange && 'kind' in nodeOrRange) {
-            this.currentRange = getNodeSourceRange(nodeOrRange);
-        }
-        else {
-            this.currentRange = nodeOrRange;
-        }
+    focus(getRange: () => Range): void {
+        this.currentRange = getRange();
     }
 
     report(id: number, ...args: string[]): Range {

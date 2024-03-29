@@ -1,4 +1,4 @@
-import { Range } from '../ast';
+import { Range, getNodeSourceRange } from '../ast';
 import { AnyNode } from '../ast/Ast';
 import { Token } from '../parser/lexer';
 import { AnyType, stringifyType } from '../types/KnownType';
@@ -20,12 +20,15 @@ export class DiagnosticsMixin {
         this.diagnostics = diagnostics;
     }
 
-    protected focus(node: AnyNode | Range | { range: Range }) {
-        if (node && 'range' in node) {
-            this.diagnostics.focus(node.range);
+    protected focus(target: (() => Range) | { range: Range } | AnyNode) {
+        if (target instanceof Function) {
+            this.diagnostics.focus(() => target());
+        }
+        else if ('range' in target) {
+            this.diagnostics.focus(() => target.range);
         }
         else {
-            this.diagnostics.focus(node);
+            this.diagnostics.focus(() => getNodeSourceRange(target));
         }
     }
 

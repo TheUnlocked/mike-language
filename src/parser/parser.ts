@@ -1,7 +1,9 @@
 import { AnyNode, ASTNodeKind, Block, DUMMY_IDENTIFIER, Expression, GenericType, getChildren, Identifier, IfCase, InfixOperator, Invoke, isAfter, ListenerDefinition, Pair, Parameter, ParameterDefinition, PrefixOperator, Program, StateDefinition, StatementOrBlock, TopLevelDefinition, Trivia, Type, TypeDefinition, TypeIdentifier, Variable } from '../ast';
 import { DiagnosticCodes, DiagnosticsMixin, DiagnosticsReporter } from '../diagnostics';
 import { Mutable } from '../utils';
+import { withDefer } from '../utils/defer';
 import { hasFlag } from '../utils/flags';
+import { TrackingReportInfo, TrackingReporter } from './TrackingReporter';
 import { isTrivia, StringLexer, Token, TokenType } from './lexer';
 
 /** @internal */
@@ -91,11 +93,38 @@ function sanitizeSource(source: string) {
     return source.replaceAll('\r', '');
 }
 
+interface MemoizationMatchRule {
+    readonly rule: keyof Rules;
+    readonly diagnostics: readonly TrackingReportInfo[];
+    readonly node: AnyNode;
+}
+
 export class Parser extends DiagnosticsMixin implements Rules {
     private tokens!: Token[];
     private lexer?: StringLexer;
 
+    private memoTable = new Map<Token, MemoizationMatchRule[]>();
+
+    constructor() {
+        super();
+        this.diagnostics = new TrackingReporter(this.diagnostics);
+    }
+
+    private clearReports() {
+        (this.diagnostics as TrackingReporter).clearReports();
+    }
+
+    private getReports() {
+        return (this.diagnostics as TrackingReporter).reports;
+    }
+
+    override setDiagnostics(diagnostics: DiagnosticsReporter) {
+        (this.diagnostics as TrackingReporter).setBaseReporter(diagnostics);
+        this.lexer?.setDiagnostics(diagnostics);
+    }
+
     loadSource(source: string) {
+        this.clearReports();
         this.lexer = new StringLexer(sanitizeSource(source));
         this.lexer.setDiagnostics(this.diagnostics);
         this.tokens = this.lexer.readAllTokens();
@@ -106,6 +135,8 @@ export class Parser extends DiagnosticsMixin implements Rules {
             this.loadSource(insert);
             return;
         }
+
+        this.clearReports();
 
         let firstTokenIdx = this.findTokenIndexAtBytePos(bytePos);
         const lastTokenIdx = this.findTokenIndexAtBytePos(bytePos + length, firstTokenIdx);
@@ -137,14 +168,14 @@ export class Parser extends DiagnosticsMixin implements Rules {
 
         // Cache invalidation
         for (const token of removedTokens) {
-            let node = this.memoTable.get(token)?.[0]?.[1];
+            let node = this.memoTable.get(token)?.[0]?.node;
             this.memoTable.delete(token);
             while (node) {
                 const firstToken = node.tokens!.find(x => !isTrivia(x))!;
 
                 const memoEntry = this.memoTable.get(firstToken);
                 if (memoEntry) {
-                    this.memoTable.set(firstToken, memoEntry.filter(x => x[1] !== node));
+                    this.memoTable.set(firstToken, memoEntry.filter(x => x.node !== node));
                 }
                 node = node.parent;
             }
@@ -155,11 +186,6 @@ export class Parser extends DiagnosticsMixin implements Rules {
             this.tokens.slice(0, firstTokenIdx)
                 .concat(insertedTokens)
                 .concat(lastRemovedTokenIdx === -1 ? [] : this.tokens.slice(lastRemovedTokenIdx + 1));
-    }
-
-    override setDiagnostics(diagnostics: DiagnosticsReporter) {
-        super.setDiagnostics(diagnostics);
-        this.lexer?.setDiagnostics(diagnostics);
     }
 
     private findTokenIndexAtBytePos(pos: number, from = 0) {
@@ -185,28 +211,36 @@ export class Parser extends DiagnosticsMixin implements Rules {
     }
 
     private focusHere() {
-        const token = this.tokens[this.head - 1];
-        const pos = token
-            ? token.range.end
-            : { line: 1, col: 1 }
-        this.focus({
-            start: pos,
-            end: pos,
-        });
-    }
+        const token = this.tokens.findLast(t => !isTrivia(t), this.head - 1);
+        
+        if (!token) {
+            this.focus(() => ({
+                start: { line: 1, col: 1 },
+                end: { line: 1, col: 1 },
+            }));
+            return;
+        }
 
-    private focusToken(token: Token) {
-        this.focus(token.range);
+        this.focus({
+            get range() {
+                return {
+                    start: token.range.end,
+                    end: token.range.end,
+                }
+            }
+        });
     }
 
     private focusTokenRange(first: Token, last: Token) {
         this.focus({
-            start: first.range.start,
-            end: last.range.end,
+            get range() {
+                return {
+                    start: first.range.start,
+                    end: last.range.end,
+                };
+            }
         });
     }
-
-    private memoTable = new Map<Token, [string, AnyNode][]>();
 
     private head = -1;
     private rollbackStack: number[] = [];
@@ -273,14 +307,14 @@ export class Parser extends DiagnosticsMixin implements Rules {
         this.flagStack.pop();
     }
 
-    private memoize(token: Token, rule: string, node: AnyNode) {
+    private memoize(token: Token, rule: keyof Rules, node: AnyNode) {
         const ruleStack = this.memoTable.get(token);
 
         if (ruleStack) {
-            ruleStack.push([rule, node]);
+            ruleStack.push({ rule, node, diagnostics: this.getReports() });
         }
         else {
-            this.memoTable.set(token, [[rule, node]]);
+            this.memoTable.set(token, [{ rule, node, diagnostics: this.getReports() }]);
         }
     }
 
@@ -353,58 +387,73 @@ export class Parser extends DiagnosticsMixin implements Rules {
     }
 
     private visit<T extends keyof Rules>(rule: T): ReturnType<Rules[T]> {
-        const isProgramRule = rule === 'program';
-
-        let firstTokenIndex;
-
-        // Program is the only node which should include leading trivia
-        if (isProgramRule) {
-            // + 1 since the program is generally going to start at -1
-            firstTokenIndex = this.head + 1;
-            this.saveTrivia();
-            this.advanceToBeforeNextNonTrivia();
-        }
-        else {
-            this.advanceToBeforeNextNonTrivia();
-            // + 1 since the head ptr is behind the next token we're going to read
-            firstTokenIndex = this.head + 1;
-        }
-
-        const nextToken = this.tokens[this.head + 1];
-        if (nextToken) {
-            const node = this.memoTable.get(nextToken)?.find(entry => entry[0] === rule)?.[1];
-            if (node) {
-                this.head += node.tokens!.length;
-                return node as any;
+        return withDefer(defer => {
+            {
+                const baseReporter = this.diagnostics;
+                this.diagnostics = new TrackingReporter(this.diagnostics);
+                defer(() => {
+                    this.diagnostics = baseReporter;
+                });
             }
-        }
 
-        // If it was a Program node we already saved it, so no need to save it again 
-        if (!isProgramRule) this.saveTrivia();
-
-        const node = (this as any)[rule]() as Mutable<AnyNode>;
-
-        if (!node) {
-            this.propagateTrivia();
-            return node; // undefined
-        }
-
-        node.tokens = this.tokens.slice(firstTokenIndex, this.head + 1);
-        node.trivia = this.consumeTrivia();
-
-        // Assign children
-        for (const child of getChildren(node) as Mutable<AnyNode>[]) {
-            child.parent = node;
-        }
-
-        // Memoize own tokens, and the first token even if not an own token.
-        for (const token of node.tokens) {
-            if (!this.memoTable.has(token) || token === nextToken) {
-                this.memoize(token, rule, node);
+            const isProgramRule = rule === 'program';
+    
+            let firstTokenIndex;
+    
+            // Program is the only node which should include leading trivia
+            if (isProgramRule) {
+                // + 1 since the program is generally going to start at -1
+                firstTokenIndex = this.head + 1;
+                this.saveTrivia();
+                this.advanceToBeforeNextNonTrivia();
             }
-        }
-
-        return node as ReturnType<Rules[T]>;
+            else {
+                this.advanceToBeforeNextNonTrivia();
+                // + 1 since the head ptr is behind the next token we're going to read
+                firstTokenIndex = this.head + 1;
+            }
+    
+            const nextToken = this.tokens[this.head + 1];
+            if (nextToken) {
+                const memoEntry = this.memoTable.get(nextToken)?.find(entry => entry.rule === rule);
+                if (memoEntry) {
+                    const { node, diagnostics } = memoEntry;
+                    this.head += node.tokens!.length;
+                    for (const report of diagnostics) {
+                        this.focus(report);
+                        this.diagnostics.report(...report.reportArgs);
+                    }
+                    return node as any;
+                }
+            }
+    
+            // If it was a Program node we already saved it, so no need to save it again 
+            if (!isProgramRule) this.saveTrivia();
+    
+            const node = (this as any)[rule]() as Mutable<AnyNode>;
+    
+            if (!node) {
+                this.propagateTrivia();
+                return node; // undefined
+            }
+    
+            node.tokens = this.tokens.slice(firstTokenIndex, this.head + 1);
+            node.trivia = this.consumeTrivia();
+    
+            // Assign children
+            for (const child of getChildren(node) as Mutable<AnyNode>[]) {
+                child.parent = node;
+            }
+    
+            // Memoize own tokens, and the first token even if not an own token.
+            for (const token of node.tokens) {
+                if (!this.memoTable.has(token) || token === nextToken) {
+                    this.memoize(token, rule, node);
+                }
+            }
+    
+            return node as ReturnType<Rules[T]>;
+        });
     }
 
     private repeat<T extends keyof Rules>(
@@ -545,7 +594,7 @@ export class Parser extends DiagnosticsMixin implements Rules {
                 // End of file-- OK because this is the top level
                 return;
             default:
-                this.focusToken(this.next()!);
+                this.focus(this.next()!);
                 this.error(DiagnosticCodes.UnexpectedToken, this.currentToken!);
         }
     }
@@ -704,7 +753,7 @@ export class Parser extends DiagnosticsMixin implements Rules {
         if (!expr) {
             // there is no possible statement, so just trash the token
             const token = this.next()!;
-            this.focusToken(token);
+            this.focus(token);
             this.error(DiagnosticCodes.UnexpectedToken, token);
             return; 
         }

@@ -615,7 +615,7 @@ export class StringLexer extends TrackedDiagnosticsMixin implements ILexer {
             if (isAfter(report.range.end, this.tokens[firstTokenIndex].range.start)) {
                 break;
             }
-            this.diagnostics.focus(report.range);
+            this.focus(report);
             this.diagnostics.report(...report.reportArgs);
         }
 
@@ -724,7 +724,7 @@ export class StringLexer extends TrackedDiagnosticsMixin implements ILexer {
                 // Add any diagnostics from the existing tokens
                 for (const report of oldReports) {
                     if (isAfterOrEquals(report.range.start, token.range.start)) {
-                        this.diagnostics.focus(report.range);
+                        this.focus(report);
                         this.diagnostics.report(...report.reportArgs);
                     }
                 }
