@@ -1,8 +1,10 @@
 // import { DiagnosticCodes } from '../../src/diagnostics/DiagnosticCodes'
 
 on test() {
+    let a = 1;
     // v expect diagnostics ~ has ~ id == DiagnosticCodes.IllegalCharacter
-       @
+    //  v expect diagnostics ~ none
+       @a;
 }
 
 // assert diagnostics.length == 1

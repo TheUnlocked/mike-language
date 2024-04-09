@@ -83,67 +83,51 @@ export function getTestData(filename: string, contents: string): TestData {
     mike.setDiagnosticsManager(diagnosticsManager);
     mike.init();
     
-    try {
-        mike.loadScript(contents);
+    mike.loadScript(contents);
 
-        const imports = [] as TestImport[];
-        const assertions = [] as TestAssertion[];
+    const imports = [] as TestImport[];
+    const assertions = [] as TestAssertion[];
 
-        const comments = mike.getComments() ?? [];
-        for (let i = 0; i < comments.length; i++) {
-            const comment = comments[i];
-            if (comment.content.includes('expect')) {
-                const condition = comment.content.match(/v\s+expect\s+(.*)$/)?.[1].trim();
-                
-                if (condition) {
-                    const cursorPosInString = comment.content.indexOf('v');
-                    let commentIndex = i;
-                    const commentPos = getNodePosition(comment);
-                    let line = commentPos.line + 1;
-                    const col = commentPos.col + cursorPosInString;
-                    while (comments[++commentIndex]) {
-                        const belowComment = comments[commentIndex];
-                        const belowCommentPos = getNodePosition(belowComment);
-                        if (belowCommentPos.line !== line) {
-                            break;
-                        }
-                        // -2 for //
-                        const commentIndexAtCol = col - belowCommentPos.col;
-                        // + 1 to include the character at that column
-                        if (!/^\/\/\s*$/.test(belowComment.content.slice(0, Math.max(0, commentIndexAtCol + 1)))) {
-                            break;
-                        }
-                        line++;
+    const comments = mike.getComments() ?? [];
+    for (let i = 0; i < comments.length; i++) {
+        const comment = comments[i];
+        if (comment.content.includes('expect')) {
+            const condition = comment.content.match(/v\s+expect\s+(.*)$/)?.[1].trim();
+            
+            if (condition) {
+                const cursorPosInString = comment.content.indexOf('v');
+                let commentIndex = i;
+                const commentPos = getNodePosition(comment);
+                let line = commentPos.line + 1;
+                const col = commentPos.col + cursorPosInString;
+                while (comments[++commentIndex]) {
+                    const belowComment = comments[commentIndex];
+                    const belowCommentPos = getNodePosition(belowComment);
+                    if (belowCommentPos.line !== line) {
+                        break;
                     }
-                    assertions.push({ position: { line, col }, condition, isTargeted: true });
+                    // -2 for //
+                    const commentIndexAtCol = col - belowCommentPos.col;
+                    // + 1 to include the character at that column
+                    if (!/^\/\/\s*$/.test(belowComment.content.slice(0, Math.max(0, commentIndexAtCol + 1)))) {
+                        break;
+                    }
+                    line++;
                 }
-            }
-            else if (comment.content.includes('assert')) {
-                const condition = comment.content.match(/assert\s+(.*)$/)?.[1].trim();
-                if (condition) {
-                    assertions.push({ position: getNodePosition(comment), condition, isTargeted: false });
-                }
-            }
-            else if (comment.content.includes('import')) {
-                const [valid, members, path] = comment.content.match(/import\s+(.*?)\s+from\s+('.*?'|".*?")$/) ?? [];
-                if (valid) {
-                    imports.push({ path: path.slice(1, -1), members });
-                }
+                assertions.push({ position: { line, col }, condition, isTargeted: true });
             }
         }
-
-        return {
-            mike,
-            filename,
-            diagnosticsManager,
-            isEmpty: assertions.length === 0,
-            assertions,
-            imports,
-        };
-    }
-    catch (e) {
-        if (diagnosticsManager.getDiagnostics().length === 0) {
-            throw e instanceof Error ? e : new Error(`${e}`);
+        else if (comment.content.includes('assert')) {
+            const condition = comment.content.match(/assert\s+(.*)$/)?.[1].trim();
+            if (condition) {
+                assertions.push({ position: getNodePosition(comment), condition, isTargeted: false });
+            }
+        }
+        else if (comment.content.includes('import')) {
+            const [valid, members, path] = comment.content.match(/import\s+(.*?)\s+from\s+('.*?'|".*?")$/) ?? [];
+            if (valid) {
+                imports.push({ path: path.slice(1, -1), members });
+            }
         }
     }
 
@@ -151,9 +135,9 @@ export function getTestData(filename: string, contents: string): TestData {
         mike,
         filename,
         diagnosticsManager,
-        isEmpty: false,
-        assertions: [],
-        imports: [],
+        isEmpty: assertions.length === 0,
+        assertions,
+        imports,
     };
 }
 

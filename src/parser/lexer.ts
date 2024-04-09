@@ -196,7 +196,11 @@ const KW_MAP = {
 } as Record<string, TokenType>;
 
 export interface ILexer extends DiagnosticsMixin {
+    /**
+     * Represents whether all tokens have been read and lexing is complete.
+     */
     readonly isComplete: boolean;
+    
     /**
      * Read the next token.
      * The caller is responsible for checking if the token stream is complete before calling this method.
@@ -204,9 +208,32 @@ export interface ILexer extends DiagnosticsMixin {
      */
     readToken(): Token;
 
+    /**
+     * Mutate the lexer state. If {@link isComplete} is `false`, the behavior is undefined.
+     * 
+     * A mutation consists of removing a set of tokens and/or inserting new text to be lexed in their place.
+     * If `numTokens` is 0, the new text will be inserted before the start of the removal span.
+     * 
+     * While the `removedTokens` field of the result will always include the removed span, it can also include
+     * additional tokens which were not marked for removal. These tokens will always be contiguous and referrentially
+     * equal to the tokens previously returned by the {@link readToken} method.
+     * 
+     * Note: {@link StringLexer} incorrectly assumes that `numTokens` will always be at least 1.
+     *      As a workaround, you can include the content of the token at `firstTokenIndex` in the insertion string.
+     * 
+     * Note: {@link StringLexer} incorrectly assumes that a mutation will not affect any preceding tokens.
+     *      As a workaround, you can include the previous token in the removal span and prepend its
+     *      content to the insert text in cases where there could be an issue.
+     * 
+     * @param firstTokenIndex The index of the first token to remove and/or where to insert new text
+     * @param numTokens The number of tokens to remove
+     * @param insert A string to insert at the index of the first token
+     * @returns An array of contiguous tokens that were removed due to the mutation,
+     *      and a corresponding array of tokens which were inserted in their place.
+     */
     mutate(firstTokenIndex: number, numTokens: number, insert: string): {
-        readonly insertedTokens: Token[],
-        readonly removedTokens: Token[],
+        readonly insertedTokens: readonly Token[],
+        readonly removedTokens: readonly Token[],
     };
 }
 
@@ -251,10 +278,6 @@ export class StringLexer extends TrackedDiagnosticsMixin implements ILexer {
         this.line = initialParams.line;
         this.col = initialParams.col;
         this.edits = initialParams.edits;
-    }
-
-    private peek() {
-        return this.input[this.headPtr];
     }
 
     private token(type: TokenType): Token {
@@ -334,6 +357,21 @@ export class StringLexer extends TrackedDiagnosticsMixin implements ILexer {
         super.error(code, ...args);
     }
 
+    get isComplete() {
+        return this.headPtr >= this.input.length;
+    }
+
+    /**
+     * Get the character at the read head without advancing it.
+     * @returns The character at the read head
+     */
+    private peek() {
+        return this.input[this.headPtr];
+    }
+
+    /**
+     * Advance the read head by one character.
+     */
     private advance() {
         if (this.peek() === '\n') {
             this.line++;
@@ -345,28 +383,55 @@ export class StringLexer extends TrackedDiagnosticsMixin implements ILexer {
         this.headPtr++;
     }
 
-    private readDigitSequence() {
-        for (; this.headPtr < this.input.length && CHAR_TABLE[this.peek()] === CharType.DIGIT; this.advance());
+    /**
+     * Advance the read head until it points at a character not of the specified type,
+     * or the end of the source is reached.
+     * 
+     * If the character initially at the read head is not of the specified type, the read head will not be advanced.
+     * 
+     * @param type The character type to attempt to read one or more of
+     * @returns true if the read head was advanced at all, false otherwise
+     */
+    private tryReadOneOrMore(type: CharType) {
+        if (CHAR_TABLE[this.peek()] === type) {
+            this.advance();
+            while (!this.isComplete && CHAR_TABLE[this.peek()] === type) {
+                this.advance();
+            }
+            return true;
+        }
+        return false;
     }
 
-    private tryReadDigitSequence() {
-        if (CHAR_TABLE[this.peek()] === CharType.DIGIT) {
+    /**
+     * Advance the read head until it points at a character which does not satisfy the predicate,
+     * or the end of the source is reached.
+     * 
+     * If the character initially at the read head does not satisfy the predicate, the read head will not be advanced.
+     * 
+     * @param pred A predicate to test characters on
+     * @returns true if the read head was advanced at all, false otherwise
+     */
+    private tryReadOneOrMoreWhere(pred: (char: string) => boolean) {
+        if (pred(this.peek())) {
             this.advance();
-            this.readDigitSequence();
-            return 1;
+            while (!this.isComplete && pred(this.peek())) {
+                this.advance();
+            }
+            return true;
         }
-        return 0;
+        return false;
     }
 
     private tryReadDecimal() {
         if (this.peek() === '.') {
             this.advance();
-            if (this.tryReadDigitSequence()) {
+            if (this.tryReadOneOrMore(CharType.DIGIT)) {
                 this.tryReadExponential();
             }
-            return 1;
+            return true;
         }
-        return 0;
+        return false;
     }
 
     private tryReadExponential() {
@@ -375,33 +440,46 @@ export class StringLexer extends TrackedDiagnosticsMixin implements ILexer {
             if ('+-'.includes(this.peek())) {
                 this.advance();
             }
-            if (!this.tryReadDigitSequence()) {
+            if (!this.tryReadOneOrMore(CharType.DIGIT)) {
                 this.error(DiagnosticCodes.InvalidNumberFormat);
             }
-            return 1;
-        }
-        return 0;
-    }
-
-    private readUntilQuote(type: string) {
-        for (; this.headPtr < this.input.length; this.advance()) {
-            if (this.peek() === '\\') {
-                this.advance();
-            }
-            else if (this.peek() === type) {
-                this.advance();
-                return true;
-            }
+            return true;
         }
         return false;
     }
 
-    private readIdentifier() {
-        for (; this.headPtr < this.input.length && isIdentChar(this.peek()); this.advance());
+    /**
+     * Advance until the specified character is encountered, but do not advance to consume it.
+     * @param char A one-character string representing the character to stop before
+     * @returns true if the stopping character was found, false otherwise
+     */
+    private readUntilChar(char: string) {
+        while (!this.isComplete) {
+            if (this.peek() === char) {
+                return true;
+            }
+            this.advance();
+        }
+        return false;
     }
 
-    get isComplete() {
-        return this.headPtr >= this.input.length;
+    /**
+     * Advance until the specified character is encountered, but do not advance to consume it.
+     * If the stopping character is part of an escape sequence, advance over it and keep reading.
+     * @param char A one-character string representing the character to stop before
+     * @returns true if the stopping character was found, false otherwise
+     */
+    private readUntilUnescapedChar(char: string) {
+        while (!this.isComplete) {
+            if (this.peek() === '\\') {
+                this.advance();
+            }
+            else if (this.peek() === char) {
+                return true;
+            }
+            this.advance();
+        }
+        return false;
     }
 
     readToken() {
@@ -427,34 +505,27 @@ export class StringLexer extends TrackedDiagnosticsMixin implements ILexer {
 
         switch (CHAR_TABLE[firstChar]) {
             case CharType.WHITESPACE:
-                for (; this.headPtr < this.input.length; this.advance()) {
-                    if (CHAR_TABLE[this.peek()] !== CharType.WHITESPACE) {
-                        break;
-                    }
-                }
+                this.tryReadOneOrMore(CharType.WHITESPACE);
                 return this.token(TokenType.TRIVIA_WHITESPACE);
             case CharType.NEWLINE:
                 return this.token(TokenType.TRIVIA_NEWLINE);
             case CharType.DIGIT:
-                this.readDigitSequence();
-                // Intentional logical OR
+                this.tryReadOneOrMore(CharType.DIGIT);
                 if (this.tryReadDecimal() || this.tryReadExponential()) {
                     // 123abc should lex into a single (invalid) token rather than two tokens
-                    if (isIdentChar(this.peek())) {
-                        this.readIdentifier();
+                    if (this.tryReadOneOrMoreWhere(isIdentChar)) {
                         this.error(DiagnosticCodes.IdentifierCannotStartWithDigit);
                         return this.token(TokenType.LIT_IDENT);
                     }
                     return this.token(TokenType.LIT_FLOAT);
                 }
-                if (isIdentChar(this.peek())) {
-                    this.readIdentifier();
+                if (this.tryReadOneOrMoreWhere(isIdentChar)) {
                     this.error(DiagnosticCodes.IdentifierCannotStartWithDigit);
                     return this.token(TokenType.LIT_IDENT);
                 }
                 return this.token(TokenType.LIT_INT);
             case CharType.DOT:
-                if (this.tryReadDigitSequence()) {
+                if (this.tryReadOneOrMore(CharType.DIGIT)) {
                     this.tryReadExponential();
                     return this.token(TokenType.LIT_FLOAT);
                 }
@@ -462,14 +533,16 @@ export class StringLexer extends TrackedDiagnosticsMixin implements ILexer {
                     return this.token(TokenType.SYNTAX_DOT);
                 }
             case CharType.SQUOTE:
-                if (!this.readUntilQuote("'")) {
+                if (!this.readUntilUnescapedChar('\'')) {
                     this.error(DiagnosticCodes.NoTrailingQuote);
                 }
+                this.advance(); // consume the trailing quote
                 return this.token(TokenType.LIT_STRING);
             case CharType.DQUOTE:
-                if (!this.readUntilQuote('"')) {
+                if (!this.readUntilUnescapedChar('"')) {
                     this.error(DiagnosticCodes.NoTrailingQuote);
                 }
+                this.advance(); // consume the trailing quote
                 return this.token(TokenType.LIT_STRING);
             case CharType.COLON:
                 return this.token(TokenType.SYNTAX_COLON);
@@ -510,12 +583,7 @@ export class StringLexer extends TrackedDiagnosticsMixin implements ILexer {
             case CharType.SLASH:
                 if (this.peek() === '/') {
                     this.advance();
-                    for (; this.headPtr < this.input.length; this.advance()) {
-                        if (this.peek() === '\n') {
-                            // Intentionally do not advance so that the newline is picked up as its own token
-                            break;
-                        }
-                    }
+                    this.readUntilChar('\n');
                     return this.token(TokenType.TRIVIA_COMMENT);
                 }
                 else {
@@ -563,14 +631,12 @@ export class StringLexer extends TrackedDiagnosticsMixin implements ILexer {
             default:
                 if (!isIdentChar(firstChar)) {
                     // invalid character -- consume all and emit it as whitespace trivia
-                    while (CHAR_TABLE[this.peek()] === undefined) {
-                        this.advance();
-                    }
+                    this.tryReadOneOrMoreWhere(ch => CHAR_TABLE[ch] === undefined && !isIdentChar(ch));
                     this.error(DiagnosticCodes.IllegalCharacter, this.input.slice(this.tailPtr, this.headPtr));
                     return this.token(TokenType.TRIVIA_WHITESPACE);
                 }
                 // ident or keyword
-                this.readIdentifier();
+                this.tryReadOneOrMoreWhere(isIdentChar);
                 const content = this.input.slice(this.tailPtr, this.headPtr);
                 return this.token(KW_MAP[content] ?? TokenType.LIT_IDENT);
         }
@@ -582,14 +648,7 @@ export class StringLexer extends TrackedDiagnosticsMixin implements ILexer {
     } {
         // console.log(this.tokens.length, firstTokenIndex, numTokens);
         // console.log(this.tokens.slice(firstTokenIndex, numTokens + firstTokenIndex).map(x => x.content), insert);
-        
-        if (firstTokenIndex < 0) {
-            numTokens += firstTokenIndex;
-            firstTokenIndex = 0;
-        }
-        if (numTokens < 0) {
-            numTokens = 0;
-        }
+
         if (this.input === '') {
             // Special case for previously empty input
             this.input = insert;
@@ -598,14 +657,23 @@ export class StringLexer extends TrackedDiagnosticsMixin implements ILexer {
                 removedTokens: [],
             };
         }
-        if (this.tokens.length === 0) {
+
+        if (!this.isComplete) {
             // Special case for non-empty input but there are unread tokens (i.e. original lexing hasn't finished yet)
             const baseReporter = this.internalDiagnosticsReporter;
             this.setDiagnostics(new BasicDiagnosticsReporter(() => {}));
             this.readAllTokens();
             this.setDiagnostics(baseReporter);
-            return this.mutate(firstTokenIndex, numTokens, insert);
         }
+        
+        if (firstTokenIndex < 0) {
+            numTokens += firstTokenIndex;
+            firstTokenIndex = 0;
+        }
+
+        // TODO: Properly handle edge cases (e.g. numTokens == 0, firstTokenIndex at this.tokens.length).
+        //       These won't show up when invoking through the standard parser,
+        //       but they are nececssary for theoretical external consumers.
 
         const oldReports = this.diagnosticsReports;
         this.clearDiagnosticsReports();
@@ -692,10 +760,11 @@ export class StringLexer extends TrackedDiagnosticsMixin implements ILexer {
 
                 // An existing token should be in the same position with the same type and same content.
                 // Offsets aren't an issue because we already pushed to the edit chain.
-                if (existingToken.type === token.type
+                const foundMatch = existingToken.type === token.type
                     && existingToken.start === token.start
-                    && existingToken.content === token.content
-                ) {
+                    && existingToken.content === token.content;
+                
+                if (foundMatch) {
                     return true;
                 }
             }
