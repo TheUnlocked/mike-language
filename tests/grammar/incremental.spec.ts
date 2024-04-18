@@ -196,4 +196,22 @@ export default () => describe('incremental', () => {
         }
     `;
 
+    it('should be a no-op if a mutation is reversed', () => {
+        const p1 = new Parser();
+        //            0    5    10   15   20   25   30   35   40
+        const code = 'on test() { debug "this is a test", 15; }';
+        p1.loadSource(code);
+        p1.parse();
+        p1.editSource(19, 4, 'x');
+        p1.parse();
+        p1.editSource(19, 1, 'this');
+        const mutated = p1.parse();
+        
+        const p2 = new Parser();
+        p2.loadSource(code);
+        const reference = p2.parse();
+
+        expect(mutated).excludingEvery(['_edits']).to.deep.equal(reference);
+    });
+
 });

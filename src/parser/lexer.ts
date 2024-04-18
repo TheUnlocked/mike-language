@@ -788,7 +788,7 @@ export class StringLexer extends TrackedDiagnosticsMixin implements ILexer {
                 this.tokens.splice(firstTokenIndex, removedTokens.length, ...insertedTokens);
                 this.input = this.input.slice(0, removalStart)
                     + insert
-                    + this.input.slice(removedTokens.at(-1)!.end);
+                    + this.input.slice(removalEnd);
 
                 // Add any diagnostics from the existing tokens
                 for (const report of oldReports) {
@@ -813,7 +813,7 @@ export class StringLexer extends TrackedDiagnosticsMixin implements ILexer {
         this.tokens.splice(firstTokenIndex, removedTokens.length, ...subLexer.tokens);
         this.input = this.input.slice(0, removalStart)
             + insert
-            + this.input.slice(removedTokens.at(-1)!.end);
+            + this.input.slice(removalEnd);
         
         return {
             insertedTokens: subLexer.tokens,
