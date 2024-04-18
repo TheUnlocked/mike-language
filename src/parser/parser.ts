@@ -127,7 +127,7 @@ export class Parser extends DiagnosticsMixin implements Rules {
     }
 
     editSource(bytePos: number, length: number, insert: string) {
-        if (!this.lexer) {
+        if (!this.lexer || this.tokens.length === 0) {
             this.loadSource(insert);
             return;
         }
@@ -138,7 +138,7 @@ export class Parser extends DiagnosticsMixin implements Rules {
         const lastTokenIdx = this.findTokenIndexAtBytePos(bytePos + length, firstTokenIdx);
 
         // How far the edit is into the first/last token (e.g. myVal|ue would have value 5)
-        let distanceIntoFirstToken = bytePos - this.tokens[firstTokenIdx].start;
+        let distanceIntoFirstToken = bytePos - this.tokens[firstTokenIdx]?.start;
         const distanceIntoLastToken = bytePos + length - this.tokens[lastTokenIdx].start;
 
         if (firstTokenIdx > 0 && distanceIntoFirstToken === 0) {

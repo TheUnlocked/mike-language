@@ -196,6 +196,12 @@ export default () => describe('incremental', () => {
         }
     `;
 
+    testIncremental('insert into empty document')`${['', `
+        on foo() {
+            let x = 1;
+        }
+    `]}`;
+
     it('should be a no-op if a mutation is reversed', () => {
         const p1 = new Parser();
         //            0    5    10   15   20   25   30   35   40
