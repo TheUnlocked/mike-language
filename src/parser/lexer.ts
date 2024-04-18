@@ -146,7 +146,7 @@ enum CharType {
 }
 
 const CHAR_TABLE = Object.fromEntries(Object.entries({
-    ' ': CharType.WHITESPACE,
+    ' \r': CharType.WHITESPACE,
     '\n': CharType.NEWLINE,
     '0123456789': CharType.DIGIT,
     '\'': CharType.SQUOTE,
