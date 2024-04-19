@@ -166,14 +166,21 @@ export class Parser extends DiagnosticsMixin implements Rules {
         for (const token of removedTokens) {
             let node = this.memoTable.get(token)?.[0]?.node;
             this.memoTable.delete(token);
-            while (node) {
-                const firstToken = node.tokens!.find(x => !isTrivia(x))!;
 
-                const memoEntry = this.memoTable.get(firstToken);
-                if (memoEntry) {
-                    this.memoTable.set(firstToken, memoEntry.filter(x => x.node !== node));
+            if (node) {
+                for (const token of node.tokens!) {
+                    this.memoTable.delete(token);
                 }
-                node = node.parent;
+
+                while (node) {
+                    const firstToken = node.tokens!.find(x => !isTrivia(x))!;
+    
+                    const memoEntry = this.memoTable.get(firstToken);
+                    if (memoEntry) {
+                        this.memoTable.set(firstToken, memoEntry.filter(x => x.node !== node));
+                    }
+                    node = node.parent;
+                }
             }
         }
 
