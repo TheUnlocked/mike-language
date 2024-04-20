@@ -226,7 +226,7 @@ export class Parser extends DiagnosticsMixin implements Rules {
     }
 
     private focusHere() {
-        const token = this.tokens.findLast(t => !isTrivia(t), this.head - 1);
+        const token = this.tokens[Math.min(this.head, this.tokens.length - 1)];
         
         if (!token) {
             this.focus(() => ({
@@ -236,25 +236,17 @@ export class Parser extends DiagnosticsMixin implements Rules {
             return;
         }
 
-        this.focus({
-            get range() {
-                return {
-                    start: token.range.end,
-                    end: token.range.end,
-                }
-            }
-        });
+        this.focus(() => ({
+            start: token.range.end,
+            end: token.range.end,
+        }));
     }
 
     private focusTokenRange(first: Token, last: Token) {
-        this.focus({
-            get range() {
-                return {
-                    start: first.range.start,
-                    end: last.range.end,
-                };
-            }
-        });
+        this.focus(() => ({
+            start: first.range.start,
+            end: last.range.end,
+        }));
     }
 
     private head = -1;
@@ -773,17 +765,25 @@ export class Parser extends DiagnosticsMixin implements Rules {
             return; 
         }
 
+        this.save();
         switch (this.next()?.type) {
             default:
                 // If it doesn't match any of these, just error and act like it has a semicolon.
+                this.rollback();
                 this.focusHere();
                 this.error(DiagnosticCodes.ExpectedTokenNotPresent, TokenType[TokenType.SYNTAX_SEMI]);
+                return {
+                    kind: ASTNodeKind.ExpressionStatement,
+                    expr,
+                };
             case TokenType.SYNTAX_SEMI:
+                this.commit();
                 return {
                     kind: ASTNodeKind.ExpressionStatement,
                     expr,
                 };
             case TokenType.SYNTAX_EQUAL:
+                this.commit();
                 const value = this.expectExpression();
                 this.expect(TokenType.SYNTAX_SEMI);
                 if (expr.kind === ASTNodeKind.Dereference) {
@@ -810,6 +810,7 @@ export class Parser extends DiagnosticsMixin implements Rules {
                     value,
                 };
             case undefined:
+                this.commit();
                 this.focusHere();
                 this.error(DiagnosticCodes.UnexpectedEndOfInput);
                 return;

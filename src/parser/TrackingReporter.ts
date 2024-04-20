@@ -1,4 +1,4 @@
-import { AnyNode, Range, getNodeSourceRange } from "../ast";
+import { AnyNode, Range } from "../ast";
 import { DiagnosticsMixin, DiagnosticsReporter } from "../diagnostics";
 
 export class TrackingReportInfo {
@@ -37,6 +37,9 @@ export class TrackingReporter implements DiagnosticsReporter {
     }
 
     report(id: number, ...args: string[]) {
+        if (!this.currentRangeGetter) {
+            throw new Error('No range selected for the reporter!');
+        }
         const range = this._baseReporter.report(id, ...args);
         this._reports.push(new TrackingReportInfo([id, ...args], this.currentRangeGetter));
         return range;
