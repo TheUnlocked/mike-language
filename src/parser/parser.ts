@@ -162,8 +162,20 @@ export class Parser extends DiagnosticsMixin implements Rules {
 
         const { insertedTokens, removedTokens } = this.lexer.mutate(firstTokenIdx, numTokens, fullInsertion);
 
+        // Need to also invalidate the previous (non-trivia) token for cases where
+        // a new token can modify an earlier AST node. For example:
+        //      if true {
+        //      
+        //      }
+        //      els[e] {
+        //      
+        //      }
+        // Inserting the 'e' changes it from an identifier and a parse error into an else branch of the
+        // previous if statement. Without invalidating the previous if statement, we couldn't determine that.
+        const firstRemovedTokenIdx = this.tokens.slice(0, firstTokenIdx).findLastIndex(x => !isTrivia(x));
+
         // Cache invalidation
-        for (const token of removedTokens) {
+        for (const token of this.tokens.slice(firstRemovedTokenIdx, firstTokenIdx).concat(removedTokens)) {
             let node = this.memoTable.get(token)?.[0]?.node;
             this.memoTable.delete(token);
 

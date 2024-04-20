@@ -211,6 +211,17 @@ export default () => describe('incremental', () => {
         }
     `;
 
+    testIncremental('modify identifier to create else keyword')`
+        on foo() {
+            if true {
+
+            }
+            els${['', 'e']} {
+
+            }
+        }
+    `;
+
     it('should be a no-op if a mutation is reversed', () => {
         const p1 = new Parser();
         //            0    5    10   15   20   25   30   35   40
