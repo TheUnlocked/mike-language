@@ -301,10 +301,10 @@ export default class Validator extends DiagnosticsMixin {
     }
 
     private testSetValidated(node: AnyNode) {
-        // if (this.validatedSet.has(node)) {
-        //     return true;
-        // }
-        // this.validatedSet.add(node);
+        if (this.validatedSet.has(node)) {
+            return true;
+        }
+        this.validatedSet.add(node);
         return false;
     }
 }
